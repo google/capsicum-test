@@ -11,18 +11,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "gtest/gtest.h"
 #include "capsicum.h"
 
-TEST(cap_new_basic) {
-	int cap_fd = cap_new(STDOUT_FILENO, CAP_READ|CAP_WRITE|CAP_SEEK);
-	EXPECT_NE(-1, cap_fd);
-	write(cap_fd, "OK!\n", 4);
+TEST(Capability, CapNew) {
+  int cap_fd = cap_new(STDOUT_FILENO, CAP_READ|CAP_WRITE|CAP_SEEK);
+  EXPECT_NE(-1, cap_fd);
+  EXPECT_EQ(4, write(cap_fd, "OK!\n", 4));
+  EXPECT_EQ(0, close(cap_fd));
 }
 
-TEST(cap_enter_basic) {
-	int rc = cap_enter();
-	EXPECT_EQ(0, rc);
+TEST(Capability, CapEnterDeathTest) {
+  EXPECT_EQ(0, cap_enter());
 }
-
-
-TEST_HARNESS_MAIN

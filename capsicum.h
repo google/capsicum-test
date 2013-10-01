@@ -1,4 +1,4 @@
-/* 
+/*
  * Tests for Capsicum, a capability API for UNIX.
  *
  * Copyright (C) 2012 The Chromium OS Authors <chromium-os-dev@chromium.org>
@@ -8,25 +8,65 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __CAPSICUM_USERSPACE_H__
-#define __CAPSICUM_USERSPACE_H__
+#ifndef __CAPSICUM_H__
+#define __CAPSICUM_H__
 
-#include <stdint.h>
-#include <sys/prctl.h>
-#include <uapi/asm-generic/errno.h>
-#include <misc/test_harness.h>
-#include <../security/capsicum_caps.h>
+#ifdef __FreeBSD__
+
+/* FreeBSD definitions */
+#include <sys/capability.h>
+#include <sys/procdesc.h>
+
+#else
+
+/* Linux definitions */
 #include <unistd.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 
-static inline int cap_enter(void)
-{
-	return prctl(PR_SET_SECCOMP, 3);
+#include "capsicum_caps.h"
+
+#define __NR_cap_new 314
+#define __NR_pdfork 315
+#define __NR_pdwait4 318
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+inline int cap_enter() {
+  return prctl(PR_SET_SECCOMP, 3);
 }
 
-static inline int cap_new(unsigned int fd, uint64_t rights)
-{
-	return syscall(314, fd, rights);
+inline int cap_getmode(unsigned int *mode) {
+  return -1; // not yet implemented
 }
 
-#endif /*__CAPSICUM_USERSPACE_H__*/
+typedef unsigned long cap_rights_t;
 
+inline int cap_new(int fd, cap_rights_t rights) {
+  return syscall(__NR_cap_new, fd, rights);
+}
+
+inline int cap_getrights(int fd, cap_rights_t *rights) {
+  return -1; // not yet implemented
+}
+
+inline int pdfork(int * fd, int flags) {
+  return syscall(__NR_pdfork, fd, flags);
+}
+inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
+  return syscall(__NR_pdwait4, fd, status, options, rusage);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+
+#endif /*__CAPSICUM_H__*/
