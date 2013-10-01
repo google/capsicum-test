@@ -28,7 +28,11 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 
+/* TODO(drysdale): get at properly exported versions */
 #include "capsicum_caps.h"
+
+#define ECAPMODE        134     /* Not permitted in capability mode */
+#define ENOTCAPABLE     135     /* Capabilities insufficient */
 
 #define __NR_cap_new 314
 #define __NR_pdfork 315
