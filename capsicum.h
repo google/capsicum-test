@@ -31,19 +31,22 @@
 /* TODO(drysdale): get at properly exported versions */
 #include "capsicum_caps.h"
 
+#define SECCOMP_MODE_CAPSICUM	3 /* uses Capsicum to filter & check. */
+
 #define ECAPMODE        134     /* Not permitted in capability mode */
 #define ENOTCAPABLE     135     /* Capabilities insufficient */
 
 #define __NR_cap_new 314
 #define __NR_pdfork 315
 #define __NR_pdwait4 318
+#define __NR_fexecve 319
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 inline int cap_enter() {
-  return prctl(PR_SET_SECCOMP, 3);
+  return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
 }
 
 inline int cap_getmode(unsigned int *mode) {
@@ -58,6 +61,11 @@ inline int cap_new(int fd, cap_rights_t rights) {
 
 inline int cap_getrights(int fd, cap_rights_t *rights) {
   return -1; // not yet implemented
+}
+
+inline int sys_fexecve(int fd, char **argv, char **envp)
+{
+  return syscall(__NR_fexecve, fd, argv, envp);
 }
 
 inline int pdfork(int * fd, int flags) {
