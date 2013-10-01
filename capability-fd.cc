@@ -20,10 +20,10 @@
 
 TEST(Capability, CapNew) {
   int cap_fd = cap_new(STDOUT_FILENO, CAP_READ|CAP_WRITE|CAP_SEEK);
-  EXPECT_NE(-1, cap_fd);
+  EXPECT_OK(cap_fd);
   if (cap_fd > 0) {
     EXPECT_EQ(4, write(cap_fd, "OK!\n", 4));
-    EXPECT_EQ(0, close(cap_fd));
+    EXPECT_OK(close(cap_fd));
   }
 }
 
@@ -39,9 +39,9 @@ FORK_TEST(Capability, BasicInterception) {
   int rc = write(cap_fd, "", 0);
   // TODO(drysdale): this test is written to assume that rights are not
   // enforced until cap_enter() occurs, which I don't think is right.
-  EXPECT_EQ(0, rc);
+  EXPECT_OK(rc);
 
-  EXPECT_EQ(0, cap_enter());
+  EXPECT_OK(cap_enter());
 
   rc = write(cap_fd, "", 0);
   EXPECT_EQ(-1, rc);
@@ -49,19 +49,19 @@ FORK_TEST(Capability, BasicInterception) {
 
   // Create a new capability which does have write permission
   cap_fd = cap_new(1, CAP_WRITE|CAP_SEEK);
-  EXPECT_NE(-1, cap_fd);
+  EXPECT_OK(cap_fd);
   rc = write(cap_fd, "", 0);
-  EXPECT_EQ(0, rc);
+  EXPECT_OK(rc);
 }
 
 FORK_TEST(Capability, OpenAtDirectoryTraversal) {
   int dir = open("/tmp", O_RDONLY);
-  EXPECT_LE(0, dir);
+  EXPECT_OK(dir);
 
   cap_enter();
 
   int file = openat(dir, "testfile", O_RDONLY|O_CREAT);
-  EXPECT_LE(0, file);
+  EXPECT_OK(file);
 
   // Test that we are confined to /tmp, and cannot
   // escape using absolute paths or ../.
@@ -83,18 +83,18 @@ FORK_TEST(Capability, OpenAtDirectoryTraversal) {
 // and check that this restriction is inherited through openat().
 FORK_TEST(Capability, Inheritance) {
   int dir = open("/tmp", O_RDONLY);
-  EXPECT_LE(0, dir);
+  EXPECT_OK(dir);
   int dircap = cap_new(dir, CAP_READ|CAP_LOOKUP);
 
   const char *fn = "testfile";
   int file = openat(dir, fn, O_WRONLY|O_CREAT);
-  EXPECT_LE(0, file);
+  EXPECT_OK(file);
   EXPECT_EQ(5, write(file, "TEST\n", 5));
   close(file);
 
-  EXPECT_EQ(0, cap_enter());
+  EXPECT_OK(cap_enter());
   file = openat(dircap, "testfile", O_RDONLY);
-  EXPECT_LE(0, file);
+  EXPECT_OK(file);
   if (file > 0) close(file);
 
   file = openat(dircap, "testfile", O_WRONLY|O_APPEND);

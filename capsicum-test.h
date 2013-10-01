@@ -2,6 +2,7 @@
 #ifndef CAPSICUM_TEST_H
 #define CAPSICUM_TEST_H
 
+#include <errno.h>
 #include "gtest/gtest.h"
 
 // Run a test case in a forked process, so that trapdoors don't
@@ -22,5 +23,7 @@
     }                                                          \
     static int test_case_name##_##test_name##_ForkTest()
 
+// Emit errno information on failure
+#define EXPECT_OK(v) EXPECT_LE(0, v) << "   errno " << errno << " " << strerror(errno);
 
 #endif  // CAPSICUM_TEST_H
