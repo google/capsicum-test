@@ -28,6 +28,16 @@ extern "C" {
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
+// Map unmount (FreeBSD) syscall to umount2 (Linux) syscall
+#define unmount(T, F) umount2(T, F)
+
+// Features available
+#define HAVE_CHFLAGS
+#define HAVE_GETFSSTAT
+#define HAVE_REVOKE
+#define HAVE_GETLOGIN
+#define HAVE_SYSARCH
+
 #else
 
 /* Linux definitions */
