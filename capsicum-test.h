@@ -5,8 +5,6 @@
 #include <errno.h>
 #include "gtest/gtest.h"
 
-extern const char* g_argv_0;
-
 // Run a test case in a forked process, so that trapdoors don't
 // affect other tests.
 #define FORK_TEST(test_case_name, test_name)                   \

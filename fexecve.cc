@@ -20,16 +20,24 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
+// We need a program to exec(), but for fexecve() to work in capability
+// mode that program needs to be statically linked (otherwise ld.so will
+// attempt to traverse the filesystem to load (e.g.) /lib/libc.so and
+// fail).
+#define EXEC_PROG "./mini-me"
+#define EXEC_PROG_NOEXEC  EXEC_PROG ".noexec"
+
 // Arguments to use in execve() calls.
-static char* argv_pass[] = {NULL, (char*)"--pass", NULL};
-static char* argv_fail[] = {NULL, (char*)"--fail", NULL};
+static char* argv_pass[] = {(char*)EXEC_PROG, (char*)"--pass", NULL};
+static char* argv_fail[] = {(char*)EXEC_PROG, (char*)"--fail", NULL};
 static char* null_envp[] = {NULL};
 
 class Execve : public ::testing::Test {
  public:
-  Execve() : self_fd_(open(g_argv_0, O_RDONLY)) {
-    argv_pass[0] = (char*)g_argv_0;
-    argv_fail[0] = (char*)g_argv_0;
+  Execve() : self_fd_(open(EXEC_PROG, O_RDONLY)) {
+    if (self_fd_ < 0) {
+      fprintf(stderr, "Error! Failed to open %s\n", EXEC_PROG);
+    }
   }
   ~Execve() { if (self_fd_ >= 0) close(self_fd_); }
 protected:
@@ -60,29 +68,22 @@ FORK_TEST_F(Execve, SucceedWithCap) {
   EXPECT_OK(cap_enter());
   int cap_fd = cap_new(self_fd_, CAP_FEXECVE);
   EXPECT_NE(-1, cap_fd);
-  fprintf(stderr, "cap_fd=%d, argv={%s, %s}\n", cap_fd, argv_pass[0], argv_pass[1]);
   EXPECT_OK(sys_fexecve(cap_fd, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
   EXPECT_TRUE(!"fexecve() should have succeeded");
 }
 
 FORK_TEST(Fexecve, ExecutePermissionCheck) {
-  // Copy the executable for this program...
-  char* copy_filename = tempnam(NULL, NULL);
-  std::stringstream ss;
-  // ... and remove execute permission
-  ss << "cp " << g_argv_0 << " " << copy_filename << " && "
-     << "chmod -x " << copy_filename;
-  EXPECT_OK(system(ss.str().c_str()));
-
-  int fd = open(copy_filename, O_RDONLY);
+  int fd = open(EXEC_PROG_NOEXEC, O_RDONLY);
   EXPECT_OK(fd);
-
-  EXPECT_EQ(-1, sys_fexecve(fd, argv_fail, null_envp));
-  EXPECT_EQ(EACCES, errno);
-  if (fd >= 0) close(fd);
-  unlink(copy_filename);
-  free(copy_filename);
+  if (fd >= 0) {
+    struct stat data;
+    EXPECT_OK(fstat(fd, &data));
+    EXPECT_EQ(0, data.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH));
+    EXPECT_EQ(-1, sys_fexecve(fd, argv_fail, null_envp));
+    EXPECT_EQ(EACCES, errno);
+    close(fd);
+  }
 }
 
 FORK_TEST(Fexecve, ExecveFailure) {

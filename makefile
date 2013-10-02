@@ -8,7 +8,15 @@ CXXFLAGS+=-g $(GTEST_INCS)
 capsicum-test: $(OBJECTS) libgtest.a
 	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread
 
-test: capsicum-test
+# Small statically-linked program for fexecve tests
+# (needs to be statically linked so that execve()ing it
+# doesn't involve ld.so traversing the filesystem).
+mini-me: mini-me.c
+	$(CC) -static -o $@ $<
+mini-me.noexec: mini-me
+	cp $< $@ && chmod -x $@
+
+test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
 gtest-all.o:
 	$(CXX) -I$(GTEST_DIR)/include -I$(GTEST_DIR) -c ${GTEST_DIR}/src/gtest-all.cc
