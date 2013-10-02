@@ -28,8 +28,11 @@ extern "C" {
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
-// Map unmount (FreeBSD) syscall to umount2 (Linux) syscall
-#define unmount(T, F) umount2(T, F)
+// Map umount2 (Linux) syscall to unmount (FreeBSD) syscall
+#define umount2(T, F) unmount(T, F)
+
+// Map sighandler_y (Linux) to sig_t (FreeBSD)
+#define sighandler_t sig_t
 
 // Features available
 #define HAVE_CHFLAGS
@@ -37,6 +40,7 @@ extern "C" {
 #define HAVE_REVOKE
 #define HAVE_GETLOGIN
 #define HAVE_SYSARCH
+#include <machine/sysarch.h>
 
 #else
 

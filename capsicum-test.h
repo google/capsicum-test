@@ -3,6 +3,9 @@
 #define CAPSICUM_TEST_H
 
 #include <errno.h>
+#include <sys/types.h>
+#include <signal.h>
+
 #include "gtest/gtest.h"
 
 // Run a test case in a forked process, so that trapdoors don't
@@ -15,10 +18,12 @@
         test_case_name##_##test_name##_ForkTest();             \
         exit(HasFailure());                                    \
       } else if (pid > 0) {                                    \
-        int status = 0;                                        \
+        int rc, status;                                        \
         int remaining_us = 10000000;                           \
         while (remaining_us > 0) {                             \
-          if (waitpid(pid, &status, WNOHANG) != 0) break;      \
+          status = 0;                                          \
+          rc = waitpid(pid, &status, WNOHANG);                 \
+          if (rc != 0) break;                                   \
           remaining_us -= 10000;                               \
           usleep(10000);                                       \
         }                                                      \
@@ -27,6 +32,9 @@
                   #test_case_name, #test_name, pid);           \
           kill(pid, SIGKILL);                                  \
           ADD_FAILURE() << "Test hung";                        \
+        } else if (rc < 0) {                                   \
+          fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno); \
+          ADD_FAILURE() << "Failed to wait for child";         \
         } else {                                               \
           int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
           EXPECT_EQ(0, rc);                                    \

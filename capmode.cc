@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -109,8 +110,9 @@ FORK_TEST(Capmode, Syscalls) {
   EXPECT_OK(profil(NULL, 0, 0, 0));
   char ch;
   EXPECT_OK(read(fd_file, &ch, sizeof(ch)));
-  // TODO(drysdale): check why this works with no MSG_DONTWAIT and EXPECT_OK in FreeBSD
-  EXPECT_FAIL_NOT_CAPMODE(recvfrom(fd_socket, NULL, 0, MSG_DONTWAIT, NULL, NULL));
+  // recvfrom() either returns -1 with EAGAIN, or 0.
+  int rc = recvfrom(fd_socket, NULL, 0, MSG_DONTWAIT, NULL, NULL);
+  if (rc < 0) EXPECT_EQ(EAGAIN, errno);
   EXPECT_OK(setuid(getuid()));
   EXPECT_OK(write(fd_file, &ch, sizeof(ch)));
 
@@ -120,7 +122,8 @@ FORK_TEST(Capmode, Syscalls) {
   EXPECT_FAIL_NOT_CAPMODE(getpeername(fd_socket, NULL, NULL));
   EXPECT_FAIL_NOT_CAPMODE(getsockname(fd_socket, NULL, NULL));
 #ifdef HAVE_CHFLAGS
-  EXPECT_FAIL_NOT_CAPMODE(fchflags(fd_file, UF_NODUMP));
+  rc = fchflags(fd_file, UF_NODUMP);
+  if (rc < 0)  EXPECT_NE(ECAPMODE, errno);
 #endif
   EXPECT_FAIL_NOT_CAPMODE(recvmsg(fd_socket, NULL, 0));
   EXPECT_FAIL_NOT_CAPMODE(sendmsg(fd_socket, NULL, 0));
@@ -147,13 +150,13 @@ FORK_TEST(Capmode, Syscalls) {
   }
 
 #ifdef HAVE_GETLOGIN
-  EXPECT_EQ(NULL, getlogin());
+  EXPECT_TRUE(getlogin() != NULL);
 #endif
 
   // TODO(rnmw): ktrace
 
   int fd2[2];
-  int rc = pipe(fd2);
+  rc = pipe(fd2);
   EXPECT_EQ(0, rc);
   if (rc == 0) {
     close(fd2[0]);

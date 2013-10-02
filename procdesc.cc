@@ -11,10 +11,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <signal.h>
 #include <sys/select.h>
 #include <signal.h>
 #include <sys/wait.h>
+
+#include <iomanip>
 
 #include "capsicum.h"
 #include "capsicum-test.h"
@@ -81,7 +82,8 @@ TEST_F(PipePdfork, Poll) {
   // Poll again, should have activity on the process descriptor.
   FD_ZERO(&fds);
   FD_SET(pd_, &fds);
-  rc = select(pd_ + 1, NULL, NULL, &fds, NULL);
+  struct timeval two_sec = {2, 0};
+  rc = select(pd_ + 1, NULL, NULL, &fds, &two_sec);
   EXPECT_EQ(1, rc);
 }
 
@@ -125,7 +127,8 @@ TEST_F(PipePdfork, PollMultiple) {
   //  - ...in both process A and process D.
   FD_ZERO(&fds);
   FD_SET(pd_, &fds);
-  rc = select(pd_ + 1, NULL, NULL, &fds, NULL);
+  struct timeval two_sec = {2, 0};
+  rc = select(pd_ + 1, NULL, NULL, &fds, &two_sec);
   EXPECT_EQ(1, rc);
 
   if (doppel == 0) {
@@ -133,6 +136,7 @@ TEST_F(PipePdfork, PollMultiple) {
     exit(0);
   } else {
     // Parent: wait on process D.
+    rc = 0;
     waitpid(doppel, &rc, 0);
     EXPECT_TRUE(WIFEXITED(rc));
     EXPECT_EQ(0, WEXITSTATUS(rc));
@@ -142,6 +146,7 @@ TEST_F(PipePdfork, PollMultiple) {
 // Get the state of a process as a single character.
 // On error, return either '?' or '\0'.
 static char process_state(int pid) {
+#ifdef __linux__
   // Open the process status file.
   char s[1024];
   snprintf(s, sizeof(s), "/proc/%d/status", pid);
@@ -159,6 +164,32 @@ static char process_state(int pid) {
   }
   fclose(f);
   return '?';
+#endif
+#ifdef __FreeBSD__
+  char buffer[1024];
+  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
+  FILE* cmd = popen(buffer, "r");
+  int result = fgetc(cmd);
+  fclose(cmd);
+  // Map FreeBSD codes to Linux codes.
+  switch (result) {
+    case EOF:
+      return '\0';
+    case 'D': // disk wait
+    case 'R': // runnable
+    case 'S': // sleeping
+    case 'T': // stopped
+    case 'Z': // zombie
+      return result;
+    case 'W': // idle interrupt thread
+      return 'S';
+    case 'I': // idle
+      return 'S';
+    case 'L': // waiting to acquire lock
+    default:
+      return '?';
+  }
+#endif
 }
 
 // Check process state reaches a particular expected state (or two).
@@ -170,7 +201,7 @@ static void ExpectPidReachesStates(pid_t pid, int expected1, int expected2) {
     state = process_state(pid);
     if (state == expected1 || state == expected2) return;
     usleep(100000);
-  } while (counter > 0);
+  } while (--counter > 0);
   EXPECT_TRUE(state == expected1 || state == expected2);
 }
 
@@ -181,7 +212,7 @@ static void ExpectPidReachesState(pid_t pid, int expected) {
     state = process_state(pid);
     if (state == expected) return;
     usleep(100000);
-  } while (counter > 0);
+  } while (--counter > 0);
   EXPECT_EQ(expected, state);
 }
 #define EXPECT_PID_ALIVE(pid) ExpectPidReachesStates(pid, 'R', 'S')
@@ -230,17 +261,19 @@ TEST_F(PipePdfork, Pdkill) {
   EXPECT_PID_DEAD(pid_);
 }
 
-// Sighandler that aborts.
-static void got_sigchld(int x) { abort(); }
+static int had_signal = 0;
+static void handle_signal(int x) { had_signal = 1; }
 
 // The exit of a pdfork()ed process should not generate SIGCHLD.
 TEST_F(PipePdfork, NoSigchld) {
-  signal(SIGCHLD, got_sigchld);
-  int zero= 0;
+  sighandler_t original = signal(SIGCHLD, handle_signal);
+  int zero = 0;
   write(pipe_, &zero, sizeof(zero));
-  int rc;
+  int rc = 0;
   waitpid(pid_, &rc, 0);
-  EXPECT_TRUE(WIFEXITED(rc));
+  EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
+  EXPECT_EQ(0, had_signal);
+  signal(SIGCHLD, original);
 }
 
 FORK_TEST(Pdfork, DaemonRestricted) {
