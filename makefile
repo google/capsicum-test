@@ -1,5 +1,5 @@
 all: capsicum-test
-OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o
+OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)

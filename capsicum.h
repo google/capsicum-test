@@ -33,11 +33,14 @@
 
 #define SECCOMP_MODE_CAPSICUM	3 /* uses Capsicum to filter & check. */
 
+#define PD_DAEMON       0x01
+
 #define ECAPMODE        134     /* Not permitted in capability mode */
 #define ENOTCAPABLE     135     /* Capabilities insufficient */
 
 #define __NR_cap_new 314
 #define __NR_pdfork 315
+#define __NR_pdkill 317
 #define __NR_pdwait4 318
 #define __NR_fexecve 319
 
@@ -68,9 +71,14 @@ inline int sys_fexecve(int fd, char **argv, char **envp)
   return syscall(__NR_fexecve, fd, argv, envp);
 }
 
-inline int pdfork(int * fd, int flags) {
+inline int pdfork(int *fd, int flags) {
   return syscall(__NR_pdfork, fd, flags);
 }
+
+inline int pdkill(int fd, int signum) {
+  return syscall(__NR_pdkill, fd, signum);
+}
+
 inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
   return syscall(__NR_pdwait4, fd, status, options, rusage);
 }
