@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -45,14 +46,14 @@ protected:
 };
 
 FORK_TEST_F(Execve, BasicFexecve) {
-  EXPECT_OK(sys_fexecve(self_fd_, argv_pass, null_envp));
+  EXPECT_OK(fexecve_(self_fd_, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
   EXPECT_TRUE(!"fexecve() should never return");
 }
 
 FORK_TEST_F(Execve, FailInCapMode) {
   EXPECT_OK(cap_enter());
-  EXPECT_EQ(-1, sys_fexecve(self_fd_, argv_pass, null_envp));
+  EXPECT_EQ(-1, fexecve_(self_fd_, argv_pass, null_envp));
   EXPECT_EQ(ECAPMODE, errno);
 }
 
@@ -60,7 +61,7 @@ FORK_TEST_F(Execve, FailWithoutCap) {
   EXPECT_OK(cap_enter());
   int cap_fd = cap_new(self_fd_, 0);
   EXPECT_NE(-1, cap_fd);
-  EXPECT_EQ(-1, sys_fexecve(cap_fd, argv_fail, null_envp));
+  EXPECT_EQ(-1, fexecve_(cap_fd, argv_fail, null_envp));
   EXPECT_EQ(ENOTCAPABLE, errno);
 }
 
@@ -68,7 +69,7 @@ FORK_TEST_F(Execve, SucceedWithCap) {
   EXPECT_OK(cap_enter());
   int cap_fd = cap_new(self_fd_, CAP_FEXECVE);
   EXPECT_NE(-1, cap_fd);
-  EXPECT_OK(sys_fexecve(cap_fd, argv_pass, null_envp));
+  EXPECT_OK(fexecve_(cap_fd, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
   EXPECT_TRUE(!"fexecve() should have succeeded");
 }
@@ -80,7 +81,7 @@ FORK_TEST(Fexecve, ExecutePermissionCheck) {
     struct stat data;
     EXPECT_OK(fstat(fd, &data));
     EXPECT_EQ(0, data.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH));
-    EXPECT_EQ(-1, sys_fexecve(fd, argv_fail, null_envp));
+    EXPECT_EQ(-1, fexecve_(fd, argv_fail, null_envp));
     EXPECT_EQ(EACCES, errno);
     close(fd);
   }

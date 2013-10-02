@@ -14,7 +14,7 @@ capsicum-test: $(OBJECTS) libgtest.a
 mini-me: mini-me.c
 	$(CC) -static -o $@ $<
 mini-me.noexec: mini-me
-	cp $< $@ && chmod -x $@
+	cp mini-me $@ && chmod -x $@
 
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
@@ -24,4 +24,4 @@ libgtest.a: gtest-all.o
 	$(AR) -rv libgtest.a gtest-all.o
 
 clean:
-	rm -rf gtest-all.o libgtest.a capsicum-test $(OBJECTS)
+	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec $(OBJECTS)

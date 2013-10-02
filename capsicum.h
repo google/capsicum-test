@@ -13,9 +13,20 @@
 
 #ifdef __FreeBSD__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* FreeBSD definitions */
 #include <sys/capability.h>
 #include <sys/procdesc.h>
+
+#ifdef __cplusplus
+}
+#endif
+
+// Use fexecve_() in tests to allow Linux variant to bypass glibc version.
+#define fexecve_(F, A, E) fexecve(F, A, E)
 
 #else
 
@@ -66,7 +77,10 @@ inline int cap_getrights(int fd, cap_rights_t *rights) {
   return -1; // not yet implemented
 }
 
-inline int sys_fexecve(int fd, char **argv, char **envp)
+// Linux glibc includes an fexecve() function, implemented via the /proc
+// filesystem.  Bypass this and go directly to the fexecve syscall.
+// TODO(drysdale): replace fexecve() implementation
+inline int fexecve_(int fd, char **argv, char **envp)
 {
   return syscall(__NR_fexecve, fd, argv, envp);
 }
