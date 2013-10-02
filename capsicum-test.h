@@ -15,10 +15,22 @@
         test_case_name##_##test_name##_ForkTest();             \
         exit(HasFailure());                                    \
       } else if (pid > 0) {                                    \
-        int status;                                            \
-        waitpid(pid, &status, 0);                              \
-        int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
-        EXPECT_EQ(0, rc);                                      \
+        int status = 0;                                        \
+        int remaining_us = 10000000;                           \
+        while (remaining_us > 0) {                             \
+          if (waitpid(pid, &status, WNOHANG) != 0) break;      \
+          remaining_us -= 10000;                               \
+          usleep(10000);                                       \
+        }                                                      \
+        if (remaining_us <= 0) {                               \
+          fprintf(stderr, "Warning: killing unresponsive test %s.%s (pid %d)\n", \
+                  #test_case_name, #test_name, pid);           \
+          kill(pid, SIGKILL);                                  \
+          ADD_FAILURE() << "Test hung";                        \
+        } else {                                               \
+          int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
+          EXPECT_EQ(0, rc);                                    \
+        }                                                      \
       }                                                        \
     }                                                          \
     static int test_case_name##_##test_name##_ForkTest()
