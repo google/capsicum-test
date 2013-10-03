@@ -270,13 +270,19 @@ TEST_F(PipePdfork, NoSigchld) {
   signal(SIGCHLD, original);
 }
 
-FORK_TEST(Pdfork, DaemonRestricted) {
+FORK_TEST(Pdfork, DaemonUnrestricted) {
   EXPECT_OK(cap_enter());
   int fd;
-  EXPECT_EQ(-1, pdfork(&fd, PD_DAEMON));
-  EXPECT_EQ(ECAPMODE, errno);
 
-  int rc = pdfork(&fd, 0);
+  // Capability mode leaves pdfork() available, with and without flag.
+  int rc = pdfork(&fd, PD_DAEMON);
+  EXPECT_OK(rc);
+  if (rc == 0) {
+    // Child: immediately terminate.
+    exit(0);
+  }
+
+  rc = pdfork(&fd, 0);
   EXPECT_OK(rc);
   if (rc == 0) {
     // Child: immediately terminate.
