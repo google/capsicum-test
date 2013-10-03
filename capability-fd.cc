@@ -38,9 +38,8 @@ FORK_TEST(Capability, BasicInterception) {
   EXPECT_NE(-1, cap_fd);
 
   int rc = write(cap_fd, "", 0);
-  // TODO(drysdale): this test is written to assume that rights are not
-  // enforced until cap_enter() occurs, which I don't think is right.
-  EXPECT_OK(rc);
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(ENOTCAPABLE, errno);
 
   EXPECT_OK(cap_enter());
 
