@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <poll.h>
 #include <signal.h>
 #include <sys/wait.h>
 
@@ -69,31 +70,24 @@ class PipePdfork : public ::testing::Test {
 
 // Can we poll a process descriptor?
 TEST_F(PipePdfork, Poll) {
-  struct timeval timeout = {0, 0};
-  fd_set fds;
-
   // Poll the process descriptor, nothing happening.
-  FD_ZERO(&fds);
-  FD_SET(pd_, &fds);
-  int rc = select(pd_ + 1, NULL, NULL, &fds, &timeout);
-  EXPECT_EQ(0, rc);
+  struct pollfd fdp;
+  fdp.fd = pd_;
+  fdp.events = POLLIN | POLLERR | POLLHUP;
+  fdp.revents = 0;
+  EXPECT_EQ(0, poll(&fdp, 1, 0));
 
   // Tell the child to exit.
   int zero = 0;
   write(pipe_, &zero, sizeof(zero));
 
   // Poll again, should have activity on the process descriptor.
-  FD_ZERO(&fds);
-  FD_SET(pd_, &fds);
-  struct timeval two_sec = {2, 0};
-  rc = select(pd_ + 1, NULL, NULL, &fds, &two_sec);
-  EXPECT_EQ(1, rc);
+  EXPECT_EQ(1, poll(&fdp, 1, 2000));
+  EXPECT_TRUE(fdp.revents & POLLHUP);
 }
 
 // Can multiple processes poll on the same descriptor?
 TEST_F(PipePdfork, PollMultiple) {
-  struct timeval timeout = {0, 0};
-
   int rc = fork();
   EXPECT_OK(rc);
   if (rc == 0) {
@@ -116,23 +110,20 @@ TEST_F(PipePdfork, PollMultiple) {
 
   // Both A and D execute the following code.
   // First, check no activity on the process descriptor yet.
-  fd_set fds;
-  FD_ZERO(&fds);
-  FD_SET(pd_, &fds);
-  rc = select(pd_ + 1, NULL, NULL, &fds, &timeout);
-  EXPECT_EQ(0, rc);
+  struct pollfd fdp;
+  fdp.fd = pd_;
+  fdp.events = POLLIN | POLLERR | POLLHUP;
+  fdp.revents = 0;
+  EXPECT_EQ(0, poll(&fdp, 1, 0));
 
-  // Now, wait (indefinitely) for activity on the proces descriptor.
+  // Now, wait (indefinitely) for activity on the process descriptor.
   // We expect:
   //  - pid C will finish its sleep, write to the pipe and exit
   //  - pid B will unblock from read(), and exit
   //  - this will generate an event on the process descriptor...
   //  - ...in both process A and process D.
-  FD_ZERO(&fds);
-  FD_SET(pd_, &fds);
-  struct timeval two_sec = {2, 0};
-  rc = select(pd_ + 1, NULL, NULL, &fds, &two_sec);
-  EXPECT_EQ(1, rc);
+  EXPECT_EQ(1, poll(&fdp, 1, 2000));
+  EXPECT_TRUE(fdp.revents & POLLHUP);
 
   if (doppel == 0) {
     // Child: process D exits.
