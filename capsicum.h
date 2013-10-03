@@ -41,6 +41,7 @@ extern "C" {
 #define HAVE_GETLOGIN
 #define HAVE_SYSARCH
 #include <machine/sysarch.h>
+#define HAVE_STAT_BIRTHTIME
 
 #else
 

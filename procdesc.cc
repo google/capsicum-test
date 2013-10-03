@@ -289,3 +289,52 @@ FORK_TEST(Pdfork, DaemonUnrestricted) {
     exit(0);
   }
 }
+
+TEST(Pdfork, TimeCheck) {
+  int pd = -1;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: check we didn't get a valid process descriptor.
+    EXPECT_EQ(-1, pdgetpid(pd, &pid));
+    EXPECT_EQ(EBADF, errno);
+    exit(HasFailure());
+  }
+
+  // Parent process. Ensure that [acm]times have been set correctly.
+  struct stat stat;
+  EXPECT_OK(fstat(pd, &stat));
+
+  time_t now = time(NULL);
+  EXPECT_NE(-1, now);
+
+#ifdef HAVE_STAT_BIRTHTIME
+  EXPECT_GE(now, stat.st_birthtime);
+  EXPECT_LT((now - stat.st_birthtime), 2);
+  EXPECT_EQ(stat.st_birthtime, stat.st_atime);
+#endif
+  EXPECT_EQ(stat.st_atime, stat.st_ctime);
+  EXPECT_EQ(stat.st_ctime, stat.st_mtime);
+
+  // Wait for the child to finish.
+  pid_t pd_pid = -1;
+  EXPECT_OK(pdgetpid(pd, &pd_pid));
+  EXPECT_EQ(pid, pd_pid);
+  int rc;
+  int status = 0;
+  do {
+    rc = waitpid(pid, &status, 0);
+    if (rc < 0) {
+      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
+      ADD_FAILURE() << "Failed to wait for child";
+      break;
+    } else if (rc == pid) {
+      break;
+    }
+  } while (1);
+  EXPECT_EQ(pid, rc);
+  if (rc == pid) {
+    EXPECT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(0, WEXITSTATUS(status));
+  }
+}
