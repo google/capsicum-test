@@ -260,6 +260,7 @@ static void handle_signal(int x) { had_signal = 1; }
 
 // The exit of a pdfork()ed process should not generate SIGCHLD.
 TEST_F(PipePdfork, NoSigchld) {
+  had_signal = 0;
   sighandler_t original = signal(SIGCHLD, handle_signal);
   int zero = 0;
   write(pipe_, &zero, sizeof(zero));
@@ -268,6 +269,58 @@ TEST_F(PipePdfork, NoSigchld) {
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_EQ(0, had_signal);
   signal(SIGCHLD, original);
+}
+
+void CheckChildFinished(pid_t pid, bool signaled=false) {
+  // Wait for the child to finish.
+  int rc;
+  int status = 0;
+  do {
+    rc = waitpid(pid, &status, 0);
+    if (rc < 0) {
+      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
+      ADD_FAILURE() << "Failed to wait for child";
+      break;
+    } else if (rc == pid) {
+      break;
+    }
+  } while (1);
+  EXPECT_EQ(pid, rc);
+  if (rc == pid) {
+    if (signaled) {
+      EXPECT_TRUE(WIFSIGNALED(status));
+    } else {
+      EXPECT_TRUE(WIFEXITED(status));
+      EXPECT_EQ(0, WEXITSTATUS(status));
+    }
+  }
+}
+
+FORK_TEST(Pdfork, Pdkill) {
+  had_signal = 0;
+  int pd;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+
+  if (pid == 0) {
+    // Child: set a SIGINT handler and sleep.
+    signal(SIGINT, handle_signal);
+    int left = sleep(10);
+    // Expect this sleep to be interruped by the signal.
+    exit(left == 0);
+  }
+
+  // Parent: get child's PID.
+  pid_t pd_pid;
+  EXPECT_OK(pdgetpid(pd, &pd_pid));
+  EXPECT_EQ(pid, pd_pid);
+
+  // Kill the child.
+  usleep(100);
+  EXPECT_OK(pdkill(pd, SIGINT));
+
+  // Make sure the child finished properly.
+  CheckChildFinished(pid);
 }
 
 FORK_TEST(Pdfork, DaemonUnrestricted) {
@@ -320,21 +373,5 @@ TEST(Pdfork, TimeCheck) {
   pid_t pd_pid = -1;
   EXPECT_OK(pdgetpid(pd, &pd_pid));
   EXPECT_EQ(pid, pd_pid);
-  int rc;
-  int status = 0;
-  do {
-    rc = waitpid(pid, &status, 0);
-    if (rc < 0) {
-      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
-      ADD_FAILURE() << "Failed to wait for child";
-      break;
-    } else if (rc == pid) {
-      break;
-    }
-  } while (1);
-  EXPECT_EQ(pid, rc);
-  if (rc == pid) {
-    EXPECT_TRUE(WIFEXITED(status));
-    EXPECT_EQ(0, WEXITSTATUS(status));
-  }
+  CheckChildFinished(pid);
 }
