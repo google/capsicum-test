@@ -26,10 +26,13 @@ TEST(Pdfork, Simple) {
   EXPECT_OK(rc);
   if (rc == 0) {
     /* We're the child. */
-    ASSERT_EQ(-1, pd);
+    EXPECT_EQ(-1, pd);
     exit(0);
   }
-  ASSERT_NE(-1, pd);
+  EXPECT_NE(-1, pd);
+  int pid_got;
+  EXPECT_OK(pdgetpid(pd, &pid_got));
+  EXPECT_EQ(rc, pid_got);
   EXPECT_OK(close(pd));
 }
 

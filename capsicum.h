@@ -65,6 +65,7 @@ extern "C" {
 
 #define __NR_cap_new 314
 #define __NR_pdfork 315
+#define __NR_pdgetpid 316
 #define __NR_pdkill 317
 #define __NR_pdwait4 318
 #define __NR_fexecve 319
@@ -101,6 +102,10 @@ inline int fexecve_(int fd, char **argv, char **envp)
 
 inline int pdfork(int *fd, int flags) {
   return syscall(__NR_pdfork, fd, flags);
+}
+
+inline int pdgetpid(int fd, pid_t *pid) {
+  return syscall(__NR_pdgetpid, fd, pid);
 }
 
 inline int pdkill(int fd, int signum) {
