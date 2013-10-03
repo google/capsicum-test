@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <signal.h>
 
 #include "gtest/gtest.h"
@@ -23,7 +24,7 @@
         while (remaining_us > 0) {                             \
           status = 0;                                          \
           rc = waitpid(pid, &status, WNOHANG);                 \
-          if (rc != 0) break;                                   \
+          if (rc != 0) break;                                  \
           remaining_us -= 10000;                               \
           usleep(10000);                                       \
         }                                                      \
@@ -69,7 +70,7 @@
     void ICLASS_NAME(test_case_name, test_name)::InnerTestBody()
 
 // Emit errno information on failure
-#define EXPECT_OK(v) EXPECT_LE(0, v) << "   errno " << errno << " " << strerror(errno);
+#define EXPECT_OK(v) EXPECT_LE(0, v) << "   errno " << errno << " " << strerror(errno)
 
 // Expect a syscall to fail with the given error.
 #define EXPECT_SYSCALL_FAIL(E, C) \

@@ -1,12 +1,12 @@
 all: capsicum-test
-OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o capmode.o
+OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
 CXXFLAGS+=-g $(GTEST_INCS)
 
 capsicum-test: $(OBJECTS) libgtest.a
-	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread
+	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt
 
 # Small statically-linked program for fexecve tests
 # (needs to be statically linked so that execve()ing it
