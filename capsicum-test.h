@@ -104,4 +104,7 @@
 // Expect a system call to fail with ENOTCAPABLE.
 #define EXPECT_NOTCAPABLE(C) EXPECT_SYSCALL_FAIL(ENOTCAPABLE, C)
 
+// Ensure that 'rights' are a subset of 'max'.
+#define EXPECT_RIGHTS_IN(rights, max) EXPECT_EQ(rights & max, rights)
+
 #endif  // CAPSICUM_TEST_H

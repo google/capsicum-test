@@ -118,4 +118,4 @@
 #define CAP_PDKILL              0x0040000000000000ULL*/
 
 /* The mask of all valid method rights. */
-/*#define CAP_MASK_VALID          0x007fffffffffffffULL*/
+#define CAP_MASK_VALID          0x007fffffffffffffULL
