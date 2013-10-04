@@ -59,9 +59,13 @@ FORK_TEST(Fcntl, Basic) {
   EXPECT_OK(files["file"]);
   files["socket"] = socket(PF_LOCAL, SOCK_STREAM, 0);
   EXPECT_OK(files["socket"]);
-  // Note that shm_open is not implemented in user-mode Linux.
   files["SHM"] = shm_open("/capsicum-test", (O_CREAT|O_RDWR), 0600);
-  EXPECT_OK(files["SHM"]);
+  if ((files["SHM"] == -1) && errno == ENOSYS) {
+    // shm_open() is not implemented in user-mode Linux.
+    files.erase("SHM");
+  } else {
+    EXPECT_OK(files["SHM"]);
+  }
 
   FileMap caps;
   for (FileMap::iterator ii = files.begin(); ii != files.end(); ++ii) {

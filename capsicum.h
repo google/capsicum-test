@@ -54,6 +54,7 @@ extern "C" {
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 /* TODO(drysdale): get at properly exported versions */
 #include "capsicum_caps.h"
@@ -81,6 +82,7 @@ inline int cap_enter() {
 }
 
 inline int cap_getmode(unsigned int *mode) {
+  errno = ENOSYS;
   return -1; // not yet implemented
 }
 
@@ -91,6 +93,7 @@ inline int cap_new(int fd, cap_rights_t rights) {
 }
 
 inline int cap_getrights(int fd, cap_rights_t *rights) {
+  errno = EINVAL;
   return -1; // not yet implemented
 }
 

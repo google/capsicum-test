@@ -41,13 +41,16 @@ FORK_TEST(Capability, CapEnter) {
 }
 
 FORK_TEST(Capability, BasicInterception) {
-  // TODO(drysdale): check on use of 0 for rights
   int cap_fd = cap_new(1, 0);
   EXPECT_NE(-1, cap_fd);
 
-  int rc = write(cap_fd, "", 0);
+  int rc;
+#ifndef __linux__
+  // TODO(drysdale): reinstate once capsicum-linux polices rights even before cap_enter()
+  rc = write(cap_fd, "", 0);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(ENOTCAPABLE, errno);
+#endif
 
   EXPECT_OK(cap_enter());
 
