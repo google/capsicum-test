@@ -43,9 +43,9 @@ extern "C" {
 #include <machine/sysarch.h>
 #define HAVE_STAT_BIRTHTIME
 #define HAVE_SYSCTL
+#endif
 
-#else
-
+#ifdef __linux__
 /* Linux definitions */
 #include <unistd.h>
 #include <sys/prctl.h>

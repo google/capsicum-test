@@ -13,8 +13,16 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#include <sys/mount.h>
+#else
+#include <sys/statfs.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include "capsicum.h"
 #include "capsicum-test.h"
@@ -101,4 +109,179 @@ FORK_TEST(Capability, Inheritance) {
   EXPECT_EQ(-1, file);
   EXPECT_EQ(ENOTCAPABLE, errno);
   if (file > 0) close(file);
+}
+
+
+// Ensure that, if the capability had enough rights for the system call to
+// pass, then it did. Otherwise, ensure that the errno is ENOTCAPABLE;
+// capability restrictions should kick in before any other error logic.
+#define CHECK_RIGHT_RESULT(result, rights, rights_needed) do { \
+  if (((rights) & (rights_needed)) == (rights_needed)) {       \
+    EXPECT_OK(result);                                         \
+  } else {                                                     \
+    EXPECT_EQ(-1, result);                                     \
+    EXPECT_EQ(ENOTCAPABLE, errno);                             \
+  }                                                            \
+} while (0)
+
+// As above, but for the special mmap() case: unmap after successful mmap().
+#define CHECK_RIGHT_MMAP_RESULT(result, rights, rights_needed) do { \
+  if (((rights) & (rights_needed)) == (rights_needed)) {            \
+    EXPECT_NE(MAP_FAILED, result);                                  \
+  } else {                                                          \
+    EXPECT_EQ(MAP_FAILED, result);                                  \
+    EXPECT_EQ(ENOTCAPABLE, errno);                                  \
+  }                                                                 \
+  if (result != MAP_FAILED) munmap(result, getpagesize());          \
+} while(0)
+
+// Given a file descriptor, create a capability with specific rights and
+// make sure only those rights work.
+static void TryFileOps(int fd, cap_rights_t rights) {
+  int cap_fd = cap_new(fd, rights);
+  EXPECT_OK(cap_fd);
+  if (cap_fd < 0) return;
+
+  // Check creation of a capability form a capability.
+  int cap_cap_fd = cap_new(cap_fd, rights);
+  EXPECT_OK(cap_cap_fd);
+  EXPECT_NE(cap_fd, cap_cap_fd);
+  close(cap_cap_fd);
+
+  char ch;
+  CHECK_RIGHT_RESULT(read(cap_fd, &ch, sizeof(ch)), rights, CAP_READ|CAP_SEEK);
+
+  ssize_t len1 = pread(cap_fd, &ch, sizeof(ch), 0);
+  CHECK_RIGHT_RESULT(len1, rights, CAP_READ);
+  ssize_t len2 = pread(cap_fd, &ch, sizeof(ch), 0);
+  CHECK_RIGHT_RESULT(len2, rights, CAP_READ);
+  EXPECT_EQ(len1, len2);
+
+  CHECK_RIGHT_RESULT(write(cap_fd, &ch, sizeof(ch)), rights, CAP_WRITE|CAP_SEEK);
+
+  CHECK_RIGHT_RESULT(pwrite(cap_fd, &ch, sizeof(ch), 0), rights, CAP_WRITE);
+
+  CHECK_RIGHT_RESULT(lseek(cap_fd, 0, SEEK_SET), rights, CAP_SEEK);
+
+#ifdef HAVE_CHFLAGS
+  // Note: this is not expected to work over NFS.
+  struct statfs sf;
+  EXPECT_OK(fstatfs(fd, &sf));
+  bool is_nfs = (strncmp("nfs", sf.f_fstypename, sizeof(sf.f_fstypename)) == 0);
+  if (!is_nfs) {
+    CHECK_RIGHT_RESULT(fchflags(cap_fd, UF_NODUMP), rights, CAP_FCHFLAGS);
+  }
+#endif
+
+  struct stat sb;
+  CHECK_RIGHT_RESULT(fstat(cap_fd, &sb), rights, CAP_FSTAT);
+
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, cap_fd, 0),
+                          rights, CAP_MMAP | CAP_READ);
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_WRITE, MAP_SHARED, cap_fd, 0),
+                          rights, CAP_MMAP | CAP_WRITE);
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC, MAP_SHARED, cap_fd, 0),
+                          rights, (CAP_MMAP | CAP_MAPEXEC));
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, cap_fd, 0),
+                          rights, (CAP_MMAP | CAP_READ | CAP_WRITE));
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_EXEC, MAP_SHARED, cap_fd, 0),
+                          rights, (CAP_MMAP | CAP_READ | CAP_MAPEXEC));
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC | PROT_WRITE, MAP_SHARED, cap_fd, 0),
+                          rights, (CAP_MMAP | CAP_MAPEXEC | CAP_WRITE));
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED, cap_fd, 0),
+                          rights, (CAP_MMAP | CAP_READ | CAP_WRITE | CAP_MAPEXEC));
+
+  CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
+
+  CHECK_RIGHT_RESULT(fchown(cap_fd, -1, -1), rights, CAP_FCHOWN);
+
+  CHECK_RIGHT_RESULT(fchmod(cap_fd, 0644), rights, CAP_FCHMOD);
+
+  // TODO(drysdale): flock
+
+  CHECK_RIGHT_RESULT(ftruncate(cap_fd, 0), rights, CAP_FTRUNCATE);
+
+#ifndef __linux__
+  // TODO(drysdale): reinstate these
+  struct statfs cap_sf;
+  CHECK_RIGHT_RESULT(fstatfs(cap_fd, &cap_sf), rights, CAP_FSTATFS);
+
+  CHECK_RIGHT_RESULT(fpathconf(cap_fd, _PC_NAME_MAX), rights, CAP_FPATHCONF);
+#endif
+
+  CHECK_RIGHT_RESULT(futimes(cap_fd, NULL), rights, CAP_FUTIMES);
+
+  struct pollfd pollfd;
+  pollfd.fd = cap_fd;
+  pollfd.events = POLLIN | POLLERR | POLLHUP;
+  pollfd.revents = 0;
+  int ret = poll(&pollfd, 1, 0);
+  if (rights & CAP_POLL_EVENT) {
+  } else {
+    // TODO(drysdale): sort out
+    // Linux gives -ECAPMODE; FreeBSD returns a POLLNVAL
+#ifdef __linux__
+    EXPECT_EQ(-1, ret);
+#else
+    EXPECT_NE(0, (pollfd.revents & POLLNVAL));
+#endif
+  }
+
+  // XXX: select, kqueue
+
+  EXPECT_OK(close(cap_fd));
+}
+
+FORK_TEST(Capability, Operations) {
+  int fd = open("/tmp/cap_test_capabilities", O_RDWR | O_CREAT, 0644);
+  EXPECT_OK(fd);
+  if (fd < 0) return 1;
+
+  EXPECT_OK(cap_enter());
+
+  // TODO(drysdale): Really want to try all combinations.
+  TryFileOps(fd, CAP_READ);
+  TryFileOps(fd, CAP_READ | CAP_SEEK);
+  TryFileOps(fd, CAP_WRITE);
+  TryFileOps(fd, CAP_WRITE | CAP_SEEK);
+  TryFileOps(fd, CAP_READ | CAP_WRITE);
+  TryFileOps(fd, CAP_READ | CAP_WRITE | CAP_SEEK);
+  TryFileOps(fd, CAP_SEEK);
+  TryFileOps(fd, CAP_FCHFLAGS);
+  TryFileOps(fd, CAP_IOCTL);
+  TryFileOps(fd, CAP_FSTAT);
+  TryFileOps(fd, CAP_MMAP);
+  TryFileOps(fd, CAP_MMAP | CAP_READ);
+  TryFileOps(fd, CAP_MMAP | CAP_WRITE);
+  TryFileOps(fd, CAP_MMAP | CAP_MAPEXEC);
+  TryFileOps(fd, CAP_MMAP | CAP_READ | CAP_WRITE);
+  TryFileOps(fd, CAP_MMAP | CAP_READ | CAP_MAPEXEC);
+  TryFileOps(fd, CAP_MMAP | CAP_MAPEXEC | CAP_WRITE);
+  TryFileOps(fd, CAP_MMAP | CAP_READ | CAP_WRITE | CAP_MAPEXEC);
+  TryFileOps(fd, CAP_FCNTL);
+  TryFileOps(fd, CAP_POST_EVENT);
+  TryFileOps(fd, CAP_POLL_EVENT);
+  TryFileOps(fd, CAP_FSYNC);
+  TryFileOps(fd, CAP_FCHOWN);
+  TryFileOps(fd, CAP_FCHMOD);
+  TryFileOps(fd, CAP_FTRUNCATE);
+  TryFileOps(fd, CAP_FLOCK);
+  TryFileOps(fd, CAP_FSTATFS);
+  TryFileOps(fd, CAP_FPATHCONF);
+  TryFileOps(fd, CAP_FUTIMES);
+  TryFileOps(fd, CAP_ACL_GET);
+  TryFileOps(fd, CAP_ACL_SET);
+  TryFileOps(fd, CAP_ACL_DELETE);
+  TryFileOps(fd, CAP_ACL_CHECK);
+  TryFileOps(fd, CAP_EXTATTR_GET);
+  TryFileOps(fd, CAP_EXTATTR_SET);
+  TryFileOps(fd, CAP_EXTATTR_DELETE);
+  TryFileOps(fd, CAP_EXTATTR_LIST);
+  TryFileOps(fd, CAP_MAC_GET);
+  TryFileOps(fd, CAP_MAC_SET);
+
+  // Socket-specific.
+  TryFileOps(fd, CAP_GETPEERNAME);
+  TryFileOps(fd, CAP_GETSOCKNAME);
+  TryFileOps(fd, CAP_ACCEPT);
 }
