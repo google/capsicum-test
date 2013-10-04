@@ -3,7 +3,7 @@ OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o capmode.o fcnt
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
-CXXFLAGS+=-g $(GTEST_INCS)
+CXXFLAGS+=-g -ansi $(GTEST_INCS)
 
 capsicum-test: $(OBJECTS) libgtest.a
 	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt
