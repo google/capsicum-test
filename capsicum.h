@@ -42,6 +42,7 @@ extern "C" {
 #define HAVE_SYSARCH
 #include <machine/sysarch.h>
 #define HAVE_STAT_BIRTHTIME
+#define HAVE_SYSCTL
 
 #else
 
