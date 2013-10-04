@@ -35,31 +35,31 @@ static char* null_envp[] = {NULL};
 
 class Execve : public ::testing::Test {
  public:
-  Execve() : self_fd_(open(EXEC_PROG, O_RDONLY)) {
-    if (self_fd_ < 0) {
+  Execve() : exec_fd_(open(EXEC_PROG, O_RDONLY)) {
+    if (exec_fd_ < 0) {
       fprintf(stderr, "Error! Failed to open %s\n", EXEC_PROG);
     }
   }
-  ~Execve() { if (self_fd_ >= 0) close(self_fd_); }
+  ~Execve() { if (exec_fd_ >= 0) close(exec_fd_); }
 protected:
-  int self_fd_;
+  int exec_fd_;
 };
 
 FORK_TEST_F(Execve, BasicFexecve) {
-  EXPECT_OK(fexecve_(self_fd_, argv_pass, null_envp));
+  EXPECT_OK(fexecve_(exec_fd_, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
   EXPECT_TRUE(!"fexecve() should never return");
 }
 
 FORK_TEST_F(Execve, FailInCapMode) {
   EXPECT_OK(cap_enter());
-  EXPECT_EQ(-1, fexecve_(self_fd_, argv_pass, null_envp));
+  EXPECT_EQ(-1, fexecve_(exec_fd_, argv_pass, null_envp));
   EXPECT_EQ(ECAPMODE, errno);
 }
 
 FORK_TEST_F(Execve, FailWithoutCap) {
   EXPECT_OK(cap_enter());
-  int cap_fd = cap_new(self_fd_, 0);
+  int cap_fd = cap_new(exec_fd_, 0);
   EXPECT_NE(-1, cap_fd);
   EXPECT_EQ(-1, fexecve_(cap_fd, argv_fail, null_envp));
   EXPECT_EQ(ENOTCAPABLE, errno);
@@ -67,7 +67,7 @@ FORK_TEST_F(Execve, FailWithoutCap) {
 
 FORK_TEST_F(Execve, SucceedWithCap) {
   EXPECT_OK(cap_enter());
-  int cap_fd = cap_new(self_fd_, CAP_FEXECVE);
+  int cap_fd = cap_new(exec_fd_, CAP_FEXECVE);
   EXPECT_NE(-1, cap_fd);
   EXPECT_OK(fexecve_(cap_fd, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
