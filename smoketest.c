@@ -12,6 +12,7 @@
 
 #define __NR_cap_new 314
 #define __NR_pdfork 315
+#define __NR_pdgetpid 316
 #define __NR_pdkill 317
 
 typedef unsigned long cap_rights_t;
@@ -34,7 +35,7 @@ int main() {
   fprintf(stderr, "[%d] pdfork() rc=%d pd=%d\n", getpid(), rc, pd);
   if (rc < 0) fprintf(stderr, "pdfork() failed: errno=%d %s\n", errno, strerror(errno));
 
-  if (rc == 0) { // child
+  if (rc == 0) { /* child */
     int count = 0;
     while (count < 20) {
       fprintf(stderr, "[%d] child alive\n", getpid());
@@ -43,6 +44,13 @@ int main() {
     fprintf(stderr, "[%d] child exit(0)\n", getpid());
     exit(0);
   }
+
+  /* pdgetpid() available? */
+  pid_t actual_pid = rc;
+  pid_t got_pid = -1;
+  rc = syscall(__NR_pdgetpid, pd, &got_pid);
+  if (rc < 0) fprintf(stderr, "pdgetpid(pd=%d) failed: errno=%d %s\n", pd, errno, strerror(errno));
+  fprintf(stderr, "pdgetpid(pd=%d)=%d, pdfork returned %d\n", pd, got_pid, actual_pid);
 
   sleep(4);
   /* pdkill() available? */

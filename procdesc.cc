@@ -31,12 +31,9 @@ TEST(Pdfork, Simple) {
     exit(0);
   }
   EXPECT_NE(-1, pd);
-#ifndef __linux__
-  // TODO(drysdale): reinstate once capsicum-linux implements pdgetpid
   int pid_got;
   EXPECT_OK(pdgetpid(pd, &pid_got));
   EXPECT_EQ(rc, pid_got);
-#endif
   EXPECT_OK(close(pd));
 }
 
@@ -327,13 +324,10 @@ FORK_TEST(Pdfork, Pdkill) {
     exit(left == 0);
   }
 
-#ifndef __linux__
-  // TODO(drysdale): reinstate once capsicum-linux implements pdgetpid
   // Parent: get child's PID.
   pid_t pd_pid;
   EXPECT_OK(pdgetpid(pd, &pd_pid));
   EXPECT_EQ(pid, pd_pid);
-#endif
 
   // Kill the child.
   usleep(100);
@@ -373,11 +367,8 @@ TEST(Pdfork, TimeCheck) {
   EXPECT_OK(pid);
   if (pid == 0) {
     // Child: check we didn't get a valid process descriptor.
-#ifndef __linux__
-    // TODO(drysdale): reinstate once capsicum-linux implements pdgetpid
     EXPECT_EQ(-1, pdgetpid(pd, &pid));
     EXPECT_EQ(EBADF, errno);
-#endif
     exit(HasFailure());
   }
 
@@ -397,11 +388,8 @@ TEST(Pdfork, TimeCheck) {
   EXPECT_EQ(stat.st_ctime, stat.st_mtime);
 
   // Wait for the child to finish.
-#ifndef __linux__
-  // TODO(drysdale): reinstate once capsicum-linux implements pdgetpid
   pid_t pd_pid = -1;
   EXPECT_OK(pdgetpid(pd, &pd_pid));
   EXPECT_EQ(pid, pd_pid);
-#endif
   CheckChildFinished(pid);
 }
