@@ -11,7 +11,7 @@
 
 // Run a test case in a forked process, so that trapdoors don't
 // affect other tests.
-#define FORK_TEST(test_case_name, test_name)                   \
+#define FORK_TEST_ON(test_case_name, test_name, test_file)     \
     static int test_case_name##_##test_name##_ForkTest();      \
     TEST(test_case_name, test_name ## Forked) {                \
       pid_t pid = fork();                                      \
@@ -40,9 +40,12 @@
           int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
           EXPECT_EQ(0, rc);                                    \
         }                                                      \
+        if (test_file) unlink(test_file);                      \
       }                                                        \
     }                                                          \
     static int test_case_name##_##test_name##_ForkTest()
+
+#define FORK_TEST(test_case_name, test_name) FORK_TEST_ON(test_case_name, test_name, NULL)
 
 // Run a test case fixture in a forked process, so that trapdoors don't
 // affect other tests.

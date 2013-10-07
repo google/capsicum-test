@@ -45,7 +45,7 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
-FORK_TEST(Capmode, Syscalls) {
+FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   // Open some files to play with.
   int fd_file = open("/tmp/cap_capmode", O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd_file);
@@ -210,4 +210,11 @@ FORK_TEST(Capmode, Syscalls) {
 #endif
 
   // TODO(rnmw): No error return from sync(2) to test.
+
+  // Close files.
+  if (fd_file >= 0) close(fd_file);
+  if (fd_close >= 0) close(fd_close);
+  if (fd_dir >= 0) close(fd_dir);
+  if (fd_socket >= 0) close(fd_socket);
+  if (fd_tcp_socket >= 0) close(fd_tcp_socket);
 }

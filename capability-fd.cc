@@ -59,59 +59,69 @@ FORK_TEST(Capability, BasicInterception) {
   EXPECT_EQ(ENOTCAPABLE, errno);
 
   // Create a new capability which does have write permission
-  cap_fd = cap_new(1, CAP_WRITE|CAP_SEEK);
-  EXPECT_OK(cap_fd);
-  rc = write(cap_fd, "", 0);
+  int cap_fd2 = cap_new(1, CAP_WRITE|CAP_SEEK);
+  EXPECT_OK(cap_fd2);
+  rc = write(cap_fd2, "", 0);
   EXPECT_OK(rc);
+
+  // Tidy up.
+  if (cap_fd >= 0) close(cap_fd);
+  if (cap_fd2 >= 0) close(cap_fd2);
 }
 
-FORK_TEST(Capability, OpenAtDirectoryTraversal) {
+FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, "/tmp/cap_openat_testfile") {
   int dir = open("/tmp", O_RDONLY);
   EXPECT_OK(dir);
 
   cap_enter();
 
-  int file = openat(dir, "testfile", O_RDONLY|O_CREAT);
+  int file = openat(dir, "cap_openat_testfile", O_RDONLY|O_CREAT);
   EXPECT_OK(file);
 
   // Test that we are confined to /tmp, and cannot
   // escape using absolute paths or ../.
-  file = openat(dir, "../dev/null", O_RDONLY);
-  EXPECT_EQ(-1, file);
+  int new_file = openat(dir, "../dev/null", O_RDONLY);
+  EXPECT_EQ(-1, new_file);
 
-  file = openat(dir, "..", O_RDONLY);
-  EXPECT_EQ(-1, file);
+  new_file = openat(dir, "..", O_RDONLY);
+  EXPECT_EQ(-1, new_file);
 
-  file = openat(dir, "/dev/null", O_RDONLY);
-  EXPECT_EQ(-1, file);
+  new_file = openat(dir, "/dev/null", O_RDONLY);
+  EXPECT_EQ(-1, new_file);
 
-  file = openat(dir, "/", O_RDONLY);
-  EXPECT_EQ(-1, file);
+  new_file = openat(dir, "/", O_RDONLY);
+  EXPECT_EQ(-1, new_file);
+
+  // Tidy up.
+  close(file);
   close(dir);
 }
 
 // Create a capability on /tmp that does not allow CAP_WRITE,
 // and check that this restriction is inherited through openat().
-FORK_TEST(Capability, Inheritance) {
+FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   int dir = open("/tmp", O_RDONLY);
   EXPECT_OK(dir);
-  int dircap = cap_new(dir, CAP_READ|CAP_LOOKUP);
+  int cap_dir = cap_new(dir, CAP_READ|CAP_LOOKUP);
 
-  const char *fn = "testfile";
-  int file = openat(dir, fn, O_WRONLY|O_CREAT);
+  const char *filename = "cap_openat_write_testfile";
+  int file = openat(dir, filename, O_WRONLY|O_CREAT);
   EXPECT_OK(file);
   EXPECT_EQ(5, write(file, "TEST\n", 5));
   close(file);
 
   EXPECT_OK(cap_enter());
-  file = openat(dircap, "testfile", O_RDONLY);
+  file = openat(cap_dir, filename, O_RDONLY);
   EXPECT_OK(file);
   if (file > 0) close(file);
 
-  file = openat(dircap, "testfile", O_WRONLY|O_APPEND);
+  file = openat(cap_dir, filename, O_WRONLY|O_APPEND);
   EXPECT_EQ(-1, file);
   EXPECT_EQ(ENOTCAPABLE, errno);
   if (file > 0) close(file);
+
+  if (dir > 0) close(dir);
+  if (cap_dir > 0) close(cap_dir);
 }
 
 
@@ -161,9 +171,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   EXPECT_EQ(len1, len2);
 
   CHECK_RIGHT_RESULT(write(cap_fd, &ch, sizeof(ch)), rights, CAP_WRITE|CAP_SEEK);
-
   CHECK_RIGHT_RESULT(pwrite(cap_fd, &ch, sizeof(ch), 0), rights, CAP_WRITE);
-
   CHECK_RIGHT_RESULT(lseek(cap_fd, 0, SEEK_SET), rights, CAP_SEEK);
 
 #ifdef HAVE_CHFLAGS
@@ -235,8 +243,8 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   EXPECT_OK(close(cap_fd));
 }
 
-FORK_TEST(Capability, Operations) {
-  int fd = open("/tmp/cap_test_capabilities", O_RDWR | O_CREAT, 0644);
+FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
+  int fd = open("/tmp/cap_fd_operations", O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return 1;
 
@@ -287,4 +295,6 @@ FORK_TEST(Capability, Operations) {
   TryFileOps(fd, CAP_GETPEERNAME);
   TryFileOps(fd, CAP_GETSOCKNAME);
   TryFileOps(fd, CAP_ACCEPT);
+
+  close(fd);
 }
