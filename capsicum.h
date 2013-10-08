@@ -67,11 +67,12 @@ extern "C" {
 #define ENOTCAPABLE     135     /* Capabilities insufficient */
 
 #define __NR_cap_new 314
-#define __NR_pdfork 315
-#define __NR_pdgetpid 316
-#define __NR_pdkill 317
-#define __NR_pdwait4 318
-#define __NR_fexecve 319
+#define __NR_cap_getrights 315
+#define __NR_pdfork 316
+#define __NR_pdgetpid 317
+#define __NR_pdkill 318
+#define __NR_pdwait4 319
+#define __NR_fexecve 320
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,8 +96,7 @@ inline int cap_new(int fd, cap_rights_t rights) {
 }
 
 inline int cap_getrights(int fd, cap_rights_t *rights) {
-  errno = EINVAL;
-  return -1; // not yet implemented
+  return syscall(__NR_cap_getrights, fd, rights);
 }
 
 // Linux glibc includes an fexecve() function, implemented via the /proc

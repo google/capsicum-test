@@ -21,9 +21,15 @@ int main() {
   fprintf(stderr, "cap_fd=%d\n", cap_fd);
   if (cap_fd < 0) fprintf(stderr, "cap_new() failed: errno=%d %s\n", errno, strerror(errno));
 
+  /* cap_getrights() available? */
+  cap_rights_t rights;
+  int rc = cap_getrights(cap_fd, &rights);
+  fprintf(stderr, "cap_getrights(cap_fd=%d) rc=%d rights=%lx\n", cap_fd, rc, rights);
+  if (rc < 0) fprintf(stderr, "cap_getrights() failed: errno=%d %s\n", errno, strerror(errno));
+
   /* pdfork() available? */
   int pd = -1;
-  int rc = pdfork(&pd, 0);
+  rc = pdfork(&pd, 0);
   fprintf(stderr, "[%d] pdfork() rc=%d pd=%d\n", getpid(), rc, pd);
   if (rc < 0) fprintf(stderr, "pdfork() failed: errno=%d %s\n", errno, strerror(errno));
 

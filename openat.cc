@@ -83,18 +83,11 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
 
   // A file opened relative to a capability should itself be a capability.
-#ifndef __linux__
-  // TODO(drysdale): reinstate when cap_getrights implemented
   EXPECT_OK(cap_getrights(etc_cap_base, &rights));
-#endif
 
   int fd = openat(etc_cap_base, "passwd", O_RDONLY);
   EXPECT_OK(fd);
-#ifndef __linux__
-  // TODO(drysdale): reinstate when cap_getrights implemented
-  EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, baserights);
-#endif
 
   // Enter capability mode; now ALL lookups are strictly relative.
   EXPECT_OK(cap_enter());
@@ -123,17 +116,10 @@ FORK_TEST(Openat, Relative) {
 
   fd = openat(etc, "passwd", O_RDONLY);
   EXPECT_OK(fd);
-#ifndef __linux__
-  // TODO(drysdale): reinstate when cap_getrights implemented
-  EXPECT_OK(cap_getrights(fd, &rights));
-#endif
 
   // A file opened relative to a capability should itself be a capability.
   fd = openat(etc_cap_base, "passwd", O_RDONLY);
   EXPECT_OK(fd);
-#ifndef __linux__
-  // TODO(drysdale): reinstate when cap_getrights implemented
   EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, baserights);
-#endif
 }
