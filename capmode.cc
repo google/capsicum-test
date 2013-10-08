@@ -59,7 +59,12 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   EXPECT_OK(fd_socket);
 
   // Enter capability mode.
+  unsigned int mode = -1;
+  EXPECT_OK(cap_getmode(&mode));
+  EXPECT_EQ(0, mode);
   EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_getmode(&mode));
+  EXPECT_EQ(1, mode);
 
   // System calls that are not permitted in capability mode.
   EXPECT_CAPMODE(access("/tmp/cap_capmode_access", F_OK));

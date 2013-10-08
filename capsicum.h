@@ -82,8 +82,10 @@ inline int cap_enter() {
 }
 
 inline int cap_getmode(unsigned int *mode) {
-  errno = ENOSYS;
-  return -1; // not yet implemented
+  int rc = prctl(PR_GET_SECCOMP);
+  if (rc < 0) return rc;
+  *mode = (rc == SECCOMP_MODE_CAPSICUM);
+  return 0;
 }
 
 typedef unsigned long cap_rights_t;
