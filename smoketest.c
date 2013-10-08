@@ -9,43 +9,21 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <sys/prctl.h>
 
-#define __NR_cap_new 314
-#define __NR_pdfork 315
-#define __NR_pdgetpid 316
-#define __NR_pdkill 317
-
-typedef unsigned long cap_rights_t;
-#define CAP_READ                0x0000000000000001ULL   /* read/recv */
-#define CAP_WRITE               0x0000000000000002ULL   /* write/send */
-#define CAP_SEEK                0x0000000000000080ULL
-
-#define SECCOMP_MODE_CAPSICUM	3 /* uses Capsicum to filter & check. */
-
-inline int cap_enter() {
-  return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
-}
-
-inline int cap_getmode(int* value) {
-  int rc = prctl(PR_GET_SECCOMP);
-  if (rc < 0) return rc;
-  *value = (rc == SECCOMP_MODE_CAPSICUM);
-  return 0;
-}
+#include "capsicum.h"
 
 int main() {
-  int fd = syscall(__NR_dup, STDOUT_FILENO);
+  int fd = dup(STDOUT_FILENO);
   fprintf(stderr, "fd=%d\n", fd);
 
   /* cap_new() available? */
-  int cap_fd = syscall(__NR_cap_new, fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  int cap_fd = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
   fprintf(stderr, "cap_fd=%d\n", cap_fd);
   if (cap_fd < 0) fprintf(stderr, "cap_new() failed: errno=%d %s\n", errno, strerror(errno));
 
   /* pdfork() available? */
   int pd = -1;
-  int rc = syscall(__NR_pdfork, &pd, 0);
+  int rc = pdfork(&pd, 0);
   fprintf(stderr, "[%d] pdfork() rc=%d pd=%d\n", getpid(), rc, pd);
   if (rc < 0) fprintf(stderr, "pdfork() failed: errno=%d %s\n", errno, strerror(errno));
 
@@ -62,13 +40,13 @@ int main() {
   /* pdgetpid() available? */
   pid_t actual_pid = rc;
   pid_t got_pid = -1;
-  rc = syscall(__NR_pdgetpid, pd, &got_pid);
+  rc = pdgetpid(pd, &got_pid);
   if (rc < 0) fprintf(stderr, "pdgetpid(pd=%d) failed: errno=%d %s\n", pd, errno, strerror(errno));
   fprintf(stderr, "pdgetpid(pd=%d)=%d, pdfork returned %d\n", pd, got_pid, actual_pid);
 
   sleep(4);
   /* pdkill() available? */
-  rc = syscall(__NR_pdkill, pd, SIGKILL);
+  rc = pdkill(pd, SIGKILL);
   fprintf(stderr, "[%d] pdkill(pd=%d, SIGKILL) -> rc=%d\n", getpid(), pd, rc);
   if (rc < 0) fprintf(stderr, "pdkill() failed: errno=%d %s\n", errno, strerror(errno));
 

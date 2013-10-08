@@ -1,4 +1,4 @@
-all: capsicum-test
+all: capsicum-test smoketest
 OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o openat.o sysctl.o
 
 GTEST_DIR=gtest-1.6.0
@@ -16,6 +16,9 @@ mini-me: mini-me.c
 mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
 
+# Simple C test of Capsicum syscalls
+smoketest: smoketest.c
+
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
 gtest-all.o:
@@ -24,4 +27,4 @@ libgtest.a: gtest-all.o
 	$(AR) -rv libgtest.a gtest-all.o
 
 clean:
-	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec $(OBJECTS)
+	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec smoketest $(OBJECTS)
