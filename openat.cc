@@ -122,4 +122,9 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(fd);
   EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, baserights);
+
+  fd = openat(etc_cap_ro, "passwd", O_RDONLY);
+  EXPECT_OK(fd);
+  EXPECT_OK(cap_getrights(fd, &rights));
+  EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_LOOKUP));
 }

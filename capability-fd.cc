@@ -27,13 +27,32 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
-TEST(Capability, CapNew) {
+FORK_TEST(Capability, CapNew) {
   int cap_fd = cap_new(STDOUT_FILENO, CAP_READ|CAP_WRITE|CAP_SEEK);
   EXPECT_OK(cap_fd);
-  if (cap_fd > 0) {
-    EXPECT_EQ(4, write(cap_fd, "OK!\n", 4));
-    EXPECT_OK(close(cap_fd));
+  if (cap_fd < 0) return 1;
+  EXPECT_EQ(4, write(cap_fd, "OK!\n", 4));
+  cap_rights_t rights;
+  EXPECT_OK(cap_getrights(cap_fd, &rights));
+  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+
+  // Try to get a disjoint set of rights in a sub-capability.
+  int cap_cap_fd = cap_new(cap_fd, CAP_READ|CAP_SEEK|CAP_MMAP|CAP_FCHMOD);
+  if (cap_cap_fd < 0) {
+    // Either we fail with ENOTCAPABLE
+    EXPECT_EQ(ENOTCAPABLE, errno);
+  } else {
+    // Or we succeed and the rights are subsetted anyway.
+    EXPECT_OK(cap_getrights(cap_cap_fd, &rights));
+    EXPECT_EQ(CAP_READ|CAP_SEEK, rights);
+    // Check in practice as well as in theory.
+    EXPECT_OK(cap_enter());
+    int rc = fchmod(cap_cap_fd, 0644);
+    EXPECT_EQ(-1, rc);
+    EXPECT_EQ(ENOTCAPABLE, errno);
+    EXPECT_OK(close(cap_cap_fd));
   }
+  EXPECT_OK(close(cap_fd));
 }
 
 FORK_TEST(Capability, CapEnter) {
