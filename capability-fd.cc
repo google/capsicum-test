@@ -75,7 +75,7 @@ FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, "/tmp/cap_openat_testfile") {
 
   cap_enter();
 
-  int file = openat(dir, "cap_openat_testfile", O_RDONLY|O_CREAT);
+  int file = openat(dir, "cap_openat_testfile", O_RDONLY|O_CREAT, 0644);
   EXPECT_OK(file);
 
   // Test that we are confined to /tmp, and cannot
@@ -105,15 +105,15 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   int cap_dir = cap_new(dir, CAP_READ|CAP_LOOKUP);
 
   const char *filename = "cap_openat_write_testfile";
-  int file = openat(dir, filename, O_WRONLY|O_CREAT);
+  int file = openat(dir, filename, O_WRONLY|O_CREAT, 0644);
   EXPECT_OK(file);
   EXPECT_EQ(5, write(file, "TEST\n", 5));
-  close(file);
+  if (file >= 0) close(file);
 
   EXPECT_OK(cap_enter());
   file = openat(cap_dir, filename, O_RDONLY);
   EXPECT_OK(file);
-  if (file > 0) close(file);
+  if (file >= 0) close(file);
 
   file = openat(cap_dir, filename, O_WRONLY|O_APPEND);
   EXPECT_EQ(-1, file);
