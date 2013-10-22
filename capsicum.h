@@ -55,24 +55,12 @@ extern "C" {
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <linux/seccomp.h>
 
 /* TODO(drysdale): get at properly exported versions */
 #include "capsicum_caps.h"
 
-#define SECCOMP_MODE_CAPSICUM	3 /* uses Capsicum to filter & check. */
-
 #define PD_DAEMON       0x01
-
-#define ECAPMODE        134     /* Not permitted in capability mode */
-#define ENOTCAPABLE     135     /* Capabilities insufficient */
-
-#define __NR_cap_new 314
-#define __NR_cap_getrights 315
-#define __NR_pdfork 316
-#define __NR_pdgetpid 317
-#define __NR_pdkill 318
-#define __NR_pdwait4 319
-#define __NR_fexecve 320
 
 #ifdef __cplusplus
 extern "C" {
