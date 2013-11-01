@@ -66,8 +66,7 @@ FORK_TEST(Capability, BasicInterception) {
   EXPECT_NE(-1, cap_fd);
 
   int rc;
-#ifndef __linux__
-  // TODO(drysdale): reinstate once capsicum-linux polices rights even before cap_enter()
+#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
   rc = write(cap_fd, "", 0);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(ENOTCAPABLE, errno);
@@ -233,11 +232,10 @@ static void TryFileOps(int fd, cap_rights_t rights) {
 
   CHECK_RIGHT_RESULT(ftruncate(cap_fd, 0), rights, CAP_FTRUNCATE);
 
-#ifndef __linux__
-  // TODO(drysdale): reinstate these
   struct statfs cap_sf;
   CHECK_RIGHT_RESULT(fstatfs(cap_fd, &cap_sf), rights, CAP_FSTATFS);
 
+#ifdef HAVE_FPATHCONF
   CHECK_RIGHT_RESULT(fpathconf(cap_fd, _PC_NAME_MAX), rights, CAP_FPATHCONF);
 #endif
 

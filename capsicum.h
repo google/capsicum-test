@@ -43,6 +43,9 @@ extern "C" {
 #include <machine/sysarch.h>
 #define HAVE_STAT_BIRTHTIME
 #define HAVE_SYSCTL
+#define HAVE_FPATHCONF
+// FreeBSD polices FD rights even before capability mode is entered.
+#define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
 #endif
 
 #ifdef __linux__
@@ -59,6 +62,9 @@ extern "C" {
 
 /* TODO(drysdale): get at properly exported versions */
 #include "capsicum_caps.h"
+
+#define HAVE_DUP3
+#define HAVE_PIPE2
 
 #define PD_DAEMON       0x01
 
