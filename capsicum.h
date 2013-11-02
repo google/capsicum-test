@@ -34,6 +34,22 @@ extern "C" {
 // Map sighandler_y (Linux) to sig_t (FreeBSD)
 #define sighandler_t sig_t
 
+#include <sys/uio.h>
+inline ssize_t sendfile_(int out_fd, int in_fd, off_t *offset, size_t count) {
+  return sendfile(in_fd, out_fd, *offset, count, NULL, offset, 0);
+}
+
+// FreeBSD has getdents(2) available
+#include <sys/types.h>
+#include <dirent.h>
+inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
+  return getdents(fd, (char*)dirp, count);
+}
+#include <sys/mman.h>
+inline int mincore_(void *addr, size_t length, unsigned char *vec) {
+  return mincore(addr, length, (char*)vec);
+}
+
 // Features available
 #define HAVE_CHFLAGS
 #define HAVE_GETFSSTAT
@@ -46,6 +62,11 @@ extern "C" {
 #define HAVE_FPATHCONF
 // FreeBSD polices FD rights even before capability mode is entered.
 #define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
+// FreeBSD only allows root to call mlock[all]/munlock[all]
+#define MLOCK_REQUIRES_ROOT 1
+// FreeBSD effectively only allows root to call sched_setscheduler
+#define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
+
 #endif
 
 #ifdef __linux__
@@ -57,6 +78,7 @@ extern "C" {
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
+#include <sys/sendfile.h>
 #include <errno.h>
 #include <linux/seccomp.h>
 
@@ -65,12 +87,24 @@ extern "C" {
 
 #define HAVE_DUP3
 #define HAVE_PIPE2
+#include <sys/fsuid.h>  /* for setfsgid()/setfsuid() */
+#define HAVE_SETFSUID
+#define HAVE_SETFSGID
+// Linux allows anyone to call mlock[all]/munlock[all]
+#define MLOCK_REQUIRES_ROOT 0
+// Linux allows anyone to call sched_setscheduler
+#define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
 
 #define PD_DAEMON       0x01
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
+  return syscall(__NR_getdents, fd, dirp, count);
+}
+#define mincore_ mincore
+#define sendfile_ sendfile
 
 inline int cap_enter() {
   return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);

@@ -38,8 +38,13 @@
 #include <sys/mount.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <dirent.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <sched.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "capsicum.h"
@@ -62,6 +67,13 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   size_t mem_size = getpagesize();
   void *mem = mmap(NULL, mem_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
   EXPECT_TRUE(mem != NULL);
+
+  // Record some identifiers
+  gid_t my_gid = getgid();
+  pid_t my_pid = getpid();
+  pid_t my_ppid = getppid();
+  uid_t my_uid = getuid();
+  pid_t my_sid = getsid(my_pid);
 
   // Enter capability mode.
   unsigned int mode = -1;
@@ -148,16 +160,107 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   EXPECT_FAIL_NOT_CAPMODE(recvmsg(fd_socket, NULL, 0));
   EXPECT_FAIL_NOT_CAPMODE(sendmsg(fd_socket, NULL, 0));
   EXPECT_FAIL_NOT_CAPMODE(sendto(fd_socket, NULL, 0, 0, NULL, 0));
+  off_t offset = 0;
+  EXPECT_FAIL_NOT_CAPMODE(sendfile_(fd_socket, fd_file, &offset, 1));
 
   // System calls which should be allowed in capability mode, but which
-  // don't return errors, and are thus difficult to check.
-  // We will try anyway, by checking errno.
-  EXPECT_FAIL_VOID_NOT_CAPMODE(getegid);
-  EXPECT_FAIL_VOID_NOT_CAPMODE(geteuid);
-  EXPECT_FAIL_VOID_NOT_CAPMODE(getgid);
-  EXPECT_FAIL_VOID_NOT_CAPMODE(getpid);
-  EXPECT_FAIL_VOID_NOT_CAPMODE(getppid);
-  EXPECT_FAIL_VOID_NOT_CAPMODE(getuid);
+  // don't return errors.
+  EXPECT_EQ(my_gid, getegid());
+  EXPECT_EQ(my_uid, geteuid());
+  EXPECT_EQ(my_gid, getgid());
+  EXPECT_EQ(my_pid, getpid());
+  EXPECT_EQ(my_ppid, getppid());
+  EXPECT_EQ(my_uid, getuid());
+  EXPECT_EQ(my_sid, getsid(my_pid));
+  gid_t grps[128];
+  EXPECT_OK(getgroups(128, grps));
+  uid_t ruid;
+  uid_t euid;
+  uid_t suid;
+  EXPECT_OK(getresuid(&ruid, &euid, &suid));
+  gid_t rgid;
+  gid_t egid;
+  gid_t sgid;
+  EXPECT_OK(getresgid(&rgid, &egid, &sgid));
+
+  EXPECT_OK(setgid(my_gid));
+#ifdef HAVE_SETFSGID
+  EXPECT_OK(setfsgid(my_gid));
+#endif
+  EXPECT_OK(setuid(my_uid));
+#ifdef HAVE_SETFSUID
+  EXPECT_OK(setfsuid(my_uid));
+#endif
+  EXPECT_OK(setregid(my_gid, my_gid));
+  EXPECT_OK(setresgid(my_gid, my_gid, my_gid));
+  EXPECT_OK(setreuid(my_uid, my_uid));
+  EXPECT_OK(setresuid(my_uid, my_uid, my_uid));
+  EXPECT_OK(setsid());
+
+  struct timespec ts;
+  EXPECT_OK(clock_getres(CLOCK_REALTIME, &ts));
+  EXPECT_OK(clock_gettime(CLOCK_REALTIME, &ts));
+  struct itimerval itv;
+  EXPECT_OK(getitimer(ITIMER_REAL, &itv));
+  EXPECT_OK(setitimer(ITIMER_REAL, &itv, NULL));
+  errno = 0;
+  rc = getpriority(PRIO_PROCESS, 0);
+  EXPECT_EQ(0, errno);
+  EXPECT_OK(setpriority(PRIO_PROCESS, 0, rc));
+  struct rlimit rlim;
+  EXPECT_OK(getrlimit(RLIMIT_CORE, &rlim));
+  EXPECT_OK(setrlimit(RLIMIT_CORE, &rlim));
+  struct rusage ruse;
+  EXPECT_OK(getrusage(RUSAGE_SELF, &ruse));
+  struct timeval tv;
+  struct timezone tz;
+  EXPECT_OK(gettimeofday(&tv, &tz));
+  char buf[1024];
+  rc = getdents_(fd_dir, (void*)buf, sizeof(buf));
+  EXPECT_OK(rc);
+  EXPECT_OK(madvise(mem, mem_size, MADV_NORMAL));
+  unsigned char vec[2];
+  EXPECT_OK(mincore_(mem, mem_size, vec));
+  EXPECT_OK(mprotect(mem, mem_size, PROT_READ|PROT_WRITE));
+  if (!MLOCK_REQUIRES_ROOT || my_uid == 0) {
+    EXPECT_OK(mlock(mem, mem_size));
+    EXPECT_OK(munlock(mem, mem_size));
+    EXPECT_OK(mlockall(MCL_CURRENT));
+    EXPECT_OK(munlockall());
+  }
+
+  ts.tv_sec = 0;
+  ts.tv_nsec = 1;
+  EXPECT_OK(nanosleep(&ts, NULL));
+
+  char data[] = "123";
+  EXPECT_OK(pwrite(fd_file, data, 1, 0));
+  EXPECT_OK(pread(fd_file, data, 1, 0));
+
+  struct iovec io;
+  io.iov_base = data;
+  io.iov_len = 2;
+  EXPECT_OK(pwritev(fd_file, &io, 1, 0));
+  EXPECT_OK(preadv(fd_file, &io, 1, 0));
+  EXPECT_OK(writev(fd_file, &io, 1));
+  EXPECT_OK(readv(fd_file, &io, 1));
+
+  int policy = sched_getscheduler(0);
+  EXPECT_OK(policy);
+  struct sched_param sp;
+  EXPECT_OK(sched_getparam(0, &sp));
+  if (policy >= 0 && (!SCHED_SETSCHEDULER_REQUIRES_ROOT || my_uid == 0)) {
+    EXPECT_OK(sched_setscheduler(0, policy, &sp));
+  }
+  EXPECT_OK(sched_setparam(0, &sp));
+  EXPECT_OK(sched_get_priority_max(policy));
+  EXPECT_OK(sched_get_priority_min(policy));
+  EXPECT_OK(sched_rr_get_interval(0, &ts));
+  EXPECT_OK(sched_yield());
+
+  EXPECT_OK(umask(022)); // TODO(drysdale): why does this work on Linux?
+  stack_t ss;
+  EXPECT_OK(sigaltstack(NULL, &ss));
 
   // Finally, tests for system calls that don't fit the pattern very well.
   pid_t pid = fork();
@@ -207,7 +310,10 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
 #endif
 #endif
 
-  // TODO(rnmw): No error return from sync(2) to test.
+  // No error return from sync(2) to test, but check errno remains unset.
+  errno = 0;
+  sync();
+  EXPECT_EQ(0, errno);
 
   // Close files and unmap memory.
   munmap(mem, mem_size);
