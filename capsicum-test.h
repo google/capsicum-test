@@ -9,39 +9,50 @@
 
 #include "gtest/gtest.h"
 
-// Run a test case in a forked process, so that trapdoors don't
-// affect other tests.
+// Run the given test function in a forked process, so that trapdoor
+// entry doesn't affect other tests, and watch out for hung processes.
+// Implemented as a macro to allow access to the test case instance's
+// HasFailure() method, which is reported as the forked process's
+// exit status.
+#define _RUN_FORKED(TESTFN, TESTCASENAME, TESTNAME)            \
+    pid_t pid = fork();                                        \
+    if (pid == 0) {                                            \
+      TESTFN();                                                \
+      exit(HasFailure());                                      \
+    } else if (pid > 0) {                                      \
+      int rc, status;                                          \
+      int remaining_us = 10000000;                             \
+      while (remaining_us > 0) {                               \
+        status = 0;                                            \
+        rc = waitpid(pid, &status, WNOHANG);                   \
+        if (rc != 0) break;                                    \
+        remaining_us -= 10000;                                 \
+        usleep(10000);                                         \
+      }                                                        \
+      if (remaining_us <= 0) {                                 \
+        fprintf(stderr, "Warning: killing unresponsive test "  \
+                        "%s.%s (pid %d)\n",                    \
+                        TESTCASENAME, TESTNAME, pid);          \
+        kill(pid, SIGKILL);                                    \
+        ADD_FAILURE() << "Test hung";                          \
+      } else if (rc < 0) {                                     \
+        fprintf(stderr, "Warning: waitpid error %s (%d)\n",    \
+                        strerror(errno), errno);               \
+        ADD_FAILURE() << "Failed to wait for child";           \
+      } else {                                                 \
+        int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
+        EXPECT_EQ(0, rc);                                      \
+      }                                                        \
+    }
+
+// Run a test case in a forked process, possibly cleaning up a
+// test file after completion
 #define FORK_TEST_ON(test_case_name, test_name, test_file)     \
     static int test_case_name##_##test_name##_ForkTest();      \
     TEST(test_case_name, test_name ## Forked) {                \
-      pid_t pid = fork();                                      \
-      if (pid == 0) {                                          \
-        test_case_name##_##test_name##_ForkTest();             \
-        exit(HasFailure());                                    \
-      } else if (pid > 0) {                                    \
-        int rc, status;                                        \
-        int remaining_us = 10000000;                           \
-        while (remaining_us > 0) {                             \
-          status = 0;                                          \
-          rc = waitpid(pid, &status, WNOHANG);                 \
-          if (rc != 0) break;                                  \
-          remaining_us -= 10000;                               \
-          usleep(10000);                                       \
-        }                                                      \
-        if (remaining_us <= 0) {                               \
-          fprintf(stderr, "Warning: killing unresponsive test %s.%s (pid %d)\n", \
-                  #test_case_name, #test_name, pid);           \
-          kill(pid, SIGKILL);                                  \
-          ADD_FAILURE() << "Test hung";                        \
-        } else if (rc < 0) {                                   \
-          fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno); \
-          ADD_FAILURE() << "Failed to wait for child";         \
-        } else {                                               \
-          int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
-          EXPECT_EQ(0, rc);                                    \
-        }                                                      \
-        if (test_file) unlink(test_file);                      \
-      }                                                        \
+      _RUN_FORKED(test_case_name##_##test_name##_ForkTest,     \
+                  #test_case_name, #test_name);                \
+      if (test_file) unlink(test_file);                        \
     }                                                          \
     static int test_case_name##_##test_name##_ForkTest()
 
@@ -49,8 +60,7 @@
 
 // Run a test case fixture in a forked process, so that trapdoors don't
 // affect other tests.
-#define ICLASS_NAME(test_case_name, test_name) \
-    Forked##test_case_name##_##test_name
+#define ICLASS_NAME(test_case_name, test_name) Forked##test_case_name##_##test_name
 #define FORK_TEST_F(test_case_name, test_name)                \
   class ICLASS_NAME(test_case_name, test_name) : public test_case_name { \
     public:                                                    \
@@ -59,16 +69,7 @@
       void InnerTestBody();                                    \
     };                                                         \
     TEST_F(ICLASS_NAME(test_case_name, test_name), _) {        \
-      pid_t pid = fork();                                      \
-      if (pid == 0) {                                          \
-        InnerTestBody();                                       \
-        exit(HasFailure());                                    \
-      } else if (pid > 0) {                                    \
-        int status;                                            \
-        waitpid(pid, &status, 0);                              \
-        int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
-        EXPECT_EQ(0, rc);                                      \
-      }                                                        \
+      _RUN_FORKED(InnerTestBody, #test_case_name, #test_name); \
     }                                                          \
     void ICLASS_NAME(test_case_name, test_name)::InnerTestBody()
 
