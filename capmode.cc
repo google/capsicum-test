@@ -354,10 +354,13 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
 }
 
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
+  umask(022);
+  mode_t um_before = umask(022);
   EXPECT_OK(cap_enter());
 
   mode_t um = umask(022);
-  EXPECT_NE(ECAPMODE, (int)um); // TODO(drysdale): why does this work on Linux?
+  EXPECT_NE(-ECAPMODE, (int)um);
+  EXPECT_EQ(um_before, um);
   stack_t ss;
   EXPECT_OK(sigaltstack(NULL, &ss));
 
