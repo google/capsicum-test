@@ -25,6 +25,7 @@
 #include <poll.h>
 
 #include "capsicum.h"
+#include "syscalls.h"
 #include "capsicum-test.h"
 
 FORK_TEST(Capability, CapNew) {

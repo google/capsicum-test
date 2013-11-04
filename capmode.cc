@@ -48,6 +48,7 @@
 #include <unistd.h>
 
 #include "capsicum.h"
+#include "syscalls.h"
 #include "capsicum-test.h"
 
 FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {

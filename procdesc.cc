@@ -19,6 +19,7 @@
 #include <iomanip>
 
 #include "capsicum.h"
+#include "syscalls.h"
 #include "capsicum-test.h"
 
 TEST(Pdfork, Simple) {
