@@ -86,10 +86,10 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   // Enter capability mode.
   unsigned int mode = -1;
   EXPECT_OK(cap_getmode(&mode));
-  EXPECT_EQ(0, mode);
+  EXPECT_EQ(0, (int)mode);
   EXPECT_OK(cap_enter());
   EXPECT_OK(cap_getmode(&mode));
-  EXPECT_EQ(1, mode);
+  EXPECT_EQ(1, (int)mode);
 
   // System calls that are not permitted in capability mode.
   EXPECT_CAPMODE(access("/tmp/cap_capmode_access", F_OK));
@@ -116,7 +116,8 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   EXPECT_CAPMODE(mount("procfs", "/not_mounted", 0, NULL));
 #endif
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
-  EXPECT_CAPMODE(readlink("/tmp/cap_capmode_readlink", NULL, 0));
+  char buf[64];
+  EXPECT_CAPMODE(readlink("/tmp/cap_capmode_readlink", buf, sizeof(buf)));
 #ifdef HAVE_REVOKE
   EXPECT_CAPMODE(revoke("/tmp/cap_capmode_revoke"));
 #endif
@@ -160,7 +161,8 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   struct stat sb;
   EXPECT_OK(fstat(fd_file_, &sb));
   EXPECT_OK(lseek(fd_file_, 0, SEEK_SET));
-  EXPECT_OK(profil(NULL, 0, 0, 0));
+  char sbuf[32];
+  EXPECT_OK(profil((profil_arg1_t*)sbuf, sizeof(sbuf), 0, 1));
   char ch;
   EXPECT_OK(read(fd_file_, &ch, sizeof(ch)));
   EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
@@ -330,12 +332,11 @@ FORK_TEST(CapMode, AllowedMmapSyscalls) {
 }
 
 FORK_TEST(Capmode, AllowedPipeSyscalls) {
-  int rc;
   EXPECT_OK(cap_enter());
 #ifndef __linux__
   // TODO(drysdale): reinstate when pipe works in capsicum-linux capability mode.
   int fd2[2];
-  rc = pipe(fd2);
+  int rc = pipe(fd2);
   EXPECT_EQ(0, rc);
   if (rc == 0) {
     close(fd2[0]);
@@ -355,7 +356,8 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   EXPECT_OK(cap_enter());
 
-  EXPECT_OK(umask(022)); // TODO(drysdale): why does this work on Linux?
+  mode_t um = umask(022);
+  EXPECT_NE(ECAPMODE, (int)um); // TODO(drysdale): why does this work on Linux?
   stack_t ss;
   EXPECT_OK(sigaltstack(NULL, &ss));
 

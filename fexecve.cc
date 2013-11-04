@@ -80,7 +80,7 @@ FORK_TEST(Fexecve, ExecutePermissionCheck) {
   if (fd >= 0) {
     struct stat data;
     EXPECT_OK(fstat(fd, &data));
-    EXPECT_EQ(0, data.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH));
+    EXPECT_EQ((mode_t)0, data.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH));
     EXPECT_EQ(-1, fexecve_(fd, argv_fail, null_envp));
     EXPECT_EQ(EACCES, errno);
     close(fd);

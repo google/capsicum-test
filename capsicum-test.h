@@ -48,13 +48,14 @@
 // Run a test case in a forked process, possibly cleaning up a
 // test file after completion
 #define FORK_TEST_ON(test_case_name, test_name, test_file)     \
-    static int test_case_name##_##test_name##_ForkTest();      \
+    static void test_case_name##_##test_name##_ForkTest();     \
     TEST(test_case_name, test_name ## Forked) {                \
       _RUN_FORKED(test_case_name##_##test_name##_ForkTest,     \
                   #test_case_name, #test_name);                \
-      if (test_file) unlink(test_file);                        \
+      const char *filename = test_file;                        \
+      if (filename) unlink(filename);                          \
     }                                                          \
-    static int test_case_name##_##test_name##_ForkTest()
+    static void test_case_name##_##test_name##_ForkTest()
 
 #define FORK_TEST(test_case_name, test_name) FORK_TEST_ON(test_case_name, test_name, NULL)
 

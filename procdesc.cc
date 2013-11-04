@@ -206,16 +206,6 @@ static void ExpectPidReachesStates(pid_t pid, int expected1, int expected2) {
   EXPECT_TRUE(state == expected1 || state == expected2);
 }
 
-static void ExpectPidReachesState(pid_t pid, int expected) {
-  int counter = 5;
-  char state;
-  do {
-    state = process_state(pid);
-    if (state == expected) return;
-    usleep(100000);
-  } while (--counter > 0);
-  EXPECT_EQ(expected, state);
-}
 #define EXPECT_PID_ALIVE(pid) ExpectPidReachesStates(pid, 'R', 'S')
 #define EXPECT_PID_DEAD(pid)  ExpectPidReachesStates(pid, 'Z', '\0')
 
@@ -225,7 +215,7 @@ static void ExpectPidReachesState(pid_t pid, int expected) {
 TEST_F(PipePdfork, Release) {
   EXPECT_PID_ALIVE(pid_);
   int zero = 0;
-  EXPECT_EQ(sizeof(zero), write(pipe_, &zero, sizeof(zero)));
+  EXPECT_EQ((ssize_t)sizeof(zero), write(pipe_, &zero, sizeof(zero)));
   EXPECT_PID_DEAD(pid_);
   pid_ = 0;
 }

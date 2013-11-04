@@ -16,6 +16,9 @@
 /* Map sighandler_y (Linux) to sig_t (FreeBSD) */
 #define sighandler_t sig_t
 
+/* profil(2) has a first argument of char* */
+#define profil_arg1_t char
+
 /* FreeBSD has getdents(2) available */
 #include <sys/types.h>
 #include <dirent.h>
@@ -64,6 +67,9 @@ inline ssize_t sendfile_(int out_fd, int in_fd, off_t *offset, size_t count) {
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/sendfile.h>
+
+/* profil(2) has a first argument of unsigned short* */
+#define profil_arg1_t unsigned short
 
 inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
   return syscall(__NR_getdents, fd, dirp, count);

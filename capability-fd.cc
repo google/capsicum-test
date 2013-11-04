@@ -31,7 +31,7 @@
 FORK_TEST(Capability, CapNew) {
   int cap_fd = cap_new(STDOUT_FILENO, CAP_READ|CAP_WRITE|CAP_SEEK);
   EXPECT_OK(cap_fd);
-  if (cap_fd < 0) return 1;
+  if (cap_fd < 0) return;
   int rc = write(cap_fd, "OK!\n", 4);
   EXPECT_OK(rc);
   EXPECT_EQ(4, rc);
@@ -266,7 +266,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
 FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
   int fd = open("/tmp/cap_fd_operations", O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
-  if (fd < 0) return 1;
+  if (fd < 0) return;
 
   EXPECT_OK(cap_enter());
 
