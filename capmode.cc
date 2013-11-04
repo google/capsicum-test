@@ -51,31 +51,38 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
-FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
-  // Open some files to play with.
-  int fd_file = open("/tmp/cap_capmode", O_RDWR|O_CREAT, 0644);
-  EXPECT_OK(fd_file);
-  int fd_close = open("/dev/null", O_RDWR);
-  EXPECT_OK(fd_close);
-  int fd_dir = open("/tmp", O_RDONLY);
-  EXPECT_OK(fd_dir);
-  int fd_socket = socket(PF_INET, SOCK_DGRAM, 0);
-  EXPECT_OK(fd_socket);
-  int fd_tcp_socket = socket(PF_INET, SOCK_STREAM, 0);
-  EXPECT_OK(fd_socket);
+// Test fixture that opens (and closes) a bunch of files.
+class WithFiles : public ::testing::Test {
+ public:
+  WithFiles() :
+    fd_file_(open("/tmp/cap_capmode", O_RDWR|O_CREAT, 0644)),
+    fd_close_(open("/dev/null", O_RDWR)),
+    fd_dir_(open("/tmp", O_RDONLY)),
+    fd_socket_(socket(PF_INET, SOCK_DGRAM, 0)),
+    fd_tcp_socket_(socket(PF_INET, SOCK_STREAM, 0)) {
+    EXPECT_OK(fd_file_);
+    EXPECT_OK(fd_close_);
+    EXPECT_OK(fd_dir_);
+    EXPECT_OK(fd_socket_);
+    EXPECT_OK(fd_tcp_socket_);
+  }
+  ~WithFiles() {
+    if (fd_tcp_socket_ >= 0) close(fd_tcp_socket_);
+    if (fd_socket_ >= 0) close(fd_socket_);
+    if (fd_dir_ >= 0) close(fd_dir_);
+    if (fd_close_ >= 0) close(fd_close_);
+    if (fd_file_ >= 0) close(fd_file_);
+    unlink("/tmp/cap_capmode");
+  }
+ protected:
+  int fd_file_;
+  int fd_close_;
+  int fd_dir_;
+  int fd_socket_;
+  int fd_tcp_socket_;
+};
 
-  // mmap() some memory.
-  size_t mem_size = getpagesize();
-  void *mem = mmap(NULL, mem_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-  EXPECT_TRUE(mem != NULL);
-
-  // Record some identifiers
-  gid_t my_gid = getgid();
-  pid_t my_pid = getpid();
-  pid_t my_ppid = getppid();
-  uid_t my_uid = getuid();
-  pid_t my_sid = getsid(my_pid);
-
+FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   // Enter capability mode.
   unsigned int mode = -1;
   EXPECT_OK(cap_getmode(&mode));
@@ -87,11 +94,6 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   // System calls that are not permitted in capability mode.
   EXPECT_CAPMODE(access("/tmp/cap_capmode_access", F_OK));
   EXPECT_CAPMODE(acct("/tmp/cap_capmode_acct"));
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_port = 0;
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  EXPECT_CAPMODE(bind(fd_socket, (sockaddr*)&addr, sizeof(addr)));
   EXPECT_CAPMODE(chdir("/tmp/cap_capmode_chdir"));
 #ifdef HAVE_CHFLAGS
   EXPECT_CAPMODE(chflags("/tmp/cap_capmode_chflags", UF_NODUMP));
@@ -99,12 +101,8 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   EXPECT_CAPMODE(chmod("/tmp/cap_capmode_chmod", 0644));
   EXPECT_CAPMODE(chown("/tmp/cap_capmode_chown", -1, -1));
   EXPECT_CAPMODE(chroot("/tmp/cap_capmode_chroot"));
-  addr.sin_family = AF_INET;
-  addr.sin_port = 53;
-  addr.sin_addr.s_addr = htonl(0x08080808);
-  EXPECT_CAPMODE(connect(fd_tcp_socket, (sockaddr*)&addr, sizeof(addr)));
   EXPECT_CAPMODE(creat("/tmp/cap_capmode_creat", 0644));
-  EXPECT_CAPMODE(fchdir(fd_dir));
+  EXPECT_CAPMODE(fchdir(fd_dir_));
 #ifdef HAVE_GETFSSTAT
   struct statfs statfs;
   EXPECT_CAPMODE(getfsstat(&statfs, sizeof(statfs), MNT_NOWAIT));
@@ -126,46 +124,102 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   EXPECT_CAPMODE(symlink("/tmp/cap_capmode_symlink_from", "/tmp/cap_capmode_symlink_to"));
   EXPECT_CAPMODE(unlink("/tmp/cap_capmode_unlink"));
   EXPECT_CAPMODE(umount2("/not_mounted", 0));
+}
 
-  // System calls that are permitted in capability mode.
-  EXPECT_OK(close(fd_close));
-  int fd_dup = dup(fd_file);
+FORK_TEST_F(WithFiles, DisallowedSocketSyscalls) {
+  // Enter capability mode.
+  EXPECT_OK(cap_enter());
+
+  // System calls that are not permitted in capability mode.
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = 0;
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  EXPECT_CAPMODE(bind(fd_socket_, (sockaddr*)&addr, sizeof(addr)));
+  addr.sin_family = AF_INET;
+  addr.sin_port = 53;
+  addr.sin_addr.s_addr = htonl(0x08080808);
+  EXPECT_CAPMODE(connect(fd_tcp_socket_, (sockaddr*)&addr, sizeof(addr)));
+}
+
+FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
+  int rc;
+  // Enter capability mode.
+  EXPECT_OK(cap_enter());
+
+  EXPECT_OK(close(fd_close_));
+  fd_close_ = -1;
+  int fd_dup = dup(fd_file_);
   EXPECT_OK(fd_dup);
-  EXPECT_OK(dup2(fd_file, fd_dup));
+  EXPECT_OK(dup2(fd_file_, fd_dup));
 #ifdef HAVE_DUP3
-  EXPECT_OK(dup3(fd_file, fd_dup, 0));
+  EXPECT_OK(dup3(fd_file_, fd_dup, 0));
 #endif
   if (fd_dup >= 0) close(fd_dup);
 
-  EXPECT_OK(fstat(fd_file, &sb));
-  EXPECT_OK(lseek(fd_file, 0, SEEK_SET));
-  EXPECT_OK(msync(mem, mem_size, MS_ASYNC));
+  struct stat sb;
+  EXPECT_OK(fstat(fd_file_, &sb));
+  EXPECT_OK(lseek(fd_file_, 0, SEEK_SET));
   EXPECT_OK(profil(NULL, 0, 0, 0));
   char ch;
-  EXPECT_OK(read(fd_file, &ch, sizeof(ch)));
+  EXPECT_OK(read(fd_file_, &ch, sizeof(ch)));
+  EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
+
+#ifdef HAVE_CHFLAGS
+  rc = fchflags(fd_file_, UF_NODUMP);
+  if (rc < 0)  EXPECT_NE(ECAPMODE, errno);
+#endif
+
+  char buf[1024];
+  rc = getdents_(fd_dir_, (void*)buf, sizeof(buf));
+  EXPECT_OK(rc);
+
+  char data[] = "123";
+  EXPECT_OK(pwrite(fd_file_, data, 1, 0));
+  EXPECT_OK(pread(fd_file_, data, 1, 0));
+
+  struct iovec io;
+  io.iov_base = data;
+  io.iov_len = 2;
+  EXPECT_OK(pwritev(fd_file_, &io, 1, 0));
+  EXPECT_OK(preadv(fd_file_, &io, 1, 0));
+  EXPECT_OK(writev(fd_file_, &io, 1));
+  EXPECT_OK(readv(fd_file_, &io, 1));
+}
+
+FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
+  // Enter capability mode.
+  EXPECT_OK(cap_enter());
+
   // recvfrom() either returns -1 with EAGAIN, or 0.
-  int rc = recvfrom(fd_socket, NULL, 0, MSG_DONTWAIT, NULL, NULL);
+  int rc = recvfrom(fd_socket_, NULL, 0, MSG_DONTWAIT, NULL, NULL);
   if (rc < 0) EXPECT_EQ(EAGAIN, errno);
-  EXPECT_OK(setuid(getuid()));
-  EXPECT_OK(write(fd_file, &ch, sizeof(ch)));
+  char ch;
+  EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
 
   // These calls will fail for lack of e.g. a proper name to send to,
   // but they are allowed in capability mode, so errno != ECAPMODE.
-  EXPECT_FAIL_NOT_CAPMODE(accept(fd_socket, NULL, NULL));
-  EXPECT_FAIL_NOT_CAPMODE(getpeername(fd_socket, NULL, NULL));
-  EXPECT_FAIL_NOT_CAPMODE(getsockname(fd_socket, NULL, NULL));
-#ifdef HAVE_CHFLAGS
-  rc = fchflags(fd_file, UF_NODUMP);
-  if (rc < 0)  EXPECT_NE(ECAPMODE, errno);
-#endif
-  EXPECT_FAIL_NOT_CAPMODE(recvmsg(fd_socket, NULL, 0));
-  EXPECT_FAIL_NOT_CAPMODE(sendmsg(fd_socket, NULL, 0));
-  EXPECT_FAIL_NOT_CAPMODE(sendto(fd_socket, NULL, 0, 0, NULL, 0));
+  EXPECT_FAIL_NOT_CAPMODE(accept(fd_socket_, NULL, NULL));
+  EXPECT_FAIL_NOT_CAPMODE(getpeername(fd_socket_, NULL, NULL));
+  EXPECT_FAIL_NOT_CAPMODE(getsockname(fd_socket_, NULL, NULL));
+  EXPECT_FAIL_NOT_CAPMODE(recvmsg(fd_socket_, NULL, 0));
+  EXPECT_FAIL_NOT_CAPMODE(sendmsg(fd_socket_, NULL, 0));
+  EXPECT_FAIL_NOT_CAPMODE(sendto(fd_socket_, NULL, 0, 0, NULL, 0));
   off_t offset = 0;
-  EXPECT_FAIL_NOT_CAPMODE(sendfile_(fd_socket, fd_file, &offset, 1));
+  EXPECT_FAIL_NOT_CAPMODE(sendfile_(fd_socket_, fd_file_, &offset, 1));
+}
 
-  // System calls which should be allowed in capability mode, but which
-  // don't return errors.
+FORK_TEST(Capmode, AllowedIdentifierSyscalls) {
+  // Record some identifiers
+  gid_t my_gid = getgid();
+  pid_t my_pid = getpid();
+  pid_t my_ppid = getppid();
+  uid_t my_uid = getuid();
+  pid_t my_sid = getsid(my_pid);
+
+  // Enter capability mode.
+  EXPECT_OK(cap_enter());
+
   EXPECT_EQ(my_gid, getegid());
   EXPECT_EQ(my_uid, geteuid());
   EXPECT_EQ(my_gid, getgid());
@@ -183,7 +237,11 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   gid_t egid;
   gid_t sgid;
   EXPECT_OK(getresgid(&rgid, &egid, &sgid));
+#ifdef HAVE_GETLOGIN
+  EXPECT_TRUE(getlogin() != NULL);
+#endif
 
+  // Set various identifiers (to their existing values).
   EXPECT_OK(setgid(my_gid));
 #ifdef HAVE_SETFSGID
   EXPECT_OK(setfsgid(my_gid));
@@ -197,15 +255,47 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   EXPECT_OK(setreuid(my_uid, my_uid));
   EXPECT_OK(setresuid(my_uid, my_uid, my_uid));
   EXPECT_OK(setsid());
+}
 
+FORK_TEST(Capmode, AllowedSchedSyscalls) {
+  EXPECT_OK(cap_enter());
+  int policy = sched_getscheduler(0);
+  EXPECT_OK(policy);
+  struct sched_param sp;
+  EXPECT_OK(sched_getparam(0, &sp));
+  if (policy >= 0 && (!SCHED_SETSCHEDULER_REQUIRES_ROOT || getuid() == 0)) {
+    EXPECT_OK(sched_setscheduler(0, policy, &sp));
+  }
+  EXPECT_OK(sched_setparam(0, &sp));
+  EXPECT_OK(sched_get_priority_max(policy));
+  EXPECT_OK(sched_get_priority_min(policy));
+  struct timespec ts;
+  EXPECT_OK(sched_rr_get_interval(0, &ts));
+  EXPECT_OK(sched_yield());
+}
+
+
+FORK_TEST(Capmode, AllowedTimerSyscalls) {
+  EXPECT_OK(cap_enter());
   struct timespec ts;
   EXPECT_OK(clock_getres(CLOCK_REALTIME, &ts));
   EXPECT_OK(clock_gettime(CLOCK_REALTIME, &ts));
   struct itimerval itv;
   EXPECT_OK(getitimer(ITIMER_REAL, &itv));
   EXPECT_OK(setitimer(ITIMER_REAL, &itv, NULL));
+  struct timeval tv;
+  struct timezone tz;
+  EXPECT_OK(gettimeofday(&tv, &tz));
+  ts.tv_sec = 0;
+  ts.tv_nsec = 1;
+  EXPECT_OK(nanosleep(&ts, NULL));
+}
+
+
+FORK_TEST(Capmode, AllowedResourceSyscalls) {
+  EXPECT_OK(cap_enter());
   errno = 0;
-  rc = getpriority(PRIO_PROCESS, 0);
+  int rc = getpriority(PRIO_PROCESS, 0);
   EXPECT_EQ(0, errno);
   EXPECT_OK(setpriority(PRIO_PROCESS, 0, rc));
   struct rlimit rlim;
@@ -213,72 +303,35 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   EXPECT_OK(setrlimit(RLIMIT_CORE, &rlim));
   struct rusage ruse;
   EXPECT_OK(getrusage(RUSAGE_SELF, &ruse));
-  struct timeval tv;
-  struct timezone tz;
-  EXPECT_OK(gettimeofday(&tv, &tz));
-  char buf[1024];
-  rc = getdents_(fd_dir, (void*)buf, sizeof(buf));
-  EXPECT_OK(rc);
+}
+
+FORK_TEST(CapMode, AllowedMmapSyscalls) {
+  // mmap() some memory.
+  size_t mem_size = getpagesize();
+  void *mem = mmap(NULL, mem_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+  EXPECT_TRUE(mem != NULL);
+  // Enter capability mode.
+  EXPECT_OK(cap_enter());
+
+  EXPECT_OK(msync(mem, mem_size, MS_ASYNC));
   EXPECT_OK(madvise(mem, mem_size, MADV_NORMAL));
   unsigned char vec[2];
   EXPECT_OK(mincore_(mem, mem_size, vec));
   EXPECT_OK(mprotect(mem, mem_size, PROT_READ|PROT_WRITE));
-  if (!MLOCK_REQUIRES_ROOT || my_uid == 0) {
+
+  if (!MLOCK_REQUIRES_ROOT || getuid() == 0) {
     EXPECT_OK(mlock(mem, mem_size));
     EXPECT_OK(munlock(mem, mem_size));
     EXPECT_OK(mlockall(MCL_CURRENT));
     EXPECT_OK(munlockall());
   }
+  // Unmap the memory.
+  EXPECT_OK(munmap(mem, mem_size));
+}
 
-  ts.tv_sec = 0;
-  ts.tv_nsec = 1;
-  EXPECT_OK(nanosleep(&ts, NULL));
-
-  char data[] = "123";
-  EXPECT_OK(pwrite(fd_file, data, 1, 0));
-  EXPECT_OK(pread(fd_file, data, 1, 0));
-
-  struct iovec io;
-  io.iov_base = data;
-  io.iov_len = 2;
-  EXPECT_OK(pwritev(fd_file, &io, 1, 0));
-  EXPECT_OK(preadv(fd_file, &io, 1, 0));
-  EXPECT_OK(writev(fd_file, &io, 1));
-  EXPECT_OK(readv(fd_file, &io, 1));
-
-  int policy = sched_getscheduler(0);
-  EXPECT_OK(policy);
-  struct sched_param sp;
-  EXPECT_OK(sched_getparam(0, &sp));
-  if (policy >= 0 && (!SCHED_SETSCHEDULER_REQUIRES_ROOT || my_uid == 0)) {
-    EXPECT_OK(sched_setscheduler(0, policy, &sp));
-  }
-  EXPECT_OK(sched_setparam(0, &sp));
-  EXPECT_OK(sched_get_priority_max(policy));
-  EXPECT_OK(sched_get_priority_min(policy));
-  EXPECT_OK(sched_rr_get_interval(0, &ts));
-  EXPECT_OK(sched_yield());
-
-  EXPECT_OK(umask(022)); // TODO(drysdale): why does this work on Linux?
-  stack_t ss;
-  EXPECT_OK(sigaltstack(NULL, &ss));
-
-  // Finally, tests for system calls that don't fit the pattern very well.
-  pid_t pid = fork();
-  EXPECT_OK(pid);
-  if (pid == 0) {
-    // Child: immediately exit.
-    exit(0);
-  } else if (pid > 0) {
-    EXPECT_CAPMODE(waitpid(pid, NULL, 0));
-  }
-
-#ifdef HAVE_GETLOGIN
-  EXPECT_TRUE(getlogin() != NULL);
-#endif
-
-  // TODO(rnmw): ktrace
-
+FORK_TEST(Capmode, AllowedPipeSyscalls) {
+  int rc;
+  EXPECT_OK(cap_enter());
 #ifndef __linux__
   // TODO(drysdale): reinstate when pipe works in capsicum-linux capability mode.
   int fd2[2];
@@ -297,7 +350,31 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   };
 #endif
 #endif
+}
 
+FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
+  EXPECT_OK(cap_enter());
+
+  EXPECT_OK(umask(022)); // TODO(drysdale): why does this work on Linux?
+  stack_t ss;
+  EXPECT_OK(sigaltstack(NULL, &ss));
+
+  // Finally, tests for system calls that don't fit the pattern very well.
+  pid_t pid = fork();
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: immediately exit.
+    exit(0);
+  } else if (pid > 0) {
+    EXPECT_CAPMODE(waitpid(pid, NULL, 0));
+  }
+
+  // No error return from sync(2) to test, but check errno remains unset.
+  errno = 0;
+  sync();
+  EXPECT_EQ(0, errno);
+
+  // TODO(rnmw): ktrace
   // TODO(rnmw): ptrace
 
 #ifdef HAVE_SYSARCH
@@ -310,17 +387,4 @@ FORK_TEST_ON(Capmode, Syscalls, "/tmp/cap_capmode") {
   FAIL("capmode:no sysarch() test for current architecture");
 #endif
 #endif
-
-  // No error return from sync(2) to test, but check errno remains unset.
-  errno = 0;
-  sync();
-  EXPECT_EQ(0, errno);
-
-  // Close files and unmap memory.
-  munmap(mem, mem_size);
-  if (fd_file >= 0) close(fd_file);
-  if (fd_close >= 0) close(fd_close);
-  if (fd_dir >= 0) close(fd_dir);
-  if (fd_socket >= 0) close(fd_socket);
-  if (fd_tcp_socket >= 0) close(fd_tcp_socket);
 }
