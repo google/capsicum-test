@@ -219,6 +219,16 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
   EXPECT_FAIL_NOT_CAPMODE(sendto(fd_socket_, NULL, 0, 0, NULL, 0));
   off_t offset = 0;
   EXPECT_FAIL_NOT_CAPMODE(sendfile_(fd_socket_, fd_file_, &offset, 1));
+
+  // The socket/socketpair syscalls are allowed, but they don't give
+  // anything useful (can't call bind/connect on them).
+  int fd_socket2 = socket(PF_INET, SOCK_DGRAM, 0);
+  EXPECT_OK(fd_socket2);
+  if (fd_socket2 >= 0) close(fd_socket2);
+  int fd_pair[2] = {-1, -1};
+  EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, fd_pair));
+  if (fd_pair[0] >= 0) close(fd_pair[0]);
+  if (fd_pair[1] >= 0) close(fd_pair[1]);
 }
 
 #ifdef HAVE_SEND_RECV_MMSG
@@ -373,8 +383,6 @@ FORK_TEST(CapMode, AllowedMmapSyscalls) {
 
 FORK_TEST(Capmode, AllowedPipeSyscalls) {
   EXPECT_OK(cap_enter());
-#ifndef __linux__
-  // TODO(drysdale): reinstate when pipe works in capsicum-linux capability mode.
   int fd2[2];
   int rc = pipe(fd2);
   EXPECT_EQ(0, rc);
@@ -384,7 +392,7 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
   struct iovec iov;
   iov.iov_base = buf;
   iov.iov_len = sizeof(buf);
-  EXPECT_OK(vmsplice(fd2[0], &iov, 1, 0));
+  EXPECT_FAIL_NOT_CAPMODE(vmsplice(fd2[0], &iov, 1, SPLICE_F_NONBLOCK));
 #endif
 
   if (rc == 0) {
@@ -398,7 +406,6 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
     close(fd2[0]);
     close(fd2[1]);
   };
-#endif
 #endif
 }
 
