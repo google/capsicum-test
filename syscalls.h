@@ -82,6 +82,13 @@ inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
 #include <sys/fsuid.h>  /* for setfsgid()/setfsuid() */
 #define HAVE_SETFSUID
 #define HAVE_SETFSGID
+#define HAVE_READAHEAD
+#define HAVE_SEND_RECV_MMSG
+#define HAVE_SYNCFS
+#define HAVE_SYNC_FILE_RANGE
+#include <sys/uio.h>  /* for vmsplice */
+#define HAVE_VMSPLICE
+
 /* Linux allows anyone to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 0
 /* Linux allows anyone to call sched_setscheduler */

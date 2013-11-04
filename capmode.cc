@@ -187,6 +187,16 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   EXPECT_OK(preadv(fd_file_, &io, 1, 0));
   EXPECT_OK(writev(fd_file_, &io, 1));
   EXPECT_OK(readv(fd_file_, &io, 1));
+
+#ifdef HAVE_SYNCFS
+  EXPECT_OK(syncfs(fd_file_));
+#endif
+#ifdef HAVE_SYNC_FILE_RANGE
+  EXPECT_OK(sync_file_range(fd_file_, 0, 1, 0));
+#endif
+#ifdef HAVE_READAHEAD
+  EXPECT_OK(readahead(fd_file_, 0, 1));
+#endif
 }
 
 FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
@@ -210,6 +220,36 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
   off_t offset = 0;
   EXPECT_FAIL_NOT_CAPMODE(sendfile_(fd_socket_, fd_file_, &offset, 1));
 }
+
+#ifdef HAVE_SEND_RECV_MMSG
+FORK_TEST(Capmode, AllowedMmsgSendRecv) {
+  int fd_socket = socket(PF_INET, SOCK_DGRAM, 0);
+
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(12345);
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  EXPECT_OK(bind(fd_socket, (sockaddr*)&addr, sizeof(addr)));
+
+  // Enter capability mode.
+  EXPECT_OK(cap_enter());
+
+  char buffer[256] = {0};
+  struct iovec iov;
+  iov.iov_base = buffer;
+  iov.iov_len = sizeof(buffer);
+  struct mmsghdr mm;
+  memset(&mm, 0, sizeof(mm));
+  mm.msg_hdr.msg_iov = &iov;
+  mm.msg_hdr.msg_iovlen = 1;
+  struct timespec ts;
+  ts.tv_sec = 1;
+  ts.tv_nsec = 100;
+  EXPECT_FAIL_NOT_CAPMODE(recvmmsg(fd_socket, &mm, 1, MSG_DONTWAIT, &ts));
+  EXPECT_FAIL_NOT_CAPMODE(sendmmsg(fd_socket, &mm, 1, 0));
+  close(fd_socket);
+}
+#endif
 
 FORK_TEST(Capmode, AllowedIdentifierSyscalls) {
   // Record some identifiers
@@ -338,6 +378,15 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
   int fd2[2];
   int rc = pipe(fd2);
   EXPECT_EQ(0, rc);
+
+#ifdef HAVE_VMSPLICE
+  char buf[11] = "0123456789";
+  struct iovec iov;
+  iov.iov_base = buf;
+  iov.iov_len = sizeof(buf);
+  EXPECT_OK(vmsplice(fd2[0], &iov, 1, 0));
+#endif
+
   if (rc == 0) {
     close(fd2[0]);
     close(fd2[1]);
