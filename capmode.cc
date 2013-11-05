@@ -111,10 +111,7 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   struct stat sb;
   EXPECT_CAPMODE(lstat("/tmp/cap_capmode_lstat", &sb));
   EXPECT_CAPMODE(mknod("/tmp/capmode_mknod", 06440, 0));
-#ifdef OMIT
-  // TODO(drysdale): autoconf away the difference between Linux & FreeBSD mount syscalls
-  EXPECT_CAPMODE(mount("procfs", "/not_mounted", 0, NULL));
-#endif
+  EXPECT_CAPMODE(bogus_mount_());
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
   char buf[64];
   EXPECT_CAPMODE(readlink("/tmp/cap_capmode_readlink", buf, sizeof(buf)));

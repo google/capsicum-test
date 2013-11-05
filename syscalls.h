@@ -37,6 +37,13 @@ inline ssize_t sendfile_(int out_fd, int in_fd, off_t *offset, size_t count) {
   return sendfile(in_fd, out_fd, *offset, count, NULL, offset, 0);
 }
 
+/* A sample mount(2) call */
+#include <sys/param.h>
+#include <sys/mount.h>
+inline int bogus_mount_() {
+  return mount("procfs", "/not_mounted", 0, NULL);
+}
+
 /* Features available */
 #define HAVE_CHFLAGS
 #define HAVE_GETFSSTAT
@@ -74,6 +81,12 @@ inline ssize_t sendfile_(int out_fd, int in_fd, off_t *offset, size_t count) {
 inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
   return syscall(__NR_getdents, fd, dirp, count);
 }
+/* A sample mount(2) call */
+#include <sys/mount.h>
+inline int bogus_mount_() {
+  return mount("/dev/bogus", "/bogus", "debugfs", MS_RDONLY, "");
+}
+
 #define mincore_ mincore
 #define sendfile_ sendfile
 
