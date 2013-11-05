@@ -71,10 +71,13 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(openat(etc_cap_base, "passwd", O_RDONLY));
   EXPECT_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
-#ifndef __linux__
-  // TODO(drysdale): figure out why this returns EBADF not ENOTCAPABLE
+#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
   EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
+#else
+  int temp_fd = openat(etc_cap_base, "../etc/passwd", O_RDONLY);
+  EXPECT_OK(temp_fd);
+  if (temp_fd >= 0) close(temp_fd);
 #endif
 
   // This requires discussion: do we treat a capability with
