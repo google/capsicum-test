@@ -275,15 +275,14 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
   do {
     rc = waitpid(pid, &status, 0);
     if (rc < 0) {
-#ifdef __linux__
-      // TODO(drysdale): because a pdfork()ed child does not generate SIGCHLD,
-      // capsicum-linux generates -ECHILD on waitpid().
+#ifdef PDFORKED_CHILD_GENERATES_SIGCHLD
+      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
+      ADD_FAILURE() << "Failed to wait for child";
+#else
+      // A pdfork()ed child does not generate SIGCHLD, so get -ECHILD on waitpid().
       EXPECT_EQ(-1, rc);
       EXPECT_EQ(ECHILD, errno);
       rc = pid;
-#else
-      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
-      ADD_FAILURE() << "Failed to wait for child";
 #endif
       break;
     } else if (rc == pid) {

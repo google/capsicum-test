@@ -26,6 +26,8 @@ extern "C" {
 
 // FreeBSD polices FD rights even before capability mode is entered.
 #define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
+// FreeBSD generates a SIGCHLD for a pdfork()ed child that exits.
+#define PDFORKED_CHILD_GENERATES_SIGCHLD
 
 #endif
 
