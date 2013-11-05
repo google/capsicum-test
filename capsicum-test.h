@@ -109,6 +109,15 @@
 // Expect a system call to fail with ENOTCAPABLE.
 #define EXPECT_NOTCAPABLE(C) EXPECT_SYSCALL_FAIL(ENOTCAPABLE, C)
 
+// Expect a system call to fail with either ENOTCAPABLE or ECAPMODE.
+#define EXPECT_CAPFAIL(C) \
+    do { \
+      int rc = C; \
+      EXPECT_GT(0, rc); \
+      EXPECT_TRUE(errno == ECAPMODE || errno == ENOTCAPABLE) \
+        << #C << " did not fail with ECAPMODE/ENOTCAPABLE but " << errno; \
+    } while (0)
+
 // Ensure that 'rights' are a subset of 'max'.
 #define EXPECT_RIGHTS_IN(rights, max) EXPECT_EQ(rights & max, rights)
 

@@ -107,15 +107,12 @@ FORK_TEST(Openat, Relative) {
 
   // Absolute lookups should fail.
   EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
-#ifndef __linux__
-  // TODO(drysdale): figure out why this returns ECAPMODE not ENOTCAPABLE
-  EXPECT_NOTCAPABLE(openat(etc, "/etc/passwd", O_RDONLY));
+  EXPECT_CAPFAIL(openat(etc, "/etc/passwd", O_RDONLY));
 
   // Lookups containing '..' should fail in capability mode.
-  EXPECT_NOTCAPABLE(openat(etc, "../etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
-#endif
+  EXPECT_CAPFAIL(openat(etc, "../etc/passwd", O_RDONLY));
+  EXPECT_CAPFAIL(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
+  EXPECT_CAPFAIL(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
 
   fd = openat(etc, "passwd", O_RDONLY);
   EXPECT_OK(fd);
