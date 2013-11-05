@@ -270,7 +270,8 @@ FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
 
   EXPECT_OK(cap_enter());
 
-  // TODO(drysdale): Really want to try all combinations.
+  // Try a variety of different combinations of rights - a full
+  // enumeration is too large (2^N with N~30+) to perform.
   TryFileOps(fd, CAP_READ);
   TryFileOps(fd, CAP_READ | CAP_SEEK);
   TryFileOps(fd, CAP_WRITE);
