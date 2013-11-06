@@ -401,3 +401,23 @@ TEST(Pdfork, UseDescriptor) {
   EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
 }
 
+FORK_TEST_F(PipePdfork, MissingRights) {
+  // Create two capabilities from the process descriptor.
+  int cap_incapable = cap_new(pd_, CAP_READ|CAP_WRITE);
+  EXPECT_OK(cap_incapable);
+  int cap_capable = cap_new(pd_, CAP_PDGETPID|CAP_PDWAIT|CAP_PDKILL);
+  EXPECT_OK(cap_capable);
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+  pid_t pid;
+  EXPECT_NOTCAPABLE(pdgetpid(cap_incapable, &pid));
+  EXPECT_NOTCAPABLE(pdkill(cap_incapable, SIGINT));
+  int status;
+  EXPECT_NOTCAPABLE(pdwait4(cap_incapable, &status, 0, NULL));
+
+  EXPECT_OK(pdgetpid(cap_capable, &pid));
+  EXPECT_EQ(pid_, pid);
+  EXPECT_OK(pdkill(cap_capable, SIGINT));
+  // TODO(drysdale): revisit when pdwait4() implemented
+  // EXPECT_OK(pdwait4(cap_capable, &status, 0, NULL));
+}
