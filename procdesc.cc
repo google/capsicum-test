@@ -64,10 +64,10 @@ class PipePdfork : public ::testing::Test {
       close(pid_);
     }
   }
-  void TerminateChild() {
+  int TerminateChild() {
     // Tell the child to exit.
     int zero = 0;
-    write(pipe_, &zero, sizeof(zero));
+    return write(pipe_, &zero, sizeof(zero));
   }
  protected:
   int pd_;
@@ -215,12 +215,20 @@ static void ExpectPidReachesStates(pid_t pid, int expected1, int expected2) {
 
 // Check whether a pdfork()ed process dies correctly when released.
 // Can only check zombification.
-// TODO(drysdale): revisit when pdwait4() implemented
 TEST_F(PipePdfork, Release) {
   EXPECT_PID_ALIVE(pid_);
-  int zero = 0;
-  EXPECT_EQ((ssize_t)sizeof(zero), write(pipe_, &zero, sizeof(zero)));
+  EXPECT_LT(0, TerminateChild());
   EXPECT_PID_DEAD(pid_);
+#ifdef HAVE_PDWAIT4
+  int status;
+  int rc = pdwait4(pd_, &status, 0, NULL);
+#ifdef CAN_WAIT_FOR_PDFORKED_CHILD
+  EXPECT_EQ(pid_, rc);
+#else
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(ECHILD, errno);
+#endif
+#endif
   pid_ = 0;
 }
 
@@ -278,11 +286,11 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
   do {
     rc = waitpid(pid, &status, 0);
     if (rc < 0) {
-#ifdef PDFORKED_CHILD_GENERATES_SIGCHLD
+#ifdef CAN_WAIT_FOR_PDFORKED_CHILD
       fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
       ADD_FAILURE() << "Failed to wait for child";
 #else
-      // A pdfork()ed child does not generate SIGCHLD, so get -ECHILD on waitpid().
+      // A pdfork()ed child gets -ECHILD on waitpid().
       EXPECT_EQ(-1, rc);
       EXPECT_EQ(ECHILD, errno);
       rc = pid;
@@ -412,12 +420,21 @@ FORK_TEST_F(PipePdfork, MissingRights) {
   pid_t pid;
   EXPECT_NOTCAPABLE(pdgetpid(cap_incapable, &pid));
   EXPECT_NOTCAPABLE(pdkill(cap_incapable, SIGINT));
+#ifdef HAVE_PDWAIT4
   int status;
   EXPECT_NOTCAPABLE(pdwait4(cap_incapable, &status, 0, NULL));
+#endif
 
   EXPECT_OK(pdgetpid(cap_capable, &pid));
   EXPECT_EQ(pid_, pid);
   EXPECT_OK(pdkill(cap_capable, SIGINT));
-  // TODO(drysdale): revisit when pdwait4() implemented
-  // EXPECT_OK(pdwait4(cap_capable, &status, 0, NULL));
+#ifdef HAVE_PDWAIT4
+  int rc = pdwait4(pd_, &status, 0, NULL);
+#ifdef CAN_WAIT_FOR_PDFORKED_CHILD
+  EXPECT_EQ(pid_, rc);
+#else
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(ECHILD, errno);
+#endif
+#endif
 }
