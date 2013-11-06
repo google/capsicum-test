@@ -38,6 +38,8 @@ TEST(Pdfork, Simple) {
   EXPECT_OK(close(pd));
 }
 
+// Test fixture that pdfork()s off a child process, which terminates
+// when it receives anything on a pipe.
 class PipePdfork : public ::testing::Test {
  public:
   PipePdfork() : pd_(-1), pid_(-1) {
@@ -62,10 +64,15 @@ class PipePdfork : public ::testing::Test {
       close(pid_);
     }
   }
+  void TerminateChild() {
+    // Tell the child to exit.
+    int zero = 0;
+    write(pipe_, &zero, sizeof(zero));
+  }
  protected:
   int pd_;
   int pipe_;
-  int pid_;
+  pid_t pid_;
 };
 
 
@@ -78,9 +85,7 @@ TEST_F(PipePdfork, Poll) {
   fdp.revents = 0;
   EXPECT_EQ(0, poll(&fdp, 1, 0));
 
-  // Tell the child to exit.
-  int zero = 0;
-  write(pipe_, &zero, sizeof(zero));
+  TerminateChild();
 
 #ifndef __linux__
   // TODO(drysdale): capsicum-linux currently doesn't generate POLLHUP?
@@ -98,8 +103,7 @@ TEST_F(PipePdfork, PollMultiple) {
     // Child: wait to give time for setup, then write to the pipe (which will
     // induce exit of the pdfork()ed process) and exit.
     sleep(1);
-    int zero = 0;
-    write(pipe_, &zero, sizeof(zero));
+    TerminateChild();
     exit(0);
   }
 
@@ -259,8 +263,7 @@ static void handle_signal(int x) { had_signal = 1; }
 TEST_F(PipePdfork, NoSigchld) {
   had_signal = 0;
   sighandler_t original = signal(SIGCHLD, handle_signal);
-  int zero = 0;
-  write(pipe_, &zero, sizeof(zero));
+  TerminateChild();
   int rc = 0;
   waitpid(pid_, &rc, 0);
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
@@ -383,3 +386,18 @@ TEST(Pdfork, TimeCheck) {
   EXPECT_EQ(pid, pd_pid);
   CheckChildFinished(pid);
 }
+
+TEST(Pdfork, UseDescriptor) {
+  int pd = -1;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: immediately exit
+    exit(0);
+  }
+  // Try read/writing to the process descriptor.
+  char buf[] = "bug";
+  EXPECT_FAIL_NOT_CAPMODE(write(pd, buf, sizeof(buf)));
+  EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
+}
+
