@@ -83,11 +83,10 @@ class WithFiles : public ::testing::Test {
 };
 
 FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
-  // Enter capability mode.
   unsigned int mode = -1;
   EXPECT_OK(cap_getmode(&mode));
   EXPECT_EQ(0, (int)mode);
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
   EXPECT_OK(cap_getmode(&mode));
   EXPECT_EQ(1, (int)mode);
 
@@ -125,8 +124,7 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
 }
 
 FORK_TEST_F(WithFiles, DisallowedSocketSyscalls) {
-  // Enter capability mode.
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   // System calls that are not permitted in capability mode.
   struct sockaddr_in addr;
@@ -142,8 +140,7 @@ FORK_TEST_F(WithFiles, DisallowedSocketSyscalls) {
 
 FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   int rc;
-  // Enter capability mode.
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   EXPECT_OK(close(fd_close_));
   fd_close_ = -1;
@@ -197,8 +194,7 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
 }
 
 FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
-  // Enter capability mode.
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   // recvfrom() either returns -1 with EAGAIN, or 0.
   int rc = recvfrom(fd_socket_, NULL, 0, MSG_DONTWAIT, NULL, NULL);
@@ -238,8 +234,7 @@ FORK_TEST(Capmode, AllowedMmsgSendRecv) {
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   EXPECT_OK(bind(fd_socket, (sockaddr*)&addr, sizeof(addr)));
 
-  // Enter capability mode.
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   char buffer[256] = {0};
   struct iovec iov;
@@ -266,8 +261,7 @@ FORK_TEST(Capmode, AllowedIdentifierSyscalls) {
   uid_t my_uid = getuid();
   pid_t my_sid = getsid(my_pid);
 
-  // Enter capability mode.
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   EXPECT_EQ(my_gid, getegid());
   EXPECT_EQ(my_uid, geteuid());
@@ -307,7 +301,7 @@ FORK_TEST(Capmode, AllowedIdentifierSyscalls) {
 }
 
 FORK_TEST(Capmode, AllowedSchedSyscalls) {
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
   int policy = sched_getscheduler(0);
   EXPECT_OK(policy);
   struct sched_param sp;
@@ -325,7 +319,7 @@ FORK_TEST(Capmode, AllowedSchedSyscalls) {
 
 
 FORK_TEST(Capmode, AllowedTimerSyscalls) {
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
   struct timespec ts;
   EXPECT_OK(clock_getres(CLOCK_REALTIME, &ts));
   EXPECT_OK(clock_gettime(CLOCK_REALTIME, &ts));
@@ -342,7 +336,7 @@ FORK_TEST(Capmode, AllowedTimerSyscalls) {
 
 
 FORK_TEST(Capmode, AllowedResourceSyscalls) {
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
   errno = 0;
   int rc = getpriority(PRIO_PROCESS, 0);
   EXPECT_EQ(0, errno);
@@ -359,8 +353,7 @@ FORK_TEST(CapMode, AllowedMmapSyscalls) {
   size_t mem_size = getpagesize();
   void *mem = mmap(NULL, mem_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
   EXPECT_TRUE(mem != NULL);
-  // Enter capability mode.
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   EXPECT_OK(msync(mem, mem_size, MS_ASYNC));
   EXPECT_OK(madvise(mem, mem_size, MADV_NORMAL));
@@ -371,7 +364,12 @@ FORK_TEST(CapMode, AllowedMmapSyscalls) {
   if (!MLOCK_REQUIRES_ROOT || getuid() == 0) {
     EXPECT_OK(mlock(mem, mem_size));
     EXPECT_OK(munlock(mem, mem_size));
-    EXPECT_OK(mlockall(MCL_CURRENT));
+    int rc = mlockall(MCL_CURRENT);
+    if (rc != 0) {
+      // mlockall may well fail with ENOMEM for non-root users, as the
+      // default RLIMIT_MEMLOCK value isn't that big.
+      EXPECT_NE(ECAPMODE, errno);
+    }
     EXPECT_OK(munlockall());
   }
   // Unmap the memory.
@@ -379,7 +377,7 @@ FORK_TEST(CapMode, AllowedMmapSyscalls) {
 }
 
 FORK_TEST(Capmode, AllowedPipeSyscalls) {
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode
   int fd2[2];
   int rc = pipe(fd2);
   EXPECT_EQ(0, rc);
@@ -409,7 +407,7 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   umask(022);
   mode_t um_before = umask(022);
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   mode_t um = umask(022);
   EXPECT_NE(-ECAPMODE, (int)um);
