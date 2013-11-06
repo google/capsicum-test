@@ -43,8 +43,7 @@ extern "C" {
 #include <sys/syscall.h>
 #include <linux/seccomp.h>
 #include <linux/capsicum.h>
-
-#define PD_DAEMON       0x01
+#include <linux/procdesc.h>
 
 #ifdef __cplusplus
 extern "C" {
