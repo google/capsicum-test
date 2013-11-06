@@ -42,9 +42,7 @@ extern "C" {
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <linux/seccomp.h>
-
-/* TODO(drysdale): get at properly exported versions */
-#include "capsicum_caps.h"
+#include <linux/capsicum.h>
 
 #define PD_DAEMON       0x01
 
@@ -75,7 +73,6 @@ inline int cap_getrights(int fd, cap_rights_t *rights) {
 
 // Linux glibc includes an fexecve() function, implemented via the /proc
 // filesystem.  Bypass this and go directly to the fexecve syscall.
-// TODO(drysdale): replace fexecve() implementation
 inline int fexecve_(int fd, char **argv, char **envp)
 {
   return syscall(__NR_fexecve, fd, argv, envp);
