@@ -24,13 +24,18 @@
 
 TEST(Pdfork, Simple) {
   int pd = -1;
+  pid_t parent = getpid_();
   int rc = pdfork(&pd, 0);
   EXPECT_OK(rc);
   if (rc == 0) {
     /* We're the child. */
     EXPECT_EQ(-1, pd);
+    EXPECT_NE(parent, getpid_());
+    EXPECT_EQ(parent, getppid());
+    sleep(1);
     exit(0);
   }
+  usleep(100);  // ensure the child has a chance to run
   EXPECT_NE(-1, pd);
   int pid_got;
   EXPECT_OK(pdgetpid(pd, &pid_got));
@@ -46,14 +51,18 @@ class PipePdfork : public ::testing::Test {
     int pipes[2];
     EXPECT_OK(pipe(pipes));
     pipe_ = pipes[1];
+    int parent = getpid_();
     int rc = pdfork(&pd_, 0);
     EXPECT_OK(rc);
     if (rc == 0) {
       // Child process: blocking-read an int from the pipe then exit with that value.
+      EXPECT_NE(parent, getpid_());
+      EXPECT_EQ(parent, getppid());
       read(pipes[0], &rc, sizeof(rc));
       exit(rc);
     } else {
       pid_ = rc;
+      usleep(100);  // ensure the child has a chance to run
     }
   }
   ~PipePdfork() {
@@ -106,6 +115,7 @@ TEST_F(PipePdfork, PollMultiple) {
     TerminateChild();
     exit(0);
   }
+  usleep(100);  // ensure the child has a chance to run
 
   // Fork again
   int doppel = fork();
@@ -199,19 +209,20 @@ static char process_state(int pid) {
 
 // Check process state reaches a particular expected state (or two).
 // Retries a few times to allow for timing issues.
-static void ExpectPidReachesStates(pid_t pid, int expected1, int expected2) {
-  int counter = 5;
-  char state;
-  do {
-    state = process_state(pid);
-    if (state == expected1 || state == expected2) return;
-    usleep(100000);
-  } while (--counter > 0);
-  EXPECT_TRUE(state == expected1 || state == expected2);
+#define EXPECT_PID_REACHES_STATES(pid, expected1, expected2) { \
+  int counter = 5; \
+  char state; \
+  do { \
+    state = process_state(pid); \
+    if (state == expected1 || state == expected2) break; \
+    usleep(100000); \
+  } while (--counter > 0); \
+  EXPECT_TRUE(state == expected1 || state == expected2) \
+      << " pid " << pid << " in state " << state; \
 }
 
-#define EXPECT_PID_ALIVE(pid) ExpectPidReachesStates(pid, 'R', 'S')
-#define EXPECT_PID_DEAD(pid)  ExpectPidReachesStates(pid, 'Z', '\0')
+#define EXPECT_PID_ALIVE(pid) EXPECT_PID_REACHES_STATES(pid, 'R', 'S')
+#define EXPECT_PID_DEAD(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', '\0')
 
 // Check whether a pdfork()ed process dies correctly when released.
 // Can only check zombification.
@@ -234,6 +245,25 @@ TEST_F(PipePdfork, Close) {
   EXPECT_PID_DEAD(pid_);
 }
 
+TEST(Pdfork, WaitPid) {
+  int pd = -1;
+  int pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: sleep 1 second then exit.
+    sleep(1);
+    exit(0);
+  }
+  int status;
+#ifdef HAVE_PDWAIT4
+  int rc = pdwait4(pd, &status, 0, NULL);
+#else
+  int rc = waitpid(pid, &status, 0);
+#endif
+  EXPECT_OK(rc);
+  EXPECT_EQ(pid, rc);
+}
+
 // Setting PD_DAEMON prevents close() from killing the child.
 TEST(Pdfork, CloseDaemon) {
   int pd = -1;
@@ -241,8 +271,9 @@ TEST(Pdfork, CloseDaemon) {
   EXPECT_OK(pid);
   if (pid == 0) {
     // Child: loop forever.
-    while (1) sleep(1);
+    while (true) sleep(1);
   }
+  usleep(100);  // ensure the child has a chance to run
   EXPECT_OK(close(pd));
   EXPECT_PID_ALIVE(pid);
   // Can still explicitly kill it.
@@ -402,32 +433,37 @@ TEST(Pdfork, UseDescriptor) {
   EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
 }
 
-FORK_TEST_F(PipePdfork, MissingRights) {
+FORK_TEST(Pdfork, MissingRights) {
+  pid_t parent = getpid_();
+  int pd = -1;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: loop forever.
+    EXPECT_NE(parent, getpid_());
+    while (true) sleep(1);
+  }
   // Create two capabilities from the process descriptor.
-  int cap_incapable = cap_new(pd_, CAP_READ|CAP_WRITE);
+  int cap_incapable = cap_new(pd, CAP_READ|CAP_WRITE);
   EXPECT_OK(cap_incapable);
-  int cap_capable = cap_new(pd_, CAP_PDGETPID|CAP_PDWAIT|CAP_PDKILL);
+  int cap_capable = cap_new(pd, CAP_PDGETPID|CAP_PDWAIT|CAP_PDKILL);
   EXPECT_OK(cap_capable);
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
-  pid_t pid;
-  EXPECT_NOTCAPABLE(pdgetpid(cap_incapable, &pid));
+  pid_t other_pid;
+  EXPECT_NOTCAPABLE(pdgetpid(cap_incapable, &other_pid));
   EXPECT_NOTCAPABLE(pdkill(cap_incapable, SIGINT));
 #ifdef HAVE_PDWAIT4
   int status;
   EXPECT_NOTCAPABLE(pdwait4(cap_incapable, &status, 0, NULL));
 #endif
 
-  EXPECT_OK(pdgetpid(cap_capable, &pid));
-  EXPECT_EQ(pid_, pid);
+  EXPECT_OK(pdgetpid(cap_capable, &other_pid));
+  EXPECT_EQ(pid, other_pid);
   EXPECT_OK(pdkill(cap_capable, SIGINT));
 #ifdef HAVE_PDWAIT4
-  int rc = pdwait4(pd_, &status, 0, NULL);
-#ifdef CAN_WAIT_FOR_PDFORKED_CHILD
-  EXPECT_EQ(pid_, rc);
-#else
-  EXPECT_EQ(-1, rc);
-  EXPECT_EQ(ECHILD, errno);
-#endif
+  int rc = pdwait4(pd, &status, 0, NULL);
+  EXPECT_OK(rc);
+  EXPECT_EQ(pid, rc);
 #endif
 }

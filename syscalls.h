@@ -29,6 +29,7 @@ inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
 inline int mincore_(void *addr, size_t length, unsigned char *vec) {
   return mincore(addr, length, (char*)vec);
 }
+#define getpid_ getpid
 
 /* Map Linux-style sendfile to FreeBSD sendfile */
 #include <sys/socket.h>
@@ -89,6 +90,12 @@ inline int bogus_mount_() {
 
 #define mincore_ mincore
 #define sendfile_ sendfile
+/* libc's getpid() wrapper caches the pid value, and doesn't invalidate
+ * the cached value on pdfork(), so directly syscall. */
+inline pid_t getpid_() {
+  return syscall(__NR_getpid);
+}
+
 
 #define HAVE_DUP3
 #define HAVE_PIPE2
