@@ -36,7 +36,7 @@ int main() {
   if (rc == 0) { /* child */
     int count = 0;
     while (count < 20) {
-      fprintf(stderr, "[%d] child alive\n", getpid());
+      fprintf(stderr, "[%d] child alive, parent is ppid=%d\n", getpid(), getppid());
       sleep(1);
     }
     fprintf(stderr, "[%d] child exit(0)\n", getpid());
@@ -56,6 +56,7 @@ int main() {
   fprintf(stderr, "[%d] pdkill(pd=%d, SIGKILL) -> rc=%d\n", getpid(), pd, rc);
   if (rc < 0) fprintf(stderr, "pdkill() failed: errno=%d %s\n", errno, strerror(errno));
 
+  fprintf(stderr, "[%d] forking off a child process to check cap_enter()\n", getpid());
   if (fork() == 0) {
     /* cap_getmode() / cap_enter() available? */
     int cap_mode = -1;
@@ -75,6 +76,7 @@ int main() {
     char* argv_pass[] = {(char*)"/bin/ls", NULL};
     char* null_envp[] = {NULL};
     int ls_bin = open("/bin/ls", O_RDONLY);
+    fprintf(stderr, "[%d] about to fexecve('/bin/ls')\n", getpid());
     rc = fexecve(ls_bin, argv_pass, null_envp);
     /* should never reach here */
     fprintf(stderr, "[%d] fexecve(fd=%d, ...) -> rc=%d\n", getpid(), ls_bin, rc);
