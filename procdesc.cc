@@ -368,15 +368,12 @@ FORK_TEST(Pdfork, DaemonUnrestricted) {
 
   // Capability mode leaves pdfork() available, with and without flag.
   int rc;
-#ifndef __linux__
-  // TODO(drysdale): capsicum-linux currently bans any pdfork() with non-zero flags in capability mode.
   rc = pdfork(&fd, PD_DAEMON);
   EXPECT_OK(rc);
   if (rc == 0) {
     // Child: immediately terminate.
     exit(0);
   }
-#endif
 
   rc = pdfork(&fd, 0);
   EXPECT_OK(rc);
