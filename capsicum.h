@@ -26,8 +26,8 @@ extern "C" {
 
 // FreeBSD polices FD rights even before capability mode is entered.
 #define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
-// FreeBSD allows wait() for a pdfork()ed child (ie. does not return -ECHILD).
-#define CAN_WAIT_FOR_PDFORKED_CHILD
+// FreeBSD does not generate SIGCHLD for pdfork()ed child
+#define PDFORKED_CHILD_SENDS_SIGCHLD 0
 
 #endif
 
@@ -46,6 +46,8 @@ extern "C" {
 #include <linux/procdesc.h>
 
 #define HAVE_PDWAIT4
+// Linux generates SIGCHLD for pdfork()ed child
+#define PDFORKED_CHILD_SENDS_SIGCHLD 1
 
 #ifdef __cplusplus
 extern "C" {

@@ -222,12 +222,8 @@ TEST_F(PipePdfork, Release) {
 #ifdef HAVE_PDWAIT4
   int status;
   int rc = pdwait4(pd_, &status, 0, NULL);
-#ifdef CAN_WAIT_FOR_PDFORKED_CHILD
+  EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
-#else
-  EXPECT_EQ(-1, rc);
-  EXPECT_EQ(ECHILD, errno);
-#endif
 #endif
   pid_ = 0;
 }
@@ -274,8 +270,12 @@ TEST_F(PipePdfork, NoSigchld) {
   TerminateChild();
   int rc = 0;
   waitpid(pid_, &rc, 0);
+#if PDFORKED_CHILD_SENDS_SIGCHLD
+  EXPECT_EQ(1, had_signal);
+#else
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_EQ(0, had_signal);
+#endif
   signal(SIGCHLD, original);
 }
 
@@ -286,15 +286,8 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
   do {
     rc = waitpid(pid, &status, 0);
     if (rc < 0) {
-#ifdef CAN_WAIT_FOR_PDFORKED_CHILD
       fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
       ADD_FAILURE() << "Failed to wait for child";
-#else
-      // A pdfork()ed child gets -ECHILD on waitpid().
-      EXPECT_EQ(-1, rc);
-      EXPECT_EQ(ECHILD, errno);
-      rc = pid;
-#endif
       break;
     } else if (rc == pid) {
       break;
