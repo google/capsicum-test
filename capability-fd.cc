@@ -15,6 +15,9 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/select.h>
+#include <sys/time.h>
+/* Different includes for fstatfs(2) */
 #ifdef __FreeBSD__
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -260,7 +263,23 @@ static void TryFileOps(int fd, cap_rights_t rights) {
 #endif
   }
 
-  // XXX: select, kqueue
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 100;
+  fd_set rset;
+  FD_ZERO(&rset);
+  FD_SET(cap_fd, &rset);
+  fd_set wset;
+  FD_ZERO(&wset);
+  FD_SET(cap_fd, &wset);
+  ret = select(cap_fd+1, &rset, &wset, NULL, &tv);
+  if (rights & CAP_POLL_EVENT) {
+    EXPECT_OK(ret);
+  } else {
+    EXPECT_NOTCAPABLE(ret);
+  }
+
+  // TODO(drysdale): kqueue (FreeBSD only)
 
   EXPECT_OK(close(cap_fd));
 }
