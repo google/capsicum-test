@@ -253,14 +253,13 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   pollfd.revents = 0;
   int ret = poll(&pollfd, 1, 0);
   if (rights & CAP_POLL_EVENT) {
+    EXPECT_OK(ret);
   } else {
-    // TODO(drysdale): sort out
-    // Linux gives -ECAPMODE; FreeBSD returns a POLLNVAL
-#ifdef __linux__
-    EXPECT_EQ(-1, ret);
-#else
-    EXPECT_NE(0, (pollfd.revents & POLLNVAL));
-#endif
+    if (POLLNVAL_FOR_INVALID_POLLFD) {
+      EXPECT_NE(0, (pollfd.revents & POLLNVAL));
+    } else {
+      EXPECT_NOTCAPABLE(ret);
+    }
   }
 
   struct timeval tv;

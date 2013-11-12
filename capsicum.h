@@ -28,6 +28,8 @@ extern "C" {
 #define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
 // FreeBSD does not generate SIGCHLD for pdfork()ed child
 #define PDFORKED_CHILD_SENDS_SIGCHLD 0
+// FreeBSD marks an notcapable FD as POLLNVAL in poll()
+#define POLLNVAL_FOR_INVALID_POLLFD 1
 
 #endif
 
@@ -48,6 +50,8 @@ extern "C" {
 #define HAVE_PDWAIT4
 // Linux generates SIGCHLD for pdfork()ed child
 #define PDFORKED_CHILD_SENDS_SIGCHLD 1
+// Linux generates ENOTCAPABLE for poll() if any FD is not capable
+#define POLLNVAL_FOR_INVALID_POLLFD 0
 
 #ifdef __cplusplus
 extern "C" {

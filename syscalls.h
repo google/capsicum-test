@@ -55,6 +55,8 @@ inline int bogus_mount_() {
 #define HAVE_STAT_BIRTHTIME
 #define HAVE_SYSCTL
 #define HAVE_FPATHCONF
+/* Although FreeBSD has pselect(2), it is (oddly) not allowed in capability mode */
+/* #define HAVE_PSELECT */
 
 /* FreeBSD only allows root to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 1
@@ -97,6 +99,7 @@ inline pid_t getpid_() {
 }
 
 
+/* Features available */
 #define HAVE_DUP3
 #define HAVE_PIPE2
 #include <sys/fsuid.h>  /* for setfsgid()/setfsuid() */
@@ -108,6 +111,8 @@ inline pid_t getpid_() {
 #define HAVE_SYNC_FILE_RANGE
 #include <sys/uio.h>  /* for vmsplice */
 #define HAVE_VMSPLICE
+#define HAVE_PSELECT
+#define HAVE_PPOLL
 
 /* Linux allows anyone to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 0
