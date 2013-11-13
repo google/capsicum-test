@@ -45,6 +45,27 @@ inline int bogus_mount_() {
   return mount("procfs", "/not_mounted", 0, NULL);
 }
 
+/* mq_* functions are wrappers in FreeBSD so go through to underlying syscalls */
+#include <sys/syscall.h>
+extern "C" {
+extern int __sys_kmq_notify(int, const struct sigevent *);
+extern int __sys_kmq_open(const char *, int, mode_t, const struct mq_attr *);
+extern int __sys_kmq_setattr(int, const struct mq_attr *__restrict, struct mq_attr *__restrict);
+extern ssize_t __sys_kmq_timedreceive(int, char *__restrict, size_t,
+                                      unsigned *__restrict, const struct timespec *__restrict);
+extern int __sys_kmq_timedsend(int, const char *, size_t, unsigned,
+                               const struct timespec *);
+extern int  __sys_kmq_unlink(const char *);
+}
+#define mq_notify_ __sys_kmq_notify
+#define mq_open_ __sys_kmq_open
+#define mq_setattr_ __sys_kmq_setattr
+#define mq_getattr_(A, B) __sys_kmq_setattr(A, NULL, B)
+#define mq_timedreceive_ __sys_kmq_timedreceive
+#define mq_timedsend_ __sys_kmq_timedsend
+#define mq_unlink_ __sys_kmq_unlink
+#define mq_close_ close
+
 /* Features available */
 #define HAVE_CHFLAGS
 #define HAVE_GETFSSTAT
@@ -97,7 +118,14 @@ inline int bogus_mount_() {
 inline pid_t getpid_() {
   return syscall(__NR_getpid);
 }
-
+#define mq_notify_ mq_notify
+#define mq_open_ mq_open
+#define mq_setattr_ mq_setattr
+#define mq_getattr_ mq_getattr
+#define mq_timedreceive_ mq_timedreceive
+#define mq_timedsend_ mq_timedsend
+#define mq_unlink_ mq_unlink
+#define mq_close_ mq_close
 
 /* Features available */
 #define HAVE_DUP3

@@ -1,5 +1,5 @@
 all: capsicum-test smoketest
-OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o openat.o sysctl.o select.o
+OBJECTS=capsicum-test-main.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o openat.o sysctl.o select.o mqueue.o
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
