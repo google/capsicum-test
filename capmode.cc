@@ -46,6 +46,7 @@
 #include <sched.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "capsicum.h"
 #include "syscalls.h"
@@ -443,4 +444,42 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   FAIL("capmode:no sysarch() test for current architecture");
 #endif
 #endif
+}
+
+void *thread_fn(void *p) {
+  EXPECT_OK(getpid_());
+  EXPECT_CAPMODE(open("/dev/null", O_RDWR));
+  return NULL;
+}
+
+// Check that restrictions are the same in subprocesses and threads
+FORK_TEST(Capmode, NewThread) {
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+  // Do an allowed syscall.
+  EXPECT_OK(getpid_());
+  int child = fork();
+  EXPECT_OK(child);
+  if (child == 0) {
+    // Child: do an allowed and a disallowed syscall.
+    EXPECT_OK(getpid_());
+    EXPECT_CAPMODE(open("/dev/null", O_RDWR));
+    exit(0);
+  }
+  // Don't (can't) wait for the child.
+
+  // Fire off a new thread.
+  pthread_t child_thread;
+  EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn, NULL));
+  EXPECT_OK(pthread_join(child_thread, NULL));
+
+  // Fork a subprocess which fires off a new thread.
+  child = fork();
+  EXPECT_OK(child);
+  if (child == 0) {
+    EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn, NULL));
+    EXPECT_OK(pthread_join(child_thread, NULL));
+    exit(0);
+  }
+  // Sleep for a bit to allow the subprocess to finish.
+  sleep(1);
 }
