@@ -122,6 +122,38 @@ FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, "/tmp/cap_openat_testfile") {
   close(dir);
 }
 
+FORK_TEST_ON(Capability, FileInSync, "/tmp/cap_file_sync") {
+  int fd = open("/tmp/cap_file_sync", O_RDWR|O_CREAT, 0644);
+  EXPECT_OK(fd);
+  const char* message = "Hello capability world";
+  EXPECT_OK(write(fd, message, strlen(message)));
+
+  int cap_fd = cap_new(fd, CAP_READ|CAP_SEEK|CAP_FSTAT);
+  EXPECT_OK(cap_fd);
+  int cap_cap_fd = cap_new(cap_fd, CAP_READ|CAP_SEEK|CAP_FSTAT);
+  EXPECT_OK(cap_cap_fd);
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // Changes to one file descriptor affect the others.
+  EXPECT_EQ(1, lseek(fd, 1, SEEK_SET));
+  EXPECT_EQ(1, lseek(fd, 0, SEEK_CUR));
+  EXPECT_EQ(1, lseek(cap_fd, 0, SEEK_CUR));
+  EXPECT_EQ(1, lseek(cap_cap_fd, 0, SEEK_CUR));
+  EXPECT_EQ(3, lseek(cap_fd, 3, SEEK_SET));
+  EXPECT_EQ(3, lseek(fd, 0, SEEK_CUR));
+  EXPECT_EQ(3, lseek(cap_fd, 0, SEEK_CUR));
+  EXPECT_EQ(3, lseek(cap_cap_fd, 0, SEEK_CUR));
+  EXPECT_EQ(5, lseek(cap_cap_fd, 5, SEEK_SET));
+  EXPECT_EQ(5, lseek(fd, 0, SEEK_CUR));
+  EXPECT_EQ(5, lseek(cap_fd, 0, SEEK_CUR));
+  EXPECT_EQ(5, lseek(cap_cap_fd, 0, SEEK_CUR));
+
+  close(cap_cap_fd);
+  close(cap_fd);
+  close(fd);
+}
+
 // Create a capability on /tmp that does not allow CAP_WRITE,
 // and check that this restriction is inherited through openat().
 FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
