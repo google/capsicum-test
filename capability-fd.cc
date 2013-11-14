@@ -162,16 +162,61 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   }                                                            \
 } while (0)
 
+#define EXPECT_MMAP_NOTCAPABLE(result) do {         \
+  void *rv = result;                                \
+  EXPECT_EQ(MAP_FAILED, rv);                        \
+  EXPECT_EQ(ENOTCAPABLE, errno);                    \
+  if (rv != MAP_FAILED) munmap(rv, getpagesize());  \
+} while (0)
+
+#define EXPECT_MMAP_OK(result) do {                     \
+  void *rv = result;                                    \
+  EXPECT_NE(MAP_FAILED, rv) << " with errno " << errno; \
+  if (rv != MAP_FAILED) munmap(rv, getpagesize());      \
+} while (0)
+
+
 // As above, but for the special mmap() case: unmap after successful mmap().
 #define CHECK_RIGHT_MMAP_RESULT(result, rights, rights_needed) do { \
   if (((rights) & (rights_needed)) == (rights_needed)) {            \
-    EXPECT_NE(MAP_FAILED, result);                                  \
+    EXPECT_MMAP_OK(result);                                         \
   } else {                                                          \
-    EXPECT_EQ(MAP_FAILED, result);                                  \
-    EXPECT_EQ(ENOTCAPABLE, errno);                                  \
+    EXPECT_MMAP_NOTCAPABLE(result);                                 \
   }                                                                 \
-  if (result != MAP_FAILED) munmap(result, getpagesize());          \
 } while(0)
+
+FORK_TEST_ON(Capability, Mmap, "/tmp/cap_mmap_operations") {
+  int fd = open("/tmp/cap_mmap_operations", O_RDWR | O_CREAT, 0644);
+  EXPECT_OK(fd);
+  if (fd < 0) return;
+
+  /* If we're missing a capability, it will fail. */
+  int cap_none = cap_new(fd, 0);
+  EXPECT_OK(cap_none);
+  int cap_mmap = cap_new(fd, CAP_MMAP);
+  EXPECT_OK(cap_mmap);
+  int cap_read = cap_new(fd, CAP_READ);
+  EXPECT_OK(cap_read);
+  int cap_both = cap_new(fd, CAP_MMAP | CAP_READ);
+  EXPECT_OK(cap_both);
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  EXPECT_MMAP_NOTCAPABLE(mmap(NULL, getpagesize(), PROT_READ, MAP_PRIVATE, cap_none, 0));
+  EXPECT_MMAP_NOTCAPABLE(mmap(NULL, getpagesize(), PROT_READ, MAP_PRIVATE, cap_mmap, 0));
+  EXPECT_MMAP_NOTCAPABLE(mmap(NULL, getpagesize(), PROT_READ, MAP_PRIVATE, cap_read, 0));
+
+  EXPECT_MMAP_OK(mmap(NULL, getpagesize(), PROT_READ, MAP_PRIVATE, cap_both, 0));
+
+  // A call with MAP_ANONYMOUS should succeed without any capability requirements.
+  EXPECT_MMAP_OK(mmap(NULL, getpagesize(), PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0));
+
+  EXPECT_OK(close(cap_both));
+  EXPECT_OK(close(cap_read));
+  EXPECT_OK(close(cap_mmap));
+  EXPECT_OK(close(cap_none));
+  EXPECT_OK(close(fd));
+}
 
 // Given a file descriptor, create a capability with specific rights and
 // make sure only those rights work.
