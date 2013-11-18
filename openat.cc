@@ -128,3 +128,57 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_LOOKUP));
 }
+
+#define SYMLINK_DIR "/tmp/cap_openat_symlink"
+TEST(Openat, RelativeSymlink) {
+  // Prepare a directory containing:
+  //  -rw-rw-r--  normal
+  //  lrwxrwxrwx  symlink.absolute_in -> /tmp/cap_openat_symlink/normal
+  //  lrwxrwxrwx  symlink.absolute_out -> /etc/passwd
+  //  lrwxrwxrwx  symlink.normal -> normal
+  //  lrwxrwxrwx  symlink.relative_in -> ../../tmp/cap_openat_symlink/normal
+  //  lrwxrwxrwx  symlink.relative_out -> ../../etc/passwd
+  int rc = mkdir(SYMLINK_DIR, 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+  int dir_fd = open(SYMLINK_DIR, O_RDONLY);
+  EXPECT_OK(dir_fd);
+  int cap_dir = cap_new(dir_fd, CAP_LOOKUP|CAP_READ);
+  EXPECT_OK(cap_dir);
+  int normal = open(SYMLINK_DIR "/normal", O_CREAT|O_RDWR, 0644);
+  EXPECT_OK(normal);
+  const char *contents = "Hello world\n";
+  EXPECT_OK(write(normal, contents, strlen(contents)));
+  close(normal);
+
+  EXPECT_OK(symlink(SYMLINK_DIR "/normal", SYMLINK_DIR "/symlink.absolute_in"));
+  EXPECT_OK(symlink("/etc/passwd", SYMLINK_DIR "/symlink.absolute_out"));
+  EXPECT_OK(symlink("normal", SYMLINK_DIR "/symlink.normal"));
+  EXPECT_OK(symlink("../.." SYMLINK_DIR "/normal", SYMLINK_DIR "/symlink.relative_in"));
+  EXPECT_OK(symlink("../../etc/passwd", SYMLINK_DIR "/symlink.relative_out"));
+
+  int child = fork();
+  if (child == 0) {
+    // Child process: run the test in capability mode
+    EXPECT_OK(cap_enter());
+    EXPECT_OK(openat(cap_dir, "normal", O_RDONLY));
+    EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
+    EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
+    EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
+    EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
+    exit(HasFailure());
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  // Tidy up
+  unlink(SYMLINK_DIR "/symlink.absolute_in");
+  unlink(SYMLINK_DIR "/symlink.absolute_out");
+  unlink(SYMLINK_DIR "/symlink.normal");
+  unlink(SYMLINK_DIR "/symlink.relative_in");
+  unlink(SYMLINK_DIR "/symlink.relative_out");
+  unlink(SYMLINK_DIR "/normal");
+  rmdir(SYMLINK_DIR);
+}
