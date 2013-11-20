@@ -314,12 +314,8 @@ TEST_F(PipePdfork, NoSigchld) {
   TerminateChild();
   int rc = 0;
   waitpid(pid_, &rc, 0);
-#if PDFORKED_CHILD_SENDS_SIGCHLD
-  EXPECT_EQ(1, had_signal);
-#else
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_EQ(0, had_signal);
-#endif
   signal(SIGCHLD, original);
 }
 
