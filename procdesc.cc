@@ -22,6 +22,55 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
+// Get the state of a process as a single character.
+// On error, return either '?' or '\0'.
+static char process_state(int pid) {
+#ifdef __linux__
+  // Open the process status file.
+  char s[1024];
+  snprintf(s, sizeof(s), "/proc/%d/status", pid);
+  FILE *f = fopen(s, "r");
+  if (f == NULL) return '\0';
+
+  // Read the file line by line looking for the state line.
+  const char *prompt = "State:\t";
+  while (!feof(f)) {
+    fgets(s, sizeof(s), f);
+    if (!strncmp(s, prompt, strlen(prompt))) {
+      fclose(f);
+      return s[strlen(prompt)];
+    }
+  }
+  fclose(f);
+  return '?';
+#endif
+#ifdef __FreeBSD__
+  char buffer[1024];
+  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
+  FILE* cmd = popen(buffer, "r");
+  int result = fgetc(cmd);
+  fclose(cmd);
+  // Map FreeBSD codes to Linux codes.
+  switch (result) {
+    case EOF:
+      return '\0';
+    case 'D': // disk wait
+    case 'R': // runnable
+    case 'S': // sleeping
+    case 'T': // stopped
+    case 'Z': // zombie
+      return result;
+    case 'W': // idle interrupt thread
+      return 'S';
+    case 'I': // idle
+      return 'S';
+    case 'L': // waiting to acquire lock
+    default:
+      return '?';
+  }
+#endif
+}
+
 TEST(Pdfork, Simple) {
   int pd = -1;
   pid_t parent = getpid_();
@@ -40,6 +89,19 @@ TEST(Pdfork, Simple) {
   int pid_got;
   EXPECT_OK(pdgetpid(pd, &pid_got));
   EXPECT_EQ(rc, pid_got);
+
+  // Wait long enough for the child to exit().
+  sleep(2);
+
+  // Wait for the the child.
+  int status;
+#ifdef HAVE_PDWAIT4
+  int waitrc = pdwait4(pd, &status, 0, NULL);
+#else
+  int waitrc = waitpid(pid_got, &status, 0);
+#endif
+  EXPECT_EQ(waitrc, rc);
+
   EXPECT_OK(close(pd));
 }
 
@@ -156,55 +218,6 @@ TEST_F(PipePdfork, PollMultiple) {
     EXPECT_TRUE(WIFEXITED(rc));
     EXPECT_EQ(0, WEXITSTATUS(rc));
   }
-}
-
-// Get the state of a process as a single character.
-// On error, return either '?' or '\0'.
-static char process_state(int pid) {
-#ifdef __linux__
-  // Open the process status file.
-  char s[1024];
-  snprintf(s, sizeof(s), "/proc/%d/status", pid);
-  FILE *f = fopen(s, "r");
-  if (f == NULL) return '\0';
-
-  // Read the file line by line looking for the state line.
-  const char *prompt = "State:\t";
-  while (!feof(f)) {
-    fgets(s, sizeof(s), f);
-    if (!strncmp(s, prompt, strlen(prompt))) {
-      fclose(f);
-      return s[strlen(prompt)];
-    }
-  }
-  fclose(f);
-  return '?';
-#endif
-#ifdef __FreeBSD__
-  char buffer[1024];
-  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
-  FILE* cmd = popen(buffer, "r");
-  int result = fgetc(cmd);
-  fclose(cmd);
-  // Map FreeBSD codes to Linux codes.
-  switch (result) {
-    case EOF:
-      return '\0';
-    case 'D': // disk wait
-    case 'R': // runnable
-    case 'S': // sleeping
-    case 'T': // stopped
-    case 'Z': // zombie
-      return result;
-    case 'W': // idle interrupt thread
-      return 'S';
-    case 'I': // idle
-      return 'S';
-    case 'L': // waiting to acquire lock
-    default:
-      return '?';
-  }
-#endif
 }
 
 // Check process state reaches a particular expected state (or two).
