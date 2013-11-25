@@ -426,7 +426,7 @@ static void TryReadWrite(int cap_fd) {
   EXPECT_EQ(ENOTCAPABLE, errno);
 }
 
-TEST(Capability, SocketTransfer) {
+FORK_TEST(Capability, SocketTransfer) {
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
 
@@ -460,6 +460,9 @@ TEST(Capability, SocketTransfer) {
     EXPECT_TRUE(cmptr == NULL);
 
     // Child: confirm we can do the right operations on the capability
+    cap_rights_t rights;
+    EXPECT_OK(cap_getrights(cap_fd, &rights));
+    EXPECT_EQ(CAP_READ|CAP_SEEK, rights);
     TryReadWrite(cap_fd);
 
     // Child: wait for a normal read
