@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 /* Different includes for fstatfs(2) */
 #ifdef __FreeBSD__
@@ -415,4 +416,82 @@ FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
   TryFileOps(fd, CAP_ACCEPT);
 
   close(fd);
+}
+
+static void TryReadWrite(int cap_fd) {
+  char buffer[64];
+  EXPECT_OK(read(cap_fd, buffer, sizeof(buffer)));
+  int rc = write(cap_fd, "", 0);
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(ENOTCAPABLE, errno);
+}
+
+TEST(Capability, SocketTransfer) {
+  int sock_fds[2];
+  EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
+
+  struct msghdr mh;
+  mh.msg_name = NULL;  // No address needed
+  mh.msg_namelen = 0;
+  char buffer1[1024];
+  struct iovec iov[1];
+  iov[0].iov_base = buffer1;
+  iov[0].iov_len = sizeof(buffer1);
+  mh.msg_iov = iov;
+  mh.msg_iovlen = 1;
+  char buffer2[1024];
+  mh.msg_control = buffer2;
+  mh.msg_controllen = sizeof(buffer2);
+  struct cmsghdr *cmptr;
+
+  int child = fork();
+  if (child == 0) {
+    // Child: enter cap mode
+    EXPECT_OK(cap_enter());
+
+    // Child: wait to receive FD over pipe
+    int rc = recvmsg(sock_fds[0], &mh, 0);
+    EXPECT_OK(rc);
+    EXPECT_LE(CMSG_LEN(sizeof(int)), mh.msg_controllen);
+    cmptr = CMSG_FIRSTHDR(&mh);
+    int cap_fd = *(int*)CMSG_DATA(cmptr);
+    EXPECT_EQ(CMSG_LEN(sizeof(int)), cmptr->cmsg_len);
+    cmptr = CMSG_NXTHDR(&mh, cmptr);
+    EXPECT_TRUE(cmptr == NULL);
+
+    // Child: confirm we can do the right operations on the capability
+    TryReadWrite(cap_fd);
+
+    // Child: wait for a normal read
+    int val;
+    read(sock_fds[0], &val, sizeof(val));
+    exit(0);
+  }
+
+  int fd = open("/tmp/cap_fd_transfer", O_RDWR | O_CREAT, 0644);
+  EXPECT_OK(fd);
+  if (fd < 0) return;
+  int cap_fd = cap_new(fd, CAP_READ|CAP_SEEK);
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // Confirm we can do the right operations on the capability
+  TryReadWrite(cap_fd);
+
+  // Send the file descriptor over the pipe to the sub-process
+  mh.msg_controllen = CMSG_LEN(sizeof(int));
+  cmptr = CMSG_FIRSTHDR(&mh);
+  cmptr->cmsg_level = SOL_SOCKET;
+  cmptr->cmsg_type = SCM_RIGHTS;
+  cmptr->cmsg_len = CMSG_LEN(sizeof(int));
+  *(int *)CMSG_DATA(cmptr) = cap_fd;
+  buffer1[0] = 0;
+  iov[0].iov_len = 1;
+  sleep(3);
+  int rc = sendmsg(sock_fds[1], &mh, 0);
+  EXPECT_OK(rc);
+
+  sleep(1);  // Ensure subprocess runs
+  int zero = 0;
+  write(sock_fds[1], &zero, sizeof(zero));
 }
