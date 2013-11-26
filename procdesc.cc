@@ -158,12 +158,9 @@ TEST_F(PipePdfork, Poll) {
 
   TerminateChild();
 
-#ifndef __linux__
-  // TODO(drysdale): capsicum-linux currently doesn't generate POLLHUP?
   // Poll again, should have activity on the process descriptor.
   EXPECT_EQ(1, poll(&fdp, 1, 2000));
   EXPECT_TRUE(fdp.revents & POLLHUP);
-#endif
 }
 
 // Can multiple processes poll on the same descriptor?
@@ -202,11 +199,8 @@ TEST_F(PipePdfork, PollMultiple) {
   //  - pid B will unblock from read(), and exit
   //  - this will generate an event on the process descriptor...
   //  - ...in both process A and process D.
-#ifndef __linux__
-  // TODO(drysdale): capsicum-linux currently doesn't generate POLLHUP?
   EXPECT_EQ(1, poll(&fdp, 1, 2000));
   EXPECT_TRUE(fdp.revents & POLLHUP);
-#endif
 
   if (doppel == 0) {
     // Child: process D exits.
