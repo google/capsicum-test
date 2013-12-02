@@ -128,6 +128,11 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
   ts.tv_nsec = 100000;
   EXPECT_OK(ppoll(cap_fd, kCapCount + 1, &ts, NULL));
   // Now also include the capability with no CAP_POLL_EVENT.
-  EXPECT_NOTCAPABLE(ppoll(cap_fd, kCapCount + 2, &ts, NULL));
+  ret = ppoll(cap_fd, kCapCount + 2, &ts, NULL);
+  if (POLLNVAL_FOR_INVALID_POLLFD) {
+    EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
+  } else {
+    EXPECT_NOTCAPABLE(ret);
+  }
 #endif
 }

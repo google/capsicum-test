@@ -47,7 +47,7 @@ extern "C" {
 
 #define HAVE_PDWAIT4
 // Linux generates ENOTCAPABLE for poll() if any FD is not capable
-#define POLLNVAL_FOR_INVALID_POLLFD 0
+#define POLLNVAL_FOR_INVALID_POLLFD 1
 
 #ifdef __cplusplus
 extern "C" {
