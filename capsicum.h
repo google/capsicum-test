@@ -65,8 +65,6 @@ inline int cap_getmode(unsigned int *mode) {
   return 0;
 }
 
-typedef unsigned long cap_rights_t;
-
 inline int cap_new(int fd, cap_rights_t rights) {
   return syscall(__NR_cap_new, fd, rights);
 }
