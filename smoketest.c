@@ -24,7 +24,7 @@ int main() {
   /* cap_getrights() available? */
   cap_rights_t rights;
   int rc = cap_getrights(cap_fd, &rights);
-  fprintf(stderr, "cap_getrights(cap_fd=%d) rc=%d rights=%lx\n", cap_fd, rc, rights);
+  fprintf(stderr, "cap_getrights(cap_fd=%d) rc=%d rights=0x%016llx\n", cap_fd, rc, rights);
   if (rc < 0) fprintf(stderr, "cap_getrights() failed: errno=%d %s\n", errno, strerror(errno));
 
   /* pdfork() available? */
