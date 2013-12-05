@@ -196,6 +196,14 @@ TEST(Openat, RelativeSymlink) {
   EXPECT_OK(symlink("../.." SYMLINK_DIR "/normal", SYMLINK_DIR "/symlink.relative_in"));
   EXPECT_OK(symlink("../../etc/passwd", SYMLINK_DIR "/symlink.relative_out"));
 
+#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
+  // Even when not in capability mode, should not be able to open symlinks.
+  EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
+  EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
+  EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
+  EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
+#endif
+
   int child = fork();
   if (child == 0) {
     // Child process: run the test in capability mode
