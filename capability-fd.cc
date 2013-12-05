@@ -426,7 +426,7 @@ static void TryReadWrite(int cap_fd) {
   EXPECT_EQ(ENOTCAPABLE, errno);
 }
 
-FORK_TEST(Capability, SocketTransfer) {
+FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
 
