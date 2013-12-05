@@ -133,6 +133,41 @@ FORK_TEST(Openat, Relative) {
   EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_LOOKUP));
 }
 
+TEST(Openat, Subdir) {
+  // Create a couple of nested directories
+  int rc = mkdir("/tmp/cap_topdir", 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+  rc = mkdir("/tmp/cap_topdir/cap_subdir", 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+
+  int dir_fd = open("/tmp/cap_topdir", O_RDONLY);
+  EXPECT_OK(dir_fd);
+  int cap_dir = cap_new(dir_fd, CAP_LOOKUP|CAP_READ);
+  EXPECT_OK(cap_dir);
+
+  // Check that we can't escape the top directory by the cunning
+  // ruse of going via a subdirectory.
+#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
+  EXPECT_NOTCAPABLE(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
+#endif
+
+  pid_t child = fork();
+  if (child == 0) {
+    EXPECT_OK(cap_enter());  // Enter capability mode
+    EXPECT_CAPFAIL(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
+    exit(HasFailure());
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+  // Tidy up.
+  rmdir("/tmp/cap_topdir/cap_subdir");
+  rmdir("/tmp/cap_topdir");
+}
+
 #define SYMLINK_DIR "/tmp/cap_openat_symlink"
 TEST(Openat, RelativeSymlink) {
   // Prepare a directory containing:
