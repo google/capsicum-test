@@ -59,7 +59,7 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(etc_cap_all);
 
   // openat(2) with regular file descriptors in non-capability mode
-  // should Just Work (tm).
+  // Should Just Work (tm).
   EXPECT_OK(openat(etc, "/etc/passwd", O_RDONLY));
   EXPECT_OK(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
   EXPECT_OK(openat(etc, "passwd", O_RDONLY));
@@ -81,9 +81,13 @@ FORK_TEST(Openat, Relative) {
 #endif
 
   // This requires discussion: do we treat a capability with
-  // CAP_MASK_VALID *exactly* like a non-capability file descriptor
-  // (currently, the implementation says yes)?
-  EXPECT_OK(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
+  // CAP_MASK_VALID *exactly* like a non-capability file descriptor?
+  // (currently, the FreeBSD implementation says yes)
+  if (CAP_MASK_VALID_IS_UNCHECKED) {
+    EXPECT_OK(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
+  } else {
+    EXPECT_NOTCAPABLE(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
+  }
 
   // A file opened relative to a capability should itself be a capability.
   EXPECT_OK(cap_getrights(etc_cap_base, &rights));

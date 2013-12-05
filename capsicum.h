@@ -28,6 +28,8 @@ extern "C" {
 #define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
 // FreeBSD marks an notcapable FD as POLLNVAL in poll()
 #define POLLNVAL_FOR_INVALID_POLLFD 1
+// FreeBSD treats CAP_MASK_VALID exactly like a non-capability
+#define CAP_MASK_VALID_IS_UNCHECKED 1
 
 #endif
 
@@ -49,6 +51,8 @@ extern "C" {
 #define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
 // Linux generates ENOTCAPABLE for poll() if any FD is not capable
 #define POLLNVAL_FOR_INVALID_POLLFD 1
+// Linux treats a capability with CAP_MASK_VALID differently than a non-capability
+#define CAP_MASK_VALID_IS_UNCHECKED 0
 
 #ifdef __cplusplus
 extern "C" {
