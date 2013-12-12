@@ -33,6 +33,14 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
+// Check an open call works and close the resulting fd.
+#define EXPECT_OPEN_OK(f) do { \
+    int fd = f;                \
+    EXPECT_OK(fd);             \
+    close(fd);                 \
+  } while (0)
+
+
 // Test openat(2) in a variety of sitations to ensure that it obeys Capsicum
 // "strict relative" rules:
 //
@@ -60,51 +68,53 @@ FORK_TEST(Openat, Relative) {
 
   // openat(2) with regular file descriptors in non-capability mode
   // Should Just Work (tm).
-  EXPECT_OK(openat(etc, "/etc/passwd", O_RDONLY));
-  EXPECT_OK(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
-  EXPECT_OK(openat(etc, "passwd", O_RDONLY));
-  EXPECT_OK(openat(etc, "../etc/passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc, "/etc/passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc, "../etc/passwd", O_RDONLY));
 
   // Lookups relative to capabilities should be strictly relative.
   // When not in capability mode, we don't actually require CAP_LOOKUP.
-  EXPECT_OK(openat(etc_cap_ro, "passwd", O_RDONLY));
-  EXPECT_OK(openat(etc_cap_base, "passwd", O_RDONLY));
-  EXPECT_OK(openat(etc_cap_all, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_ro, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_base, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
 #ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
+#ifndef __FreeBSD__
+  // TODO(drysdale): find out why FreeBSD allows opening an absolute path
+  // relative to a capability when not in capability mode.
+  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(etc_cap_base, "/etc/passwd", O_RDONLY));
+#endif
   EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
-#else
-  int temp_fd = openat(etc_cap_base, "../etc/passwd", O_RDONLY);
-  EXPECT_OK(temp_fd);
-  if (temp_fd >= 0) close(temp_fd);
 #endif
 
   // This requires discussion: do we treat a capability with
   // CAP_MASK_VALID *exactly* like a non-capability file descriptor?
   // (currently, the FreeBSD implementation says yes)
   if (CAP_MASK_VALID_IS_UNCHECKED) {
-    EXPECT_OK(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
+    EXPECT_OPEN_OK(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
   } else {
     EXPECT_NOTCAPABLE(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
   }
 
   // A file opened relative to a capability should itself be a capability.
-  EXPECT_OK(cap_getrights(etc_cap_base, &rights));
-
   int fd = openat(etc_cap_base, "passwd", O_RDONLY);
   EXPECT_OK(fd);
+  EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, baserights);
+  close(fd);
 
   // Enter capability mode; now ALL lookups are strictly relative.
   EXPECT_OK(cap_enter());
 
   // Relative lookups on regular files or capabilities with CAP_LOOKUP
   // ought to succeed.
-  EXPECT_OK(openat(etc, "passwd", O_RDONLY));
-  EXPECT_OK(openat(etc_cap_ro, "passwd", O_RDONLY));
-  EXPECT_OK(openat(etc_cap_base, "passwd", O_RDONLY));
-  EXPECT_OK(openat(etc_cap_all, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_ro, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_base, "passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
   // Lookup relative to capabilities without CAP_LOOKUP should fail.
   EXPECT_NOTCAPABLE(openat(etc_cap, "passwd", O_RDONLY));
@@ -112,6 +122,7 @@ FORK_TEST(Openat, Relative) {
   // Absolute lookups should fail.
   EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
   EXPECT_CAPFAIL(openat(etc, "/etc/passwd", O_RDONLY));
+  EXPECT_CAPFAIL(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
 
   // Lookups containing '..' should fail in capability mode.
   EXPECT_CAPFAIL(openat(etc, "../etc/passwd", O_RDONLY));
@@ -126,11 +137,13 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(fd);
   EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, baserights);
+  close(fd);
 
   fd = openat(etc_cap_ro, "passwd", O_RDONLY);
   EXPECT_OK(fd);
   EXPECT_OK(cap_getrights(fd, &rights));
   EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_LOOKUP));
+  close(fd);
 }
 
 TEST(Openat, Subdir) {
@@ -196,8 +209,17 @@ TEST(Openat, RelativeSymlink) {
   EXPECT_OK(symlink("../.." SYMLINK_DIR "/normal", SYMLINK_DIR "/symlink.relative_in"));
   EXPECT_OK(symlink("../../etc/passwd", SYMLINK_DIR "/symlink.relative_out"));
 
+  // Any kind of symlink can be opened relative to an ordinary directory FD.
+  EXPECT_OPEN_OK(openat(dir_fd, "symlink.normal", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_in", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_out", O_RDONLY));
+
 #ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
-  // Even when not in capability mode, should not be able to open symlinks.
+  // Even when not in capability mode, should only be able to open symlinks that
+  // stay within the directory.
+  EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
   EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
   EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
   EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
@@ -208,7 +230,18 @@ TEST(Openat, RelativeSymlink) {
   if (child == 0) {
     // Child process: run the test in capability mode
     EXPECT_OK(cap_enter());
-    EXPECT_OK(openat(cap_dir, "normal", O_RDONLY));
+
+    // Only symlink within the directory can be opened relative to an ordinary directory FD.
+    EXPECT_OPEN_OK(openat(dir_fd, "normal", O_RDONLY));
+    EXPECT_OPEN_OK(openat(dir_fd, "symlink.normal", O_RDONLY));
+    EXPECT_CAPFAIL(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
+    EXPECT_CAPFAIL(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
+    EXPECT_CAPFAIL(openat(dir_fd, "symlink.relative_in", O_RDONLY));
+    EXPECT_CAPFAIL(openat(dir_fd, "symlink.relative_out", O_RDONLY));
+
+    // Only symlink within the directory can be opened relative to an ordinary directory FD.
+    EXPECT_OPEN_OK(openat(cap_dir, "normal", O_RDONLY));
+    EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
     EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
     EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
     EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
