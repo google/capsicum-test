@@ -98,6 +98,7 @@ extern int  __sys_kmq_unlink(const char *);
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/sendfile.h>
+#include <sys/statfs.h>
 
 /* profil(2) has a first argument of unsigned short* */
 #define profil_arg1_t unsigned short

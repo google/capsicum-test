@@ -18,13 +18,6 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-/* Different includes for fstatfs(2) */
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#include <sys/mount.h>
-#else
-#include <sys/statfs.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
