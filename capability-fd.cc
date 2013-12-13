@@ -324,11 +324,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   if (rights & CAP_POLL_EVENT) {
     EXPECT_OK(ret);
   } else {
-    if (POLLNVAL_FOR_INVALID_POLLFD) {
-      EXPECT_NE(0, (pollfd.revents & POLLNVAL));
-    } else {
-      EXPECT_NOTCAPABLE(ret);
-    }
+    EXPECT_NE(0, (pollfd.revents & POLLNVAL));
   }
 
   struct timeval tv;

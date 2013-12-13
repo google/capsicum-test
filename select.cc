@@ -114,12 +114,8 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
 
   EXPECT_OK(poll(cap_fd, kCapCount + 1, 10));
   // Now also include the capability with no CAP_POLL_EVENT.
-  int ret = poll(cap_fd, kCapCount + 2, 10);
-  if (POLLNVAL_FOR_INVALID_POLLFD) {
-    EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
-  } else {
-    EXPECT_NOTCAPABLE(ret);
-  }
+  EXPECT_OK(poll(cap_fd, kCapCount + 2, 10));
+  EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
 
 #ifdef HAVE_PPOLL
   // And again with ppoll
@@ -128,11 +124,7 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
   ts.tv_nsec = 100000;
   EXPECT_OK(ppoll(cap_fd, kCapCount + 1, &ts, NULL));
   // Now also include the capability with no CAP_POLL_EVENT.
-  ret = ppoll(cap_fd, kCapCount + 2, &ts, NULL);
-  if (POLLNVAL_FOR_INVALID_POLLFD) {
-    EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
-  } else {
-    EXPECT_NOTCAPABLE(ret);
-  }
+  EXPECT_OK(ppoll(cap_fd, kCapCount + 2, &ts, NULL));
+  EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
 #endif
 }
