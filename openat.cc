@@ -80,12 +80,11 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OPEN_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
 #ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
-#ifndef __FreeBSD__
-  // TODO(drysdale): find out why FreeBSD allows opening an absolute path
-  // relative to a capability when not in capability mode.
-  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_base, "/etc/passwd", O_RDONLY));
-#endif
+  // Performing openat(2) on a path with leading slash ignores
+  // the provided directory FD.
+  EXPECT_OPEN_OK(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
+  EXPECT_OPEN_OK(openat(etc_cap_base, "/etc/passwd", O_RDONLY));
+  // Relative lookups that go upward are not allowed.
   EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
 #endif
