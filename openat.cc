@@ -120,13 +120,13 @@ FORK_TEST(Openat, Relative) {
 
   // Absolute lookups should fail.
   EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
-  EXPECT_CAPFAIL(openat(etc, "/etc/passwd", O_RDONLY));
-  EXPECT_CAPFAIL(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(etc, "/etc/passwd", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
 
   // Lookups containing '..' should fail in capability mode.
-  EXPECT_CAPFAIL(openat(etc, "../etc/passwd", O_RDONLY));
-  EXPECT_CAPFAIL(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
-  EXPECT_CAPFAIL(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(etc, "../etc/passwd", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
 
   fd = openat(etc, "passwd", O_RDONLY);
   EXPECT_OK(fd);
@@ -168,7 +168,7 @@ TEST(Openat, Subdir) {
   pid_t child = fork();
   if (child == 0) {
     EXPECT_OK(cap_enter());  // Enter capability mode
-    EXPECT_CAPFAIL(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
     exit(HasFailure());
   }
   int status;
@@ -219,10 +219,10 @@ TEST(Openat, RelativeSymlink) {
   // Even when not in capability mode, should only be able to open symlinks that
   // stay within the directory.
   EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
-  EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
-  EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
-  EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
-  EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_in", O_RDONLY));
+  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_out", O_RDONLY));
 #endif
 
   int child = fork();
@@ -233,18 +233,18 @@ TEST(Openat, RelativeSymlink) {
     // Only symlink within the directory can be opened relative to an ordinary directory FD.
     EXPECT_OPEN_OK(openat(dir_fd, "normal", O_RDONLY));
     EXPECT_OPEN_OK(openat(dir_fd, "symlink.normal", O_RDONLY));
-    EXPECT_CAPFAIL(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
-    EXPECT_CAPFAIL(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
-    EXPECT_CAPFAIL(openat(dir_fd, "symlink.relative_in", O_RDONLY));
-    EXPECT_CAPFAIL(openat(dir_fd, "symlink.relative_out", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.relative_in", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.relative_out", O_RDONLY));
 
     // Only symlink within the directory can be opened relative to an ordinary directory FD.
     EXPECT_OPEN_OK(openat(cap_dir, "normal", O_RDONLY));
     EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
-    EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
-    EXPECT_CAPFAIL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
-    EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
-    EXPECT_CAPFAIL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_in", O_RDONLY));
+    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_out", O_RDONLY));
     exit(HasFailure());
   }
   int status;
