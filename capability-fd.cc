@@ -65,11 +65,9 @@ FORK_TEST(Capability, BasicInterception) {
   EXPECT_NE(-1, cap_fd);
 
   int rc;
-#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
   rc = write(cap_fd, "", 0);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(ENOTCAPABLE, errno);
-#endif
 
   EXPECT_OK(cap_enter());
 

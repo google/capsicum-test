@@ -24,8 +24,6 @@ extern "C" {
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
-// FreeBSD polices FD rights even before capability mode is entered.
-#define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
 // FreeBSD marks an notcapable FD as POLLNVAL in poll()
 #define POLLNVAL_FOR_INVALID_POLLFD 1
 // FreeBSD treats CAP_MASK_VALID exactly like a non-capability
@@ -48,7 +46,6 @@ extern "C" {
 #include <linux/procdesc.h>
 
 #define HAVE_PDWAIT4
-#define HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
 // Linux generates ENOTCAPABLE for poll() if any FD is not capable
 #define POLLNVAL_FOR_INVALID_POLLFD 1
 // Linux treats a capability with CAP_MASK_VALID differently than a non-capability

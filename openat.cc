@@ -79,7 +79,6 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OPEN_OK(openat(etc_cap_base, "passwd", O_RDONLY));
   EXPECT_OPEN_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
-#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
   // Performing openat(2) on a path with leading slash ignores
   // the provided directory FD.
   EXPECT_OPEN_OK(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
@@ -87,7 +86,6 @@ FORK_TEST(Openat, Relative) {
   // Relative lookups that go upward are not allowed.
   EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
-#endif
 
   // This requires discussion: do we treat a capability with
   // CAP_MASK_VALID *exactly* like a non-capability file descriptor?
@@ -161,9 +159,7 @@ TEST(Openat, Subdir) {
 
   // Check that we can't escape the top directory by the cunning
   // ruse of going via a subdirectory.
-#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
   EXPECT_NOTCAPABLE(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
-#endif
 
   pid_t child = fork();
   if (child == 0) {
@@ -215,7 +211,6 @@ TEST(Openat, RelativeSymlink) {
   EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_in", O_RDONLY));
   EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_out", O_RDONLY));
 
-#ifdef HAVE_RIGHTS_CHECK_OUTSIDE_CAPMODE
   // Even when not in capability mode, should only be able to open symlinks that
   // stay within the directory.
   EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
@@ -223,7 +218,6 @@ TEST(Openat, RelativeSymlink) {
   EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_in", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_out", O_RDONLY));
-#endif
 
   int child = fork();
   if (child == 0) {
