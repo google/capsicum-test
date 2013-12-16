@@ -7,6 +7,8 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+#include <ios>
+
 #include "gtest/gtest.h"
 
 // Run the given test function in a forked process, so that trapdoor
@@ -119,6 +121,9 @@
     } while (0)
 
 // Ensure that 'rights' are a subset of 'max'.
-#define EXPECT_RIGHTS_IN(rights, max) EXPECT_EQ(rights & max, rights)
+#define EXPECT_RIGHTS_IN(rights, max) \
+    EXPECT_EQ((rights) & (max), (rights)) \
+    << "rights " << std::hex << (rights)        \
+    << " not a subset of " << std::hex << (max)
 
 #endif  // CAPSICUM_TEST_H
