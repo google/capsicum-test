@@ -297,6 +297,9 @@ static void TryFileOps(int fd, cap_rights_t rights) {
                           rights, (CAP_MMAP | CAP_READ | CAP_WRITE | CAP_MAPEXEC));
 
   CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
+#ifdef HAVE_SYNC_FILE_RANGE
+  CHECK_RIGHT_RESULT(sync_file_range(cap_fd, 0, 1, 0), rights, CAP_FSYNC | CAP_SEEK);
+#endif
 
   CHECK_RIGHT_RESULT(fchown(cap_fd, -1, -1), rights, CAP_FCHOWN);
 
