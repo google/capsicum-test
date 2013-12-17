@@ -238,6 +238,56 @@ TEST(Socket, UDP) {
   len = sizeof(value);
   EXPECT_OK(getsockopt(cap_sock_all, SOL_SOCKET, SO_REUSEPORT, &value, &len));
 
+  pid_t child = fork();
+  if (child == 0) {
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    EXPECT_OK(sock);
+    int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SEEK);
+    EXPECT_OK(cap_sock_rw);
+    int cap_sock_connect = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_CONNECT);
+    EXPECT_OK(cap_sock_connect);
+    close(sock);
+
+    // Can only sendmsg(2) to an address over a socket with CAP_CONNECT.
+    unsigned char buffer[256];
+    struct iovec iov;
+    memset(&iov, 0, sizeof(iov));
+    iov.iov_base = buffer;
+    iov.iov_len = sizeof(buffer);
+
+    struct msghdr mh;
+    memset(&mh, 0, sizeof(mh));
+    mh.msg_iov = &iov;
+    mh.msg_iovlen = 1;
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(kPort);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    mh.msg_name = &addr;
+    mh.msg_namelen = sizeof(addr);
+
+    EXPECT_NOTCAPABLE(sendmsg(cap_sock_rw, &mh, 0));
+    EXPECT_OK(sendmsg(cap_sock_connect, &mh, 0));
+
+#ifdef HAVE_SEND_RECV_MMSG
+    struct mmsghdr mv;
+    memset(&mv, 0, sizeof(mv));
+    memcpy(&mv.msg_hdr, &mh, sizeof(struct msghdr));
+    EXPECT_NOTCAPABLE(sendmmsg(cap_sock_rw, &mv, 1, 0));
+    EXPECT_OK(sendmmsg(cap_sock_connect, &mv, 1, 0));
+#endif
+    close(cap_sock_rw);
+    close(cap_sock_connect);
+    exit(HasFailure());
+  }
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
   close(cap_sock_rw);
   close(cap_sock_all);
 }
