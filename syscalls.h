@@ -139,6 +139,8 @@ inline pid_t getpid_() {
 #define HAVE_SYNCFS
 #define HAVE_SYNC_FILE_RANGE
 #include <sys/uio.h>  /* for vmsplice */
+#define HAVE_TEE
+#define HAVE_SPLICE
 #define HAVE_VMSPLICE
 #define HAVE_PSELECT
 #define HAVE_PPOLL
