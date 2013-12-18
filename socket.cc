@@ -92,6 +92,14 @@ TEST(Socket, UnixDomain) {
   int conn_fd = accept(cap_sock_all, (struct sockaddr *)&un, &len);
   EXPECT_OK(conn_fd);
 
+#ifdef OMIT
+  // TODO(drysdale): investigate further
+  // New connection should also be a capability.
+  cap_rights_t rights = CAP_ALL;
+  EXPECT_OK(cap_getrights(conn_fd, &rights));
+  EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_WRITE|CAP_SOCK_ALL));
+#endif
+
   // Wait for the child.
   int status;
   EXPECT_EQ(child, waitpid(child, &status, 0));
@@ -184,6 +192,14 @@ TEST(Socket, TCP) {
   EXPECT_NOTCAPABLE(accept(cap_sock_rw, (struct sockaddr *)&addr, &len));
   int conn_fd = accept(cap_sock_all, (struct sockaddr *)&addr, &len);
   EXPECT_OK(conn_fd);
+
+#ifdef OMIT
+  // TODO(drysdale): investigate further
+  // New connection should also be a capability.
+  cap_rights_t rights = CAP_ALL;
+  EXPECT_OK(cap_getrights(conn_fd, &rights));
+  EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_WRITE|CAP_SOCK_ALL));
+#endif
 
   // Wait for the child.
   int status;
