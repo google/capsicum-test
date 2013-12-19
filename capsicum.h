@@ -60,6 +60,9 @@ extern "C" {
 #ifndef CAP_NOTIFY
 #define CAP_NOTIFY    0x0200000000000000ULL
 #endif
+#ifndef CAP_SETNS
+#define CAP_SETNS     0x0200000000000000ULL
+#endif
 
 inline int cap_enter() {
   return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);

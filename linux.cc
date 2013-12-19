@@ -10,6 +10,7 @@
 #include <sys/inotify.h>
 #include <sys/fanotify.h>
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <fcntl.h>
 
@@ -362,6 +363,28 @@ TEST(Linux, inotify) {
   close(cap_fd_wo);
   close(cap_fd_ro);
   close(i_fd);
+}
+
+FORK_TEST(Linux, Namespace) {
+  REQUIRE_ROOT();
+  pid_t me = getpid_();
+
+  // Create a new UTS namespace.
+  EXPECT_OK(unshare(CLONE_NEWUTS));
+  // Open an FD to its symlink.
+  char buffer[256];
+  sprintf(buffer, "/proc/%d/ns/uts", me);
+  int ns_fd = open(buffer, O_RDONLY);
+  int cap_fd = cap_new(ns_fd, CAP_READ|CAP_WRITE|CAP_LOOKUP|CAP_FSTAT);
+  int cap_fd_setns = cap_new(ns_fd, CAP_READ|CAP_WRITE|CAP_LOOKUP|CAP_FSTAT|CAP_SETNS);
+  EXPECT_NOTCAPABLE(setns(cap_fd, CLONE_NEWUTS));
+  EXPECT_OK(setns(cap_fd_setns, CLONE_NEWUTS));
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // No setns(2) but unshare(2) is allowed.
+  EXPECT_CAPMODE(setns(ns_fd, CLONE_NEWUTS));
+  EXPECT_OK(unshare(CLONE_NEWUTS));
 }
 
 #else
