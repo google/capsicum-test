@@ -52,10 +52,13 @@ extern "C" {
 #endif
 
 #ifndef CAP_FSIGNAL
-#define CAP_FSIGNAL 0x0080000000000000ULL
+#define CAP_FSIGNAL   0x0080000000000000ULL
 #endif
 #ifndef CAP_EPOLL_CTL
 #define CAP_EPOLL_CTL 0x0100000000000000ULL
+#endif
+#ifndef CAP_NOTIFY
+#define CAP_NOTIFY    0x0200000000000000ULL
 #endif
 
 inline int cap_enter() {

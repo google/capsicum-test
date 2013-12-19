@@ -7,8 +7,11 @@
 #include <sys/signalfd.h>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
+#include <sys/inotify.h>
+#include <sys/fanotify.h>
 #include <poll.h>
 #include <signal.h>
+#include <fcntl.h>
 
 #include "capsicum.h"
 #include "syscalls.h"
@@ -228,6 +231,140 @@ TEST(Linux, epoll) {
   close(sock_fds[1]);
   close(sock_fds[0]);
   unlink("/tmp/cap_epoll");
+}
+
+// fanotify support may not be available at compile-time
+#ifdef __NR_fanotify_init
+TEST(Linux, fanotify) {
+  if (getuid() != 0) {
+    fprintf(stderr, "This test needs to be run as root; skipping\n");
+    return;
+  }
+  int fa_fd = fanotify_init(FAN_CLASS_NOTIF, O_RDWR);
+  EXPECT_OK(fa_fd);
+  if (fa_fd < 0) return;  // May not be enabled
+
+  int cap_fd_ro = cap_new(fa_fd, CAP_READ|CAP_SEEK);
+  int cap_fd_wo = cap_new(fa_fd, CAP_WRITE|CAP_SEEK);
+  int cap_fd_rw = cap_new(fa_fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  int cap_fd_poll = cap_new(fa_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_POLL_EVENT);
+  int cap_fd_not = cap_new(fa_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_NOTIFY);
+
+  int rc = mkdir("/tmp/cap_notify", 0755);
+  EXPECT_TRUE(rc == 0 || errno == EEXIST);
+  int dfd = open("/tmp/cap_notify", O_RDONLY);
+  EXPECT_OK(dfd);
+  int cap_dfd = cap_new(dfd, CAP_READ|CAP_SEEK|CAP_LOOKUP|CAP_FSTAT);
+  EXPECT_OK(cap_dfd);
+
+  // Need CAP_NOTIFY to change what's monitored.
+  EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_ro, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
+  EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_wo, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
+  EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_rw, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
+  EXPECT_OK(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: Perform activity in the directory under notify.
+    sleep(1);
+    unlink("/tmp/cap_notify/temp");
+    int fd = open("/tmp/cap_notify/temp", O_CREAT|O_RDWR, 0644);
+    close(fd);
+    exit(0);
+  }
+
+  // Need CAP_POLL_EVENT to poll.
+  struct pollfd poll_fd;
+  poll_fd.revents = 0;
+  poll_fd.events = POLLIN;
+  poll_fd.fd = cap_fd_rw;
+  EXPECT_OK(poll(&poll_fd, 1, 1400));
+  EXPECT_EQ(0, (poll_fd.revents & POLLIN));
+  EXPECT_NE(0, (poll_fd.revents & POLLNVAL));
+
+  poll_fd.fd = cap_fd_not;
+  EXPECT_OK(poll(&poll_fd, 1, 1400));
+  EXPECT_EQ(0, (poll_fd.revents & POLLIN));
+  EXPECT_NE(0, (poll_fd.revents & POLLNVAL));
+
+  poll_fd.fd = cap_fd_poll;
+  EXPECT_OK(poll(&poll_fd, 1, 1400));
+  EXPECT_NE(0, (poll_fd.revents & POLLIN));
+  EXPECT_EQ(0, (poll_fd.revents & POLLNVAL));
+
+  // Need CAP_READ to read.
+  struct fanotify_event_metadata ev;
+  memset(&ev, 0, sizeof(ev));
+  EXPECT_NOTCAPABLE(read(cap_fd_wo, &ev, sizeof(ev)));
+  rc = read(fa_fd, &ev, sizeof(ev));
+  EXPECT_OK(rc);
+  EXPECT_EQ((int)sizeof(struct fanotify_event_metadata), rc);
+  EXPECT_EQ(child, ev.pid);
+  EXPECT_NE(0, ev.fd);
+
+#ifdef OMIT
+  // TODO(drysdale): investigate further
+  // fanotify(7) gives us a FD for the changed file.  This should
+  // only have rights that are a subset of those for the original
+  // monitored directory file descriptor.
+  cap_rights_t rights = CAP_ALL;
+  EXPECT_OK(cap_getrights(ev.fd, &rights));
+  EXPECT_RIGHTS_IN(rights, CAP_READ|CAP_SEEK|CAP_LOOKUP|CAP_FSTAT);
+#endif
+
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  close(cap_dfd);
+  close(dfd);
+  unlink("/tmp/cap_notify/temp");
+  rmdir("/tmp/cap_notify");
+  close(cap_fd_not);
+  close(cap_fd_poll);
+  close(cap_fd_rw);
+  close(cap_fd_wo);
+  close(cap_fd_ro);
+  close(fa_fd);
+}
+#endif
+
+TEST(Linux, inotify) {
+  int i_fd = inotify_init();
+  EXPECT_OK(i_fd);
+
+  int cap_fd_ro = cap_new(i_fd, CAP_READ|CAP_SEEK);
+  int cap_fd_wo = cap_new(i_fd, CAP_WRITE|CAP_SEEK);
+  int cap_fd_rw = cap_new(i_fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  int cap_fd_all = cap_new(i_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_NOTIFY);
+
+  int fd = open("/tmp/cap_inotify", O_CREAT|O_RDWR, 0644);
+  EXPECT_NOTCAPABLE(inotify_add_watch(cap_fd_rw, "/tmp/cap_inotify", IN_ACCESS|IN_MODIFY));
+  int wd = inotify_add_watch(i_fd, "/tmp/cap_inotify", IN_ACCESS|IN_MODIFY);
+  EXPECT_OK(wd);
+
+  unsigned char buffer[] = {1, 2, 3, 4};
+  EXPECT_OK(write(fd, buffer, sizeof(buffer)));
+
+  struct inotify_event iev;
+  memset(&iev, 0, sizeof(iev));
+  EXPECT_NOTCAPABLE(read(cap_fd_wo, &iev, sizeof(iev)));
+  int rc = read(cap_fd_ro, &iev, sizeof(iev));
+  EXPECT_OK(rc);
+  EXPECT_EQ((int)sizeof(iev), rc);
+  EXPECT_EQ(wd, iev.wd);
+
+  EXPECT_NOTCAPABLE(inotify_rm_watch(cap_fd_wo, wd));
+  EXPECT_OK(inotify_rm_watch(cap_fd_all, wd));
+
+  close(fd);
+  close(cap_fd_all);
+  close(cap_fd_rw);
+  close(cap_fd_wo);
+  close(cap_fd_ro);
+  close(i_fd);
 }
 
 #else
