@@ -2,9 +2,11 @@
 #ifdef __linux__
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/timerfd.h>
 #include <sys/signalfd.h>
 #include <sys/eventfd.h>
+#include <sys/epoll.h>
 #include <poll.h>
 #include <signal.h>
 
@@ -173,6 +175,59 @@ TEST(Linux, EventFD) {
   close(cap_wo);
   close(cap_ro);
   close(fd);
+}
+
+TEST(Linux, epoll) {
+  int sock_fds[2];
+  EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
+  // Queue some data.
+  char buffer[4] = {1, 2, 3, 4};
+  EXPECT_OK(write(sock_fds[1], buffer, sizeof(buffer)));
+
+  int epoll_fd = epoll_create(1);
+  EXPECT_OK(epoll_fd);
+  int cap_epoll_wo = cap_new(epoll_fd, CAP_WRITE|CAP_SEEK);
+  int cap_epoll_ro = cap_new(epoll_fd, CAP_READ|CAP_SEEK);
+  int cap_epoll_rw = cap_new(epoll_fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  int cap_epoll_poll = cap_new(epoll_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_POLL_EVENT);
+  int cap_epoll_ctl = cap_new(epoll_fd, CAP_EPOLL_CTL);
+
+  // Can only modify the FDs being monitored if the CAP_EPOLL_CTL right is present.
+  struct epoll_event eev;
+  memset(&eev, 0, sizeof(eev));
+  eev.events = EPOLLIN|EPOLLOUT|EPOLLPRI;
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_ro, EPOLL_CTL_ADD, sock_fds[0], &eev));
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_wo, EPOLL_CTL_ADD, sock_fds[0], &eev));
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_rw, EPOLL_CTL_ADD, sock_fds[0], &eev));
+  EXPECT_OK(epoll_ctl(cap_epoll_ctl, EPOLL_CTL_ADD, sock_fds[0], &eev));
+  eev.events = EPOLLIN|EPOLLOUT;
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_ro, EPOLL_CTL_MOD, sock_fds[0], &eev));
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_wo, EPOLL_CTL_MOD, sock_fds[0], &eev));
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_rw, EPOLL_CTL_MOD, sock_fds[0], &eev));
+  EXPECT_OK(epoll_ctl(cap_epoll_ctl, EPOLL_CTL_MOD, sock_fds[0], &eev));
+
+  // Running epoll_pwait(2) requires CAP_POLL_EVENT.
+  eev.events = 0;
+  EXPECT_NOTCAPABLE(epoll_pwait(cap_epoll_ro, &eev, 1, 100, NULL));
+  EXPECT_NOTCAPABLE(epoll_pwait(cap_epoll_wo, &eev, 1, 100, NULL));
+  EXPECT_NOTCAPABLE(epoll_pwait(cap_epoll_rw, &eev, 1, 100, NULL));
+  EXPECT_OK(epoll_pwait(cap_epoll_poll, &eev, 1, 100, NULL));
+  EXPECT_EQ(EPOLLIN, eev.events & EPOLLIN);
+
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_ro, EPOLL_CTL_DEL, sock_fds[0], &eev));
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_wo, EPOLL_CTL_DEL, sock_fds[0], &eev));
+  EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_rw, EPOLL_CTL_DEL, sock_fds[0], &eev));
+  EXPECT_OK(epoll_ctl(epoll_fd, EPOLL_CTL_DEL, sock_fds[0], &eev));
+
+  close(cap_epoll_ctl);
+  close(cap_epoll_poll);
+  close(cap_epoll_rw);
+  close(cap_epoll_ro);
+  close(cap_epoll_wo);
+  close(epoll_fd);
+  close(sock_fds[1]);
+  close(sock_fds[0]);
+  unlink("/tmp/cap_epoll");
 }
 
 #else
