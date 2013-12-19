@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/timerfd.h>
 #include <sys/signalfd.h>
+#include <sys/eventfd.h>
 #include <poll.h>
 #include <signal.h>
 
@@ -122,6 +123,56 @@ FORK_TEST(Linux, SignalFD) {
   EXPECT_OK(poll(&poll_fd, 1, 400));
   EXPECT_NE(0, (poll_fd.revents & POLLIN));
   EXPECT_EQ(0, (poll_fd.revents & POLLNVAL));
+}
+
+TEST(Linux, EventFD) {
+  int fd = eventfd(0, 0);
+  EXPECT_OK(fd);
+  int cap_ro = cap_new(fd, CAP_READ|CAP_SEEK);
+  int cap_wo = cap_new(fd, CAP_WRITE|CAP_SEEK);
+  int cap_rw = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  int cap_all = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_POLL_EVENT);
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: write counter to eventfd
+    uint64_t u = 42;
+    EXPECT_NOTCAPABLE(write(cap_ro, &u, sizeof(u)));
+    EXPECT_OK(write(cap_wo, &u, sizeof(u)));
+    exit(HasFailure());
+  }
+
+  sleep(1);  // Allow child to write
+
+  struct pollfd poll_fd;
+  poll_fd.revents = 0;
+  poll_fd.events = POLLIN;
+  poll_fd.fd = cap_rw;
+  EXPECT_OK(poll(&poll_fd, 1, 400));
+  EXPECT_EQ(0, (poll_fd.revents & POLLIN));
+  EXPECT_NE(0, (poll_fd.revents & POLLNVAL));
+
+  poll_fd.fd = cap_all;
+  EXPECT_OK(poll(&poll_fd, 1, 400));
+  EXPECT_NE(0, (poll_fd.revents & POLLIN));
+  EXPECT_EQ(0, (poll_fd.revents & POLLNVAL));
+
+  uint64_t u;
+  EXPECT_NOTCAPABLE(read(cap_wo, &u, sizeof(u)));
+  EXPECT_OK(read(cap_ro, &u, sizeof(u)));
+  EXPECT_EQ(42, (int)u);
+
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  close(cap_all);
+  close(cap_rw);
+  close(cap_wo);
+  close(cap_ro);
+  close(fd);
 }
 
 #else
