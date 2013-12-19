@@ -126,4 +126,11 @@
     << "rights " << std::hex << (rights)        \
     << " not a subset of " << std::hex << (max)
 
+// Mark a test that can only be run as root.
+#define REQUIRE_ROOT() \
+  if (getuid() != 0) { \
+    fprintf(stderr, "This test needs to be run as root; skipping\n"); \
+    return; \
+  }
+
 #endif  // CAPSICUM_TEST_H

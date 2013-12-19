@@ -236,10 +236,7 @@ TEST(Linux, epoll) {
 // fanotify support may not be available at compile-time
 #ifdef __NR_fanotify_init
 TEST(Linux, fanotify) {
-  if (getuid() != 0) {
-    fprintf(stderr, "This test needs to be run as root; skipping\n");
-    return;
-  }
+  REQUIRE_ROOT();
   int fa_fd = fanotify_init(FAN_CLASS_NOTIF, O_RDWR);
   EXPECT_OK(fa_fd);
   if (fa_fd < 0) return;  // May not be enabled
