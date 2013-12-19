@@ -51,6 +51,10 @@ extern "C" {
 extern "C" {
 #endif
 
+#ifndef CAP_FSIGNAL
+#define CAP_FSIGNAL 0x0080000000000000ULL
+#endif
+
 inline int cap_enter() {
   return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
 }
