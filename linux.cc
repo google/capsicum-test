@@ -387,6 +387,170 @@ FORK_TEST(Linux, Namespace) {
   EXPECT_OK(unshare(CLONE_NEWUTS));
 }
 
+
+static int shared_pd = -1;
+static int shared_sock_fds[2];
+static int ChildFunc(void *arg) {
+  // This function is running in a new PID namespace, and so is pid 1.
+  fprintf(stderr, "    ChildFunc: pid=%d, ppid=%d\n", getpid_(), getppid());
+  EXPECT_EQ(1, getpid_());
+  EXPECT_EQ(0, getppid());
+
+  // The shared process descriptor is outside our namespace, so we cannot
+  // get its pid.
+  fprintf(stderr, "    ChildFunc: shared_pd=%d\n", shared_pd);
+  pid_t shared_child;
+  EXPECT_OK(pdgetpid(shared_pd, &shared_child));
+  fprintf(stderr, "    ChildFunc: corresponding pid=%d\n", shared_child);
+  EXPECT_EQ(0, shared_child);
+
+  // But we can pdkill() it even so.
+  fprintf(stderr, "    ChildFunc: call pdkill(pd=%d)\n", shared_pd);
+  EXPECT_OK(pdkill(shared_pd, SIGINT));
+
+  int pd;
+  pid_t child = pdfork(&pd, 0);
+  EXPECT_OK(child);
+  if (child == 0) {
+    // Child: expect pid 2.
+    fprintf(stderr, "      child of ChildFunc: pid=%d, ppid=%d\n", getpid_(), getppid());
+    EXPECT_EQ(2, getpid_());
+    EXPECT_EQ(1, getppid());
+    while (true) {
+      fprintf(stderr, "      child of ChildFunc: still alive\n");
+      sleep(1);
+    }
+    exit(0);
+  }
+  EXPECT_EQ(2, child);
+  EXPECT_PID_ALIVE(child);
+  fprintf(stderr, "    ChildFunc: pdfork() -> pd=%d, corresponding pid=%d state='%c'\n",
+          pd, child, ProcessState(child));
+
+  pid_t pid;
+  EXPECT_OK(pdgetpid(pd, &pid));
+  EXPECT_EQ(child, pid);
+
+  sleep(2);
+
+  // Send the process descriptor over UNIX domain socket back to parent.
+  struct msghdr mh;
+  mh.msg_name = NULL;  // No address needed
+  mh.msg_namelen = 0;
+  char buffer1[1024];
+  struct iovec iov[1];
+  iov[0].iov_base = buffer1;
+  iov[0].iov_len = sizeof(buffer1);
+  mh.msg_iov = iov;
+  mh.msg_iovlen = 1;
+  char buffer2[1024];
+  mh.msg_control = buffer2;
+  mh.msg_controllen = CMSG_LEN(sizeof(int));
+  struct cmsghdr *cmptr = CMSG_FIRSTHDR(&mh);
+  cmptr->cmsg_level = SOL_SOCKET;
+  cmptr->cmsg_type = SCM_RIGHTS;
+  cmptr->cmsg_len = CMSG_LEN(sizeof(int));
+  *(int *)CMSG_DATA(cmptr) = pd;
+  buffer1[0] = 0;
+  iov[0].iov_len = 1;
+  int rc = sendmsg(shared_sock_fds[1], &mh, 0);
+  EXPECT_OK(rc);
+
+  // Complete this child, orphaning the child.
+  return 0;
+}
+
+#define STACK_SIZE (1024 * 1024)
+static char child_stack[STACK_SIZE];
+
+TEST(Linux, PidNamespacePdFork) {
+  // Pass process descriptors in both directions across a PID namespace boundary.
+  // pdfork() off a child before we start, holding its process descriptor in a global
+  // variable that's accessible to children.
+  pid_t firstborn = pdfork(&shared_pd, 0);
+  EXPECT_OK(firstborn);
+  if (firstborn == 0) {
+    while (true) {
+      fprintf(stderr, "  Firstborn: still alive\n");
+      sleep(1);
+    }
+    exit(0);
+  }
+  EXPECT_PID_ALIVE(firstborn);
+  fprintf(stderr, "Parent: pre-pdfork()ed pd=%d, pid=%d state='%c'\n", shared_pd, firstborn, ProcessState(firstborn));
+  sleep(2);
+
+  // Prepare sockets to communicate with child process.
+  EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, shared_sock_fds));
+
+  // Clone into a child process with a new pid namespace.
+  pid_t child = clone(ChildFunc, child_stack + STACK_SIZE,
+                      CLONE_FILES|CLONE_NEWPID|SIGCHLD, NULL);
+  EXPECT_OK(child);
+  EXPECT_PID_ALIVE(child);
+  fprintf(stderr, "Parent: child is %d state='%c'\n", child, ProcessState(child));
+
+  // Ensure the child runs.  First thing it does is to kill our firstborn, using shared_pd.
+  sleep(1);
+  EXPECT_PID_DEAD(firstborn);
+
+  // But we can still retrieve firstborn's PID.
+  pid_t child0;
+  EXPECT_OK(pdgetpid(shared_pd, &child0));
+  EXPECT_EQ(firstborn, child0);
+  fprintf(stderr, "Parent: check on firstborn: pdgetpid(pd=%d) -> child=%d state='%c'\n", shared_pd, child0, ProcessState(child0));
+
+  // Get the process descriptor of the child-of-child via socket transfer.
+  struct msghdr mh;
+  mh.msg_name = NULL;  // No address needed
+  mh.msg_namelen = 0;
+  char buffer1[1024];
+  struct iovec iov[1];
+  iov[0].iov_base = buffer1;
+  iov[0].iov_len = sizeof(buffer1);
+  mh.msg_iov = iov;
+  mh.msg_iovlen = 1;
+  char buffer2[1024];
+  mh.msg_control = buffer2;
+  mh.msg_controllen = sizeof(buffer2);
+  int rc = recvmsg(shared_sock_fds[0], &mh, 0);
+  EXPECT_OK(rc);
+  EXPECT_LE(CMSG_LEN(sizeof(int)), mh.msg_controllen);
+  struct cmsghdr *cmptr = CMSG_FIRSTHDR(&mh);
+  int grandchild_pd = *(int*)CMSG_DATA(cmptr);
+  EXPECT_EQ(CMSG_LEN(sizeof(int)), cmptr->cmsg_len);
+  cmptr = CMSG_NXTHDR(&mh, cmptr);
+  EXPECT_TRUE(cmptr == NULL);
+
+  // Our notion of the pid associated with the grandchild is in the main PID namespace.
+  pid_t grandchild;
+  EXPECT_OK(pdgetpid(grandchild_pd, &grandchild));
+  EXPECT_NE(2, grandchild);
+  fprintf(stderr, "Parent: pre-pdkill:  pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
+          grandchild_pd, grandchild, ProcessState(grandchild));
+  EXPECT_PID_ALIVE(grandchild);
+
+  // Kill the grandchild via the process descriptor.
+  EXPECT_OK(pdkill(grandchild_pd, SIGINT));
+  fprintf(stderr, "Parent: post-pdkill: pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
+          grandchild_pd, grandchild, ProcessState(grandchild));
+  EXPECT_PID_DEAD(grandchild);
+
+  sleep(2);
+
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  close(shared_sock_fds[0]);
+  close(shared_sock_fds[1]);
+  close(shared_pd);
+  close(grandchild_pd);
+
+}
+
 #else
 void noop() {}
 #endif
