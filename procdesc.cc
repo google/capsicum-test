@@ -22,55 +22,6 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
-// Get the state of a process as a single character.
-// On error, return either '?' or '\0'.
-static char process_state(int pid) {
-#ifdef __linux__
-  // Open the process status file.
-  char s[1024];
-  snprintf(s, sizeof(s), "/proc/%d/status", pid);
-  FILE *f = fopen(s, "r");
-  if (f == NULL) return '\0';
-
-  // Read the file line by line looking for the state line.
-  const char *prompt = "State:\t";
-  while (!feof(f)) {
-    fgets(s, sizeof(s), f);
-    if (!strncmp(s, prompt, strlen(prompt))) {
-      fclose(f);
-      return s[strlen(prompt)];
-    }
-  }
-  fclose(f);
-  return '?';
-#endif
-#ifdef __FreeBSD__
-  char buffer[1024];
-  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
-  FILE* cmd = popen(buffer, "r");
-  int result = fgetc(cmd);
-  fclose(cmd);
-  // Map FreeBSD codes to Linux codes.
-  switch (result) {
-    case EOF:
-      return '\0';
-    case 'D': // disk wait
-    case 'R': // runnable
-    case 'S': // sleeping
-    case 'T': // stopped
-    case 'Z': // zombie
-      return result;
-    case 'W': // idle interrupt thread
-      return 'S';
-    case 'I': // idle
-      return 'S';
-    case 'L': // waiting to acquire lock
-    default:
-      return '?';
-  }
-#endif
-}
-
 TEST(Pdfork, Simple) {
   int pd = -1;
   pid_t parent = getpid_();
@@ -213,23 +164,6 @@ TEST_F(PipePdfork, PollMultiple) {
     EXPECT_EQ(0, WEXITSTATUS(rc));
   }
 }
-
-// Check process state reaches a particular expected state (or two).
-// Retries a few times to allow for timing issues.
-#define EXPECT_PID_REACHES_STATES(pid, expected1, expected2) { \
-  int counter = 5; \
-  char state; \
-  do { \
-    state = process_state(pid); \
-    if (state == expected1 || state == expected2) break; \
-    usleep(100000); \
-  } while (--counter > 0); \
-  EXPECT_TRUE(state == expected1 || state == expected2) \
-      << " pid " << pid << " in state " << state; \
-}
-
-#define EXPECT_PID_ALIVE(pid) EXPECT_PID_REACHES_STATES(pid, 'R', 'S')
-#define EXPECT_PID_DEAD(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', '\0')
 
 // Check whether a pdfork()ed process dies correctly when released.
 // Can only check zombification.

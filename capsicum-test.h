@@ -133,4 +133,31 @@
     return; \
   }
 
+// Get the state of a process as a single character.
+//  - 'D': disk wait
+//  - 'R': runnable
+//  - 'S': sleeping
+//  - 'T': stopped
+//  - 'Z': zombie
+//  - 'S': idle
+// On error, return either '?' or '\0'.
+char ProcessState(int pid);
+
+// Check process state reaches a particular expected state (or two).
+// Retries a few times to allow for timing issues.
+#define EXPECT_PID_REACHES_STATES(pid, expected1, expected2) { \
+  int counter = 5; \
+  char state; \
+  do { \
+    state = ProcessState(pid); \
+    if (state == expected1 || state == expected2) break; \
+    usleep(100000); \
+  } while (--counter > 0); \
+  EXPECT_TRUE(state == expected1 || state == expected2) \
+      << " pid " << pid << " in state " << state; \
+}
+
+#define EXPECT_PID_ALIVE(pid) EXPECT_PID_REACHES_STATES(pid, 'R', 'S')
+#define EXPECT_PID_DEAD(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', '\0')
+
 #endif  // CAPSICUM_TEST_H
