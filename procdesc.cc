@@ -1,13 +1,4 @@
-/*
- * Tests for the process descriptor API for Linux.
- *
- * Copyright (C) 2012 The Chromium OS Authors <chromium-os-dev@chromium.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
- */
-
+// Tests for the process descriptor API for Linux.
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
