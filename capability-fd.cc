@@ -488,3 +488,57 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
   int zero = 0;
   write(sock_fds[1], &zero, sizeof(zero));
 }
+
+TEST(Capability, SyscallAt) {
+  int rc = mkdir("/tmp/cap_at_topdir", 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+
+  int dfd = open("/tmp/cap_at_topdir", O_RDONLY);
+  EXPECT_OK(dfd);
+  int cap_dfd = cap_new(dfd, CAP_LOOKUP|CAP_READ);
+  EXPECT_OK(cap_dfd);
+  int cap_dfd_all = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_MKDIR|CAP_MKFIFO);
+  EXPECT_OK(cap_dfd_all);
+
+  // Need CAP_MKDIR to mkdirat(2).
+  EXPECT_NOTCAPABLE(mkdirat(cap_dfd, "cap_subdir", 0755));
+  rmdir("/tmp/cap_at_topdir/cap_subdir");
+  EXPECT_OK(mkdirat(cap_dfd_all, "cap_subdir", 0755));
+  rmdir("/tmp/cap_at_topdir/cap_subdir");
+
+#ifdef OMIT
+  // TODO(drydale): revisit mknod/mkfifo after sync up with FreeBSD10.x semantics
+#ifdef HAVE_MKFIFOAT
+  // Need CAP_MKFIFO to mkfifoat(2).
+  EXPECT_NOTCAPABLE(mkfifoat(cap_dfd, "cap_fifo", 0755));
+  unlink("/tmp/cap_at_topdir/cap_fifo");
+  EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
+  unlink("/tmp/cap_at_topdir/cap_fifo");
+#endif
+
+  if (!MKNOD_REQUIRES_ROOT || getuid() == 0) {
+
+#ifdef HAVE_MKNOD_IFREG
+    // Need CAP_MKNODAT to mknodat(2) a regular file
+    EXPECT_NOTCAPABLE(mknodat(cap_dfd, "cap_regular", S_IFREG|0755, 0));
+    unlink("/tmp/cap_at_topdir/cap_regular");
+    EXPECT_OK(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
+    unlink("/tmp/cap_at_topdir/cap_regular");
+#endif
+
+    // Need CAP_MKFIFO to mknodat(2) for a FIFO.
+    EXPECT_NOTCAPABLE(mknodat(cap_dfd, "cap_fifo", S_IFIFO|0755, 0));
+    unlink("/tmp/cap_at_topdir/cap_fifo");
+    EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
+    unlink("/tmp/cap_at_topdir/cap_fifo");
+  }
+#endif
+
+  close(cap_dfd_all);
+  close(cap_dfd);
+  close(dfd);
+
+  // Tidy up.
+  rmdir("/tmp/cap_at_topdir");
+}
