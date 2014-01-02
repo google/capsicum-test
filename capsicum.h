@@ -61,7 +61,7 @@ extern "C" {
 #define CAP_NOTIFY    0x0200000000000000ULL
 #endif
 #ifndef CAP_SETNS
-#define CAP_SETNS     0x0200000000000000ULL
+#define CAP_SETNS     0x0400000000000000ULL
 #endif
 
 inline int cap_enter() {
