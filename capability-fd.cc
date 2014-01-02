@@ -496,22 +496,30 @@ TEST(Capability, SyscallAt) {
 
   int dfd = open("/tmp/cap_at_topdir", O_RDONLY);
   EXPECT_OK(dfd);
-  int cap_dfd = cap_new(dfd, CAP_LOOKUP|CAP_READ);
-  EXPECT_OK(cap_dfd);
-  int cap_dfd_all = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_MKDIR|CAP_MKFIFO);
+  int cap_dfd_all = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_RMDIR|CAP_MKDIR|CAP_MKFIFO);
   EXPECT_OK(cap_dfd_all);
+  int cap_dfd_no_rmdir = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_MKDIR|CAP_MKFIFO);
+  EXPECT_OK(cap_dfd_no_rmdir);
+  int cap_dfd_no_mkdir = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_RMDIR|CAP_MKFIFO);
+  EXPECT_OK(cap_dfd_no_mkdir);
+  int cap_dfd_no_mkfifo = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_RMDIR|CAP_MKDIR);
+  EXPECT_OK(cap_dfd_no_mkfifo);
 
   // Need CAP_MKDIR to mkdirat(2).
-  EXPECT_NOTCAPABLE(mkdirat(cap_dfd, "cap_subdir", 0755));
+  EXPECT_NOTCAPABLE(mkdirat(cap_dfd_no_mkdir, "cap_subdir", 0755));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
   EXPECT_OK(mkdirat(cap_dfd_all, "cap_subdir", 0755));
+
+  // Need CAP_RMDIR to unlinkat(dfd, name, AT_REMOVEDIR).
+  EXPECT_NOTCAPABLE(unlinkat(cap_dfd_no_rmdir, "cap_subdir", AT_REMOVEDIR));
+  EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
 
 #ifdef OMIT
   // TODO(drydale): revisit mknod/mkfifo after sync up with FreeBSD10.x semantics
 #ifdef HAVE_MKFIFOAT
   // Need CAP_MKFIFO to mkfifoat(2).
-  EXPECT_NOTCAPABLE(mkfifoat(cap_dfd, "cap_fifo", 0755));
+  EXPECT_NOTCAPABLE(mkfifoat(cap_dfd_no_mkfifo, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
@@ -521,14 +529,14 @@ TEST(Capability, SyscallAt) {
 
 #ifdef HAVE_MKNOD_IFREG
     // Need CAP_MKNODAT to mknodat(2) a regular file
-    EXPECT_NOTCAPABLE(mknodat(cap_dfd, "cap_regular", S_IFREG|0755, 0));
+    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_regular", S_IFREG|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_regular");
     EXPECT_OK(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_regular");
 #endif
 
     // Need CAP_MKFIFO to mknodat(2) for a FIFO.
-    EXPECT_NOTCAPABLE(mknodat(cap_dfd, "cap_fifo", S_IFIFO|0755, 0));
+    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
@@ -536,7 +544,9 @@ TEST(Capability, SyscallAt) {
 #endif
 
   close(cap_dfd_all);
-  close(cap_dfd);
+  close(cap_dfd_no_mkfifo);
+  close(cap_dfd_no_mkdir);
+  close(cap_dfd_no_rmdir);
   close(dfd);
 
   // Tidy up.
