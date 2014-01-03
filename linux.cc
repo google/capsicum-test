@@ -387,25 +387,25 @@ FORK_TEST(Linux, Namespace) {
   EXPECT_OK(unshare(CLONE_NEWUTS));
 }
 
-
+static bool verbose = false;
 static int shared_pd = -1;
 static int shared_sock_fds[2];
 static int ChildFunc(void *arg) {
   // This function is running in a new PID namespace, and so is pid 1.
-  fprintf(stderr, "    ChildFunc: pid=%d, ppid=%d\n", getpid_(), getppid());
+  if (verbose) fprintf(stderr, "    ChildFunc: pid=%d, ppid=%d\n", getpid_(), getppid());
   EXPECT_EQ(1, getpid_());
   EXPECT_EQ(0, getppid());
 
   // The shared process descriptor is outside our namespace, so we cannot
   // get its pid.
-  fprintf(stderr, "    ChildFunc: shared_pd=%d\n", shared_pd);
+  if (verbose) fprintf(stderr, "    ChildFunc: shared_pd=%d\n", shared_pd);
   pid_t shared_child;
   EXPECT_OK(pdgetpid(shared_pd, &shared_child));
   fprintf(stderr, "    ChildFunc: corresponding pid=%d\n", shared_child);
   EXPECT_EQ(0, shared_child);
 
   // But we can pdkill() it even so.
-  fprintf(stderr, "    ChildFunc: call pdkill(pd=%d)\n", shared_pd);
+  if (verbose) fprintf(stderr, "    ChildFunc: call pdkill(pd=%d)\n", shared_pd);
   EXPECT_OK(pdkill(shared_pd, SIGINT));
 
   int pd;
@@ -413,19 +413,19 @@ static int ChildFunc(void *arg) {
   EXPECT_OK(child);
   if (child == 0) {
     // Child: expect pid 2.
-    fprintf(stderr, "      child of ChildFunc: pid=%d, ppid=%d\n", getpid_(), getppid());
+    if (verbose) fprintf(stderr, "      child of ChildFunc: pid=%d, ppid=%d\n", getpid_(), getppid());
     EXPECT_EQ(2, getpid_());
     EXPECT_EQ(1, getppid());
     while (true) {
-      fprintf(stderr, "      child of ChildFunc: still alive\n");
+      if (verbose) fprintf(stderr, "      child of ChildFunc: still alive\n");
       sleep(1);
     }
     exit(0);
   }
   EXPECT_EQ(2, child);
   EXPECT_PID_ALIVE(child);
-  fprintf(stderr, "    ChildFunc: pdfork() -> pd=%d, corresponding pid=%d state='%c'\n",
-          pd, child, ProcessState(child));
+  if (verbose) fprintf(stderr, "    ChildFunc: pdfork() -> pd=%d, corresponding pid=%d state='%c'\n",
+                       pd, child, ProcessState(child));
 
   pid_t pid;
   EXPECT_OK(pdgetpid(pd, &pid));
@@ -471,13 +471,14 @@ TEST(Linux, PidNamespacePdFork) {
   EXPECT_OK(firstborn);
   if (firstborn == 0) {
     while (true) {
-      fprintf(stderr, "  Firstborn: still alive\n");
+      if (verbose) fprintf(stderr, "  Firstborn: still alive\n");
       sleep(1);
     }
     exit(0);
   }
   EXPECT_PID_ALIVE(firstborn);
-  fprintf(stderr, "Parent: pre-pdfork()ed pd=%d, pid=%d state='%c'\n", shared_pd, firstborn, ProcessState(firstborn));
+  if (verbose) fprintf(stderr, "Parent: pre-pdfork()ed pd=%d, pid=%d state='%c'\n",
+                       shared_pd, firstborn, ProcessState(firstborn));
   sleep(2);
 
   // Prepare sockets to communicate with child process.
@@ -488,7 +489,7 @@ TEST(Linux, PidNamespacePdFork) {
                       CLONE_FILES|CLONE_NEWPID|SIGCHLD, NULL);
   EXPECT_OK(child);
   EXPECT_PID_ALIVE(child);
-  fprintf(stderr, "Parent: child is %d state='%c'\n", child, ProcessState(child));
+  if (verbose) fprintf(stderr, "Parent: child is %d state='%c'\n", child, ProcessState(child));
 
   // Ensure the child runs.  First thing it does is to kill our firstborn, using shared_pd.
   sleep(1);
@@ -498,7 +499,8 @@ TEST(Linux, PidNamespacePdFork) {
   pid_t child0;
   EXPECT_OK(pdgetpid(shared_pd, &child0));
   EXPECT_EQ(firstborn, child0);
-  fprintf(stderr, "Parent: check on firstborn: pdgetpid(pd=%d) -> child=%d state='%c'\n", shared_pd, child0, ProcessState(child0));
+  if (verbose) fprintf(stderr, "Parent: check on firstborn: pdgetpid(pd=%d) -> child=%d state='%c'\n",
+                       shared_pd, child0, ProcessState(child0));
 
   // Get the process descriptor of the child-of-child via socket transfer.
   struct msghdr mh;
@@ -526,14 +528,14 @@ TEST(Linux, PidNamespacePdFork) {
   pid_t grandchild;
   EXPECT_OK(pdgetpid(grandchild_pd, &grandchild));
   EXPECT_NE(2, grandchild);
-  fprintf(stderr, "Parent: pre-pdkill:  pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
-          grandchild_pd, grandchild, ProcessState(grandchild));
+  if (verbose) fprintf(stderr, "Parent: pre-pdkill:  pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
+                       grandchild_pd, grandchild, ProcessState(grandchild));
   EXPECT_PID_ALIVE(grandchild);
 
   // Kill the grandchild via the process descriptor.
   EXPECT_OK(pdkill(grandchild_pd, SIGINT));
-  fprintf(stderr, "Parent: post-pdkill: pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
-          grandchild_pd, grandchild, ProcessState(grandchild));
+  if (verbose) fprintf(stderr, "Parent: post-pdkill: pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
+                       grandchild_pd, grandchild, ProcessState(grandchild));
   EXPECT_PID_DEAD(grandchild);
 
   sleep(2);
