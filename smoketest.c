@@ -12,7 +12,12 @@
 
 #include "capsicum.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+  int lifetime = 4; /* seconds */
+  if (1 < argc) {
+    lifetime = atoi(argv[1]);
+  }
+
   int fd = dup(STDOUT_FILENO);
   fprintf(stderr, "fd=%d\n", fd);
 
@@ -50,7 +55,7 @@ int main() {
   if (rc < 0) fprintf(stderr, "pdgetpid(pd=%d) failed: errno=%d %s\n", pd, errno, strerror(errno));
   fprintf(stderr, "pdgetpid(pd=%d)=%d, pdfork returned %d\n", pd, got_pid, actual_pid);
 
-  sleep(4);
+  sleep(lifetime);
   /* pdkill() available? */
   rc = pdkill(pd, SIGKILL);
   fprintf(stderr, "[%d] pdkill(pd=%d, SIGKILL) -> rc=%d\n", getpid(), pd, rc);
