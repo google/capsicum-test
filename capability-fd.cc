@@ -554,3 +554,61 @@ TEST(Capability, SyscallAt) {
   // Tidy up.
   rmdir("/tmp/cap_at_topdir");
 }
+
+FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
+  int fd = open("/tmp/cap_extattr", O_RDONLY|O_CREAT, 0644);
+  EXPECT_OK(fd);
+
+  char buffer[1024];
+  int rc = fgetxattr_(fd, "user.capsicumtest", buffer, sizeof(buffer));
+  if (rc < 0 && errno == ENOTSUP) {
+    fprintf(stderr, "Filesystem for /tmp doesn't support extended attributes, skipping tests\n");
+    fprintf(stderr, "(need user_xattr mount option for non-root users on Linux)\n");
+    close(fd);
+    return;
+  }
+
+  int cap = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  EXPECT_OK(cap);
+  int cap_xlist = cap_new(fd, CAP_EXTATTR_LIST);
+  EXPECT_OK(cap_xlist);
+  int cap_xget = cap_new(fd, CAP_EXTATTR_GET);
+  EXPECT_OK(cap_xget);
+  int cap_xset = cap_new(fd, CAP_EXTATTR_SET);
+  EXPECT_OK(cap_xset);
+  int cap_xdel = cap_new(fd, CAP_EXTATTR_DELETE);
+  EXPECT_OK(cap_xdel);
+
+  const char* value = "capsicum";
+  int len = strlen(value) + 1;
+  EXPECT_NOTCAPABLE(fsetxattr_(cap, "user.capsicumtest", value, len, 0));
+  EXPECT_NOTCAPABLE(fsetxattr_(cap_xlist, "user.capsicumtest", value, len, 0));
+  EXPECT_NOTCAPABLE(fsetxattr_(cap_xget, "user.capsicumtest", value, len, 0));
+  EXPECT_NOTCAPABLE(fsetxattr_(cap_xdel, "user.capsicumtest", value, len, 0));
+  EXPECT_OK(fsetxattr_(cap_xset, "user.capsicumtest", value, len, 0));
+
+  EXPECT_NOTCAPABLE(flistxattr_(cap, buffer, sizeof(buffer)));
+  EXPECT_NOTCAPABLE(flistxattr_(cap_xget, buffer, sizeof(buffer)));
+  EXPECT_NOTCAPABLE(flistxattr_(cap_xset, buffer, sizeof(buffer)));
+  EXPECT_NOTCAPABLE(flistxattr_(cap_xdel, buffer, sizeof(buffer)));
+  EXPECT_OK(flistxattr_(cap_xlist, buffer, sizeof(buffer)));
+
+  EXPECT_NOTCAPABLE(fgetxattr_(cap, "user.capsicumtest", buffer, sizeof(buffer)));
+  EXPECT_NOTCAPABLE(fgetxattr_(cap_xlist, "user.capsicumtest", buffer, sizeof(buffer)));
+  EXPECT_NOTCAPABLE(fgetxattr_(cap_xset, "user.capsicumtest", buffer, sizeof(buffer)));
+  EXPECT_NOTCAPABLE(fgetxattr_(cap_xdel, "user.capsicumtest", buffer, sizeof(buffer)));
+  EXPECT_OK(fgetxattr_(cap_xget, "user.capsicumtest", buffer, sizeof(buffer)));
+
+  EXPECT_NOTCAPABLE(fremovexattr_(cap, "user.capsicumtest"));
+  EXPECT_NOTCAPABLE(fremovexattr_(cap_xlist, "user.capsicumtest"));
+  EXPECT_NOTCAPABLE(fremovexattr_(cap_xget, "user.capsicumtest"));
+  EXPECT_NOTCAPABLE(fremovexattr_(cap_xset, "user.capsicumtest"));
+  EXPECT_OK(fremovexattr_(cap_xdel, "user.capsicumtest"));
+
+  close(cap_xdel);
+  close(cap_xset);
+  close(cap_xget);
+  close(cap_xlist);
+  close(cap);
+  close(fd);
+}

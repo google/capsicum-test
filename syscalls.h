@@ -45,6 +45,21 @@ inline int bogus_mount_() {
   return mount("procfs", "/not_mounted", 0, NULL);
 }
 
+/* Mappings for extended attribute functions */
+#include <sys/extattr.h>
+inline ssize_t flistxattr_(int fd, char *list, size_t size) {
+  return extattr_list_fd(fd, EXTATTR_NAMESPACE_USER, list, size);
+}
+inline ssize_t fgetxattr_(int fd, const char *name, void *value, size_t size) {
+  return extattr_get_fd(fd, EXTATTR_NAMESPACE_USER, name, value, size);
+}
+inline int fsetxattr_(int fd, const char *name, const void *value, size_t size, int flags) {
+  return extattr_set_fd(fd, EXTATTR_NAMESPACE_USER, name, value, size);
+}
+inline int fremovexattr_(int fd, const char *name) {
+  return extattr_delete_fd(fd, EXTATTR_NAMESPACE_USER, name);
+}
+
 /* mq_* functions are wrappers in FreeBSD so go through to underlying syscalls */
 #include <sys/syscall.h>
 extern "C" {
@@ -102,6 +117,7 @@ extern int  __sys_kmq_unlink(const char *);
 #include <sys/wait.h>
 #include <sys/sendfile.h>
 #include <sys/statfs.h>
+#include <sys/xattr.h>
 
 /* profil(2) has a first argument of unsigned short* */
 #define profil_arg1_t unsigned short
@@ -122,6 +138,10 @@ inline int bogus_mount_() {
 inline pid_t getpid_() {
   return syscall(__NR_getpid);
 }
+#define flistxattr_ flistxattr
+#define fgetxattr_ fgetxattr
+#define fsetxattr_ fsetxattr
+#define fremovexattr_ fremovexattr
 #define mq_notify_ mq_notify
 #define mq_open_ mq_open
 #define mq_setattr_ mq_setattr
