@@ -515,7 +515,7 @@ TEST(Capability, SyscallAt) {
   EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
 
-#ifdef OMIT
+#ifdef __linux__
   // TODO(drydale): revisit mknod/mkfifo after sync up with FreeBSD10.x semantics
 #ifdef HAVE_MKFIFOAT
   // Need CAP_MKFIFO to mkfifoat(2).
@@ -526,13 +526,15 @@ TEST(Capability, SyscallAt) {
 #endif
 
   if (!MKNOD_REQUIRES_ROOT || getuid() == 0) {
-
+#ifdef OMIT
+    // TODO(drysdale): revisit after FreeBSD10.x sync
 #ifdef HAVE_MKNOD_IFREG
     // Need CAP_MKNODAT to mknodat(2) a regular file
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_regular", S_IFREG|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_regular");
     EXPECT_OK(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_regular");
+#endif
 #endif
 
     // Need CAP_MKFIFO to mknodat(2) for a FIFO.
