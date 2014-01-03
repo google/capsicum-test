@@ -401,7 +401,7 @@ static int ChildFunc(void *arg) {
   if (verbose) fprintf(stderr, "    ChildFunc: shared_pd=%d\n", shared_pd);
   pid_t shared_child;
   EXPECT_OK(pdgetpid(shared_pd, &shared_child));
-  fprintf(stderr, "    ChildFunc: corresponding pid=%d\n", shared_child);
+  if (verbose) fprintf(stderr, "    ChildFunc: corresponding pid=%d\n", shared_child);
   EXPECT_EQ(0, shared_child);
 
   // But we can pdkill() it even so.
