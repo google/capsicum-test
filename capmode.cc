@@ -27,11 +27,9 @@
  * $FreeBSD$
  */
 
-/*
- * Test routines to make sure a variety of system calls are or are not
- * available in capability mode.  The goal is not to see if they work, just
- * whether or not they return the expected ECAPMODE.
- */
+// Test routines to make sure a variety of system calls are or are not
+// available in capability mode.  The goal is not to see if they work, just
+// whether or not they return the expected ECAPMODE.
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>

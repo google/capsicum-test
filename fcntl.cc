@@ -25,9 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Test that fcntl works in capability mode.
- */
+// Test that fcntl works in capability mode.
 
 #include <sys/types.h>
 #include <sys/stat.h>

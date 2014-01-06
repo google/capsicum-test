@@ -1,4 +1,4 @@
-/* Tests involving 2 capability file descriptors */
+// Tests involving 2 capability file descriptors.
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>

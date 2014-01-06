@@ -214,7 +214,7 @@ FORK_TEST_ON(Capability, Mmap, "/tmp/cap_mmap_operations") {
   EXPECT_OK(fd);
   if (fd < 0) return;
 
-  /* If we're missing a capability, it will fail. */
+  // If we're missing a capability, it will fail.
   int cap_none = cap_new(fd, 0);
   EXPECT_OK(cap_none);
   int cap_mmap = cap_new(fd, CAP_MMAP);

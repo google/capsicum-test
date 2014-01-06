@@ -28,7 +28,7 @@ TEST(Pdfork, Simple) {
   int rc = pdfork(&pd, 0);
   EXPECT_OK(rc);
   if (rc == 0) {
-    /* We're the child. */
+    // Child: check pid values.
     EXPECT_EQ(-1, pd);
     EXPECT_NE(parent, getpid_());
     EXPECT_EQ(parent, getppid());
