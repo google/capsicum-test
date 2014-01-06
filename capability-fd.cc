@@ -37,6 +37,23 @@ FORK_TEST(Capability, CapNew) {
   EXPECT_OK(cap_getrights(cap_fd, &rights));
   EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
 
+  // dup/dup2 should preserve rights.
+  int cap_dup = dup(cap_fd);
+  EXPECT_OK(cap_dup);
+  EXPECT_OK(cap_getrights(cap_dup, &rights));
+  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  close(cap_dup);
+  EXPECT_OK(dup2(cap_fd, cap_dup));
+  EXPECT_OK(cap_getrights(cap_dup, &rights));
+  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  close(cap_dup);
+#ifdef HAVE_DUP3
+  EXPECT_OK(dup3(cap_fd, cap_dup, 0));
+  EXPECT_OK(cap_getrights(cap_dup, &rights));
+  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  close(cap_dup);
+#endif
+
   // Try to get a disjoint set of rights in a sub-capability.
   int cap_cap_fd = cap_new(cap_fd, CAP_READ|CAP_SEEK|CAP_MMAP|CAP_FCHMOD);
   if (cap_cap_fd < 0) {
