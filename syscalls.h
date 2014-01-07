@@ -92,6 +92,7 @@ extern int  __sys_kmq_unlink(const char *);
 #define HAVE_SYSCTL
 #define HAVE_FPATHCONF
 #define HAVE_MKFIFOAT
+#define HAVE_F_DUP2FD
 /* Although FreeBSD has pselect(2), it is (oddly) not allowed in capability mode */
 /* #define HAVE_PSELECT */
 
