@@ -200,7 +200,7 @@ FORK_TEST(Capmode, AllowedMmsgSendRecv) {
 
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(12345);
+  addr.sin_port = htons(0);
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   EXPECT_OK(bind(fd_socket, (sockaddr*)&addr, sizeof(addr)));
 

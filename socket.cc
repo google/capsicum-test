@@ -113,8 +113,31 @@ TEST(Socket, UnixDomain) {
 }
 
 TEST(Socket, TCP) {
-  int kPort = 12345;
+  int sock = socket(AF_INET, SOCK_STREAM, 0);
+  EXPECT_OK(sock);
+  if (sock < 0) return;
 
+  int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
+  EXPECT_OK(cap_sock_rw);
+  int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
+  EXPECT_OK(cap_sock_all);
+  EXPECT_OK(close(sock));
+
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(0);
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  socklen_t len = sizeof(addr);
+
+  // Can only bind the fully-capable socket.
+  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, len));
+  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, len));
+
+  getsockname(cap_sock_all, (struct sockaddr *)&addr, &len);
+  int port = ntohs(addr.sin_port);
+
+  // Now we know the port involved, fork off a child.
   pid_t child = fork();
   if (child == 0) {
     // Child process: wait for server setup
@@ -134,7 +157,7 @@ TEST(Socket, TCP) {
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(kPort);
+    addr.sin_port = htons(port);  // Pick unused port
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     socklen_t len = sizeof(addr);
     EXPECT_NOTCAPABLE(connect(cap_sock_rw, (struct sockaddr *)&addr, len));
@@ -142,27 +165,6 @@ TEST(Socket, TCP) {
 
     exit(HasFailure());
   }
-
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  EXPECT_OK(sock);
-  if (sock < 0) return;
-
-  int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
-  EXPECT_OK(cap_sock_rw);
-  int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
-  EXPECT_OK(cap_sock_all);
-  EXPECT_OK(close(sock));
-
-  struct sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(kPort);
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  socklen_t len = sizeof(addr);
-
-  // Can only bind the fully-capable socket.
-  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, len));
-  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, len));
 
   // Can only listen on the fully-capable socket.
   EXPECT_NOTCAPABLE(listen(cap_sock_rw, 3));
@@ -180,7 +182,7 @@ TEST(Socket, TCP) {
   memset(&addr, 0, sizeof(addr));
   EXPECT_OK(getsockname(cap_sock_all, (struct sockaddr*)&addr, &len));
   EXPECT_EQ(AF_INET, addr.sin_family);
-  EXPECT_EQ(htons(kPort), addr.sin_port);
+  EXPECT_EQ(htons(port), addr.sin_port);
   value = 0;
   EXPECT_OK(setsockopt(cap_sock_all, SOL_SOCKET, SO_REUSEPORT, &value, sizeof(value)));
   len = sizeof(value);
@@ -213,8 +215,6 @@ TEST(Socket, TCP) {
 }
 
 TEST(Socket, UDP) {
-  int kPort = 12345;
-
   int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   EXPECT_OK(sock);
   if (sock < 0) return;
@@ -228,13 +228,15 @@ TEST(Socket, UDP) {
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(kPort);
+  addr.sin_port = htons(0);
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   socklen_t len = sizeof(addr);
 
   // Can only bind the fully-capable socket.
   EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, len));
   EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, len));
+  getsockname(cap_sock_all, (struct sockaddr *)&addr, &len);
+  int port = ntohs(addr.sin_port);
 
   // Can only do socket operations on the fully-capable socket.
   len = sizeof(addr);
@@ -248,7 +250,7 @@ TEST(Socket, UDP) {
   memset(&addr, 0, sizeof(addr));
   EXPECT_OK(getsockname(cap_sock_all, (struct sockaddr*)&addr, &len));
   EXPECT_EQ(AF_INET, addr.sin_family);
-  EXPECT_EQ(htons(kPort), addr.sin_port);
+  EXPECT_EQ(htons(port), addr.sin_port);
   value = 1;
   EXPECT_OK(setsockopt(cap_sock_all, SOL_SOCKET, SO_REUSEPORT, &value, sizeof(value)));
   len = sizeof(value);
@@ -279,7 +281,7 @@ TEST(Socket, UDP) {
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(kPort);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     mh.msg_name = &addr;
     mh.msg_namelen = sizeof(addr);
