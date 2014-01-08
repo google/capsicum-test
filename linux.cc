@@ -464,6 +464,7 @@ static int ChildFunc(void *arg) {
 static char child_stack[STACK_SIZE];
 
 TEST(Linux, PidNamespacePdFork) {
+  REQUIRE_ROOT();
   // Pass process descriptors in both directions across a PID namespace boundary.
   // pdfork() off a child before we start, holding its process descriptor in a global
   // variable that's accessible to children.
