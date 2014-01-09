@@ -9,6 +9,8 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #include <sys/fanotify.h>
+#include <sys/capability.h>
+#include <linux/filter.h>
 #include <poll.h>
 #include <sched.h>
 #include <signal.h>
@@ -552,6 +554,48 @@ TEST(Linux, PidNamespacePdFork) {
   close(shared_pd);
   close(grandchild_pd);
 
+}
+
+FORK_TEST(Linux, NoNewPrivs) {
+  if (getuid() == 0) {
+    // If root, drop CAP_SYS_ADMIN POSIX.1e capability.
+    struct __user_cap_header_struct hdr;
+    hdr.version = _LINUX_CAPABILITY_VERSION_3;
+    hdr.pid = getpid_();
+    struct __user_cap_data_struct data[3];
+    EXPECT_OK(capget(&hdr, &data[0]));
+    data[0].effective &= ~(1 << CAP_SYS_ADMIN);
+    data[0].permitted &= ~(1 << CAP_SYS_ADMIN);
+    data[0].inheritable &= ~(1 << CAP_SYS_ADMIN);
+    EXPECT_OK(capset(&hdr, &data[0]));
+  }
+  int rc = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(0, rc);  // no_new_privs == 0
+
+  // Can't enter seccomp-bpf mode with no_new_privs == 0
+  struct sock_filter filter[] = {
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
+  };
+  struct sock_fprog bpf = {.len = (sizeof(filter) / sizeof(filter[0])),
+                           .filter = filter};
+  rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf);
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(EACCES, errno);
+
+  // Can't enter capability mode (directly) with no_new_privs == 0
+  rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(EACCES, errno);
+
+  // Set no_new_privs = 1
+  EXPECT_OK(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+  rc = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(1, rc);  // no_new_privs = 1
+
+  // Can now turn on capability mode
+  EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM));
 }
 
 #else
