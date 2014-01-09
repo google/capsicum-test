@@ -65,6 +65,8 @@ extern "C" {
 #endif
 
 inline int cap_enter() {
+  int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+  if (rc < 0) return rc;
   return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
 }
 
