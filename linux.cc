@@ -10,6 +10,7 @@
 #include <sys/inotify.h>
 #include <sys/fanotify.h>
 #include <sys/capability.h>
+#include <linux/aio_abi.h>
 #include <linux/filter.h>
 #include <poll.h>
 #include <sched.h>
@@ -598,6 +599,63 @@ FORK_TEST(Linux, NoNewPrivs) {
   EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM));
 }
 
+TEST(Linux, AIO) {
+  int fd = open("/tmp/cap_aio", O_CREAT|O_RDWR, 0644);
+  EXPECT_OK(fd);
+  int cap_ro = cap_new(fd, CAP_READ|CAP_SEEK);
+  EXPECT_OK(cap_ro);
+  int cap_wo = cap_new(fd, CAP_WRITE|CAP_SEEK);
+  EXPECT_OK(cap_wo);
+  int cap_all = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_FSYNC);
+  EXPECT_OK(cap_all);
+
+  // Linux: io_setup, io_submit, io_getevents, io_cancel, io_destroy
+  aio_context_t ctx = 0;
+  EXPECT_OK(syscall(__NR_io_setup, 10, &ctx));
+
+  unsigned char buffer[32] = {1, 2, 3, 4};
+  struct iocb req;
+  memset(&req, 0, sizeof(req));
+  req.aio_reqprio = 0;
+  req.aio_fildes = fd;
+  req.aio_buf = (__u64)buffer;
+  req.aio_nbytes = 4;
+  req.aio_offset = 0;
+  struct iocb* reqs[1] = {&req};
+
+  // Write operation
+  req.aio_lio_opcode = IOCB_CMD_PWRITE;
+  req.aio_fildes = cap_ro;
+  EXPECT_NOTCAPABLE(syscall(__NR_io_submit, ctx, 1,  reqs));
+  req.aio_fildes = cap_wo;
+  EXPECT_OK(syscall(__NR_io_submit, ctx, 1,  reqs));
+
+  // Sync operation
+  req.aio_lio_opcode = IOCB_CMD_FSYNC;
+  EXPECT_NOTCAPABLE(syscall(__NR_io_submit, ctx, 1, reqs));
+  req.aio_lio_opcode = IOCB_CMD_FDSYNC;
+  EXPECT_NOTCAPABLE(syscall(__NR_io_submit, ctx, 1, reqs));
+  // Even with CAP_FSYNC, turns out fsync/fdsync aren't implemented
+  req.aio_fildes = cap_all;
+  EXPECT_FAIL_NOT_NOTCAPABLE(syscall(__NR_io_submit, ctx, 1, reqs));
+  req.aio_lio_opcode = IOCB_CMD_FSYNC;
+  EXPECT_FAIL_NOT_NOTCAPABLE(syscall(__NR_io_submit, ctx, 1, reqs));
+
+  // Read operation
+  req.aio_lio_opcode = IOCB_CMD_PREAD;
+  req.aio_fildes = cap_wo;
+  EXPECT_NOTCAPABLE(syscall(__NR_io_submit, ctx, 1,  reqs));
+  req.aio_fildes = cap_ro;
+  EXPECT_OK(syscall(__NR_io_submit, ctx, 1,  reqs));
+
+  EXPECT_OK(syscall(__NR_io_destroy, ctx));
+
+  close(cap_all);
+  close(cap_wo);
+  close(cap_ro);
+  close(fd);
+  unlink("/tmp/cap_aio");
+}
 #else
 void noop() {}
 #endif

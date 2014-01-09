@@ -111,6 +111,9 @@
 // Expect a system call to fail with ENOTCAPABLE.
 #define EXPECT_NOTCAPABLE(C) EXPECT_SYSCALL_FAIL(ENOTCAPABLE, C)
 
+// Expect a system call to fail, but not with ENOTCAPABLE.
+#define EXPECT_FAIL_NOT_NOTCAPABLE(C) EXPECT_SYSCALL_FAIL_NOT(ENOTCAPABLE, C)
+
 // Expect a system call to fail with either ENOTCAPABLE or ECAPMODE.
 #define EXPECT_CAPFAIL(C) \
     do { \
