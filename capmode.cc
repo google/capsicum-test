@@ -416,6 +416,8 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
 }
 
 void *thread_fn(void *p) {
+  int delay = *(int *)p;
+  sleep(delay);
   EXPECT_OK(getpid_());
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
   return NULL;
@@ -423,6 +425,11 @@ void *thread_fn(void *p) {
 
 // Check that restrictions are the same in subprocesses and threads
 FORK_TEST(Capmode, NewThread) {
+  // Fire off a new thread before entering capability mode
+  pthread_t early_thread;
+  int one = 1;  // second
+  EXPECT_OK(pthread_create(&early_thread, NULL, thread_fn, &one));
+
   EXPECT_OK(cap_enter());  // Enter capability mode.
   // Do an allowed syscall.
   EXPECT_OK(getpid_());
@@ -436,9 +443,13 @@ FORK_TEST(Capmode, NewThread) {
   }
   // Don't (can't) wait for the child.
 
+  // Wait for the early-started thread.
+  EXPECT_OK(pthread_join(early_thread, NULL));
+
   // Fire off a new thread.
   pthread_t child_thread;
-  EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn, NULL));
+  int zero = 0; // seconds
+  EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn, &zero));
   EXPECT_OK(pthread_join(child_thread, NULL));
 
   // Fork a subprocess which fires off a new thread.
