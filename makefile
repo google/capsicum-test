@@ -1,4 +1,4 @@
-all: capsicum-test smoketest
+all: capsicum-test smoketest mini-me mini-me.noexec
 OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o openat.o sysctl.o select.o mqueue.o socket.o capability-fd-pair.o linux.o
 
 GTEST_DIR=gtest-1.6.0
