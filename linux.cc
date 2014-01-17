@@ -585,7 +585,7 @@ FORK_TEST(Linux, NoNewPrivs) {
   EXPECT_EQ(EACCES, errno);
 
   // Can't enter capability mode (directly) with no_new_privs == 0
-  rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
+  rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_LSM);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EACCES, errno);
 
@@ -596,7 +596,7 @@ FORK_TEST(Linux, NoNewPrivs) {
   EXPECT_EQ(1, rc);  // no_new_privs = 1
 
   // Can now turn on capability mode
-  EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM));
+  EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_LSM));
 }
 
 TEST(Linux, AIO) {

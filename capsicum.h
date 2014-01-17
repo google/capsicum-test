@@ -67,13 +67,13 @@ extern "C" {
 inline int cap_enter() {
   int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
   if (rc < 0) return rc;
-  return prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM);
+  return prctl(PR_SET_SECCOMP, SECCOMP_MODE_LSM);
 }
 
 inline int cap_getmode(unsigned int *mode) {
   int rc = prctl(PR_GET_SECCOMP);
   if (rc < 0) return rc;
-  *mode = (rc == SECCOMP_MODE_CAPSICUM);
+  *mode = (rc == SECCOMP_MODE_LSM);
   return 0;
 }
 
