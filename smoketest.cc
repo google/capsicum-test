@@ -18,19 +18,22 @@ int main(int argc, char *argv[]) {
     lifetime = atoi(argv[1]);
   }
 
-  int fd = dup(STDOUT_FILENO);
-  fprintf(stderr, "fd=%d\n", fd);
-
-  /* cap_new() available? */
-  int cap_fd = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  /* cap_rights_limit() available? */
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+  int cap_fd = dup(STDOUT_FILENO);
+  int rc = cap_rights_limit(cap_fd, &r_rws);
   fprintf(stderr, "cap_fd=%d\n", cap_fd);
-  if (cap_fd < 0) fprintf(stderr, "cap_new() failed: errno=%d %s\n", errno, strerror(errno));
+  if (rc < 0) fprintf(stderr, "cap_rights_limit() failed: errno=%d %s\n", errno, strerror(errno));
 
   /* cap_getrights() available? */
   cap_rights_t rights;
-  int rc = cap_getrights(cap_fd, &rights);
-  fprintf(stderr, "cap_getrights(cap_fd=%d) rc=%d rights=0x%016llx\n", cap_fd, rc, rights);
-  if (rc < 0) fprintf(stderr, "cap_getrights() failed: errno=%d %s\n", errno, strerror(errno));
+  cap_rights_init(&rights, 0);
+  rc = cap_rights_get(cap_fd, &rights);
+  char buffer[256];
+  cap_rights_describe(&rights, buffer);
+  fprintf(stderr, "cap_rights_get(cap_fd=%d) rc=%d rights=%s\n", cap_fd, rc, buffer);
+  if (rc < 0) fprintf(stderr, "cap_rights_get() failed: errno=%d %s\n", errno, strerror(errno));
 
   /* pdfork() available? */
   int pd = -1;
