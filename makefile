@@ -3,7 +3,8 @@ OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
-CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS)
+GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
+CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS)
 
 capsicum-test: $(OBJECTS) libgtest.a
 	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt
@@ -22,7 +23,7 @@ smoketest: smoketest.cc
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
 gtest-all.o:
-	$(CXX) -I$(GTEST_DIR)/include -I$(GTEST_DIR) -c ${GTEST_DIR}/src/gtest-all.cc
+	$(CXX) -I$(GTEST_DIR)/include -I$(GTEST_DIR) $(GTEST_FLAGS) -c ${GTEST_DIR}/src/gtest-all.cc
 libgtest.a: gtest-all.o
 	$(AR) -rv libgtest.a gtest-all.o
 
