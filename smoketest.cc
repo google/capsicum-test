@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "[%d] forking off a child process to check cap_enter()\n", getpid());
   if (fork() == 0) {
     /* cap_getmode() / cap_enter() available? */
-    int cap_mode = -1;
+    unsigned int cap_mode = -1;
     rc = cap_getmode(&cap_mode);
     fprintf(stderr, "[%d] cap_getmode() -> rc=%d, cap_mode=%d\n", getpid(), rc, cap_mode);
     if (rc < 0) fprintf(stderr, "cap_enter() failed: errno=%d %s\n", errno, strerror(errno));

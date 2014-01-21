@@ -17,7 +17,7 @@ mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
 
 # Simple C test of Capsicum syscalls
-smoketest: smoketest.c
+smoketest: smoketest.cc
 
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
