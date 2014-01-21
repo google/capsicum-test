@@ -456,8 +456,9 @@ FORK_TEST(Capmode, NewThread) {
   child = fork();
   EXPECT_OK(child);
   if (child == 0) {
-    EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn, NULL));
-    EXPECT_OK(pthread_join(child_thread, NULL));
+    pthread_t child_thread2;
+    EXPECT_OK(pthread_create(&child_thread2, NULL, thread_fn, &zero));
+    EXPECT_OK(pthread_join(child_thread2, NULL));
     exit(0);
   }
   // Sleep for a bit to allow the subprocess to finish.
