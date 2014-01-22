@@ -23,10 +23,28 @@
 
 TEST(Linux, TimerFD) {
   int fd = timerfd_create(CLOCK_MONOTONIC, 0);
-  int cap_fd_ro = cap_new(fd, CAP_READ);
-  int cap_fd_wo = cap_new(fd, CAP_WRITE);
-  int cap_fd_rw = cap_new(fd, CAP_READ|CAP_WRITE);
-  int cap_fd_all = cap_new(fd, CAP_READ|CAP_WRITE|CAP_POLL_EVENT);
+
+  cap_rights_t r_ro;
+  cap_rights_init(&r_ro, CAP_READ);
+  cap_rights_t r_wo;
+  cap_rights_init(&r_wo, CAP_WRITE);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+  cap_rights_t r_rwpoll;
+  cap_rights_init(&r_rwpoll, CAP_READ, CAP_WRITE, CAP_POLL_EVENT);
+
+  int cap_fd_ro = dup(fd);
+  EXPECT_OK(cap_fd_ro);
+  EXPECT_OK(cap_rights_limit(cap_fd_ro, &r_ro));
+  int cap_fd_wo = dup(fd);
+  EXPECT_OK(cap_fd_wo);
+  EXPECT_OK(cap_rights_limit(cap_fd_wo, &r_wo));
+  int cap_fd_rw = dup(fd);
+  EXPECT_OK(cap_fd_rw);
+  EXPECT_OK(cap_rights_limit(cap_fd_rw, &r_rw));
+  int cap_fd_all = dup(fd);
+  EXPECT_OK(cap_fd_all);
+  EXPECT_OK(cap_rights_limit(cap_fd_all, &r_rwpoll));
 
   struct itimerspec old_ispec;
   struct itimerspec ispec;
@@ -90,12 +108,33 @@ FORK_TEST(Linux, SignalFD) {
   int fd = signalfd(-1, &mask, 0);
   EXPECT_OK(fd);
 
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_sig;
+  cap_rights_init(&r_sig, CAP_FSIGNAL);
+  cap_rights_t r_rssig;
+  cap_rights_init(&r_rssig, CAP_FSIGNAL, CAP_READ, CAP_SEEK);
+  cap_rights_t r_rssig_poll;
+  cap_rights_init(&r_rssig_poll, CAP_FSIGNAL, CAP_READ, CAP_SEEK, CAP_POLL_EVENT);
+
   // Various capability variants.
-  int cap_fd_none = cap_new(fd, CAP_WRITE|CAP_SEEK);
-  int cap_fd_read = cap_new(fd, CAP_READ|CAP_SEEK);
-  int cap_fd_sig = cap_new(fd, CAP_FSIGNAL);
-  int cap_fd_sig_read = cap_new(fd, CAP_FSIGNAL|CAP_READ|CAP_SEEK);
-  int cap_fd_all = cap_new(fd, CAP_FSIGNAL|CAP_READ|CAP_SEEK|CAP_POLL_EVENT);
+  int cap_fd_none = dup(fd);
+  EXPECT_OK(cap_fd_none);
+  EXPECT_OK(cap_rights_limit(cap_fd_none, &r_ws));
+  int cap_fd_read = dup(fd);
+  EXPECT_OK(cap_fd_read);
+  EXPECT_OK(cap_rights_limit(cap_fd_read, &r_rs));
+  int cap_fd_sig = dup(fd);
+  EXPECT_OK(cap_fd_sig);
+  EXPECT_OK(cap_rights_limit(cap_fd_sig, &r_sig));
+  int cap_fd_sig_read = dup(fd);
+  EXPECT_OK(cap_fd_sig_read);
+  EXPECT_OK(cap_rights_limit(cap_fd_sig_read, &r_rssig));
+  int cap_fd_all = dup(fd);
+  EXPECT_OK(cap_fd_all);
+  EXPECT_OK(cap_rights_limit(cap_fd_all, &r_rssig_poll));
 
   struct signalfd_siginfo fdsi;
 
@@ -137,10 +176,28 @@ FORK_TEST(Linux, SignalFD) {
 TEST(Linux, EventFD) {
   int fd = eventfd(0, 0);
   EXPECT_OK(fd);
-  int cap_ro = cap_new(fd, CAP_READ|CAP_SEEK);
-  int cap_wo = cap_new(fd, CAP_WRITE|CAP_SEEK);
-  int cap_rw = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
-  int cap_all = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_POLL_EVENT);
+
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rwspoll;
+  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_POLL_EVENT);
+
+  int cap_ro = dup(fd);
+  EXPECT_OK(cap_ro);
+  EXPECT_OK(cap_rights_limit(cap_ro, &r_rs));
+  int cap_wo = dup(fd);
+  EXPECT_OK(cap_wo);
+  EXPECT_OK(cap_rights_limit(cap_wo, &r_ws));
+  int cap_rw = dup(fd);
+  EXPECT_OK(cap_rw);
+  EXPECT_OK(cap_rights_limit(cap_rw, &r_rws));
+  int cap_all = dup(fd);
+  EXPECT_OK(cap_all);
+  EXPECT_OK(cap_rights_limit(cap_all, &r_rwspoll));
 
   pid_t child = fork();
   if (child == 0) {
@@ -193,11 +250,33 @@ TEST(Linux, epoll) {
 
   int epoll_fd = epoll_create(1);
   EXPECT_OK(epoll_fd);
-  int cap_epoll_wo = cap_new(epoll_fd, CAP_WRITE|CAP_SEEK);
-  int cap_epoll_ro = cap_new(epoll_fd, CAP_READ|CAP_SEEK);
-  int cap_epoll_rw = cap_new(epoll_fd, CAP_READ|CAP_WRITE|CAP_SEEK);
-  int cap_epoll_poll = cap_new(epoll_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_POLL_EVENT);
-  int cap_epoll_ctl = cap_new(epoll_fd, CAP_EPOLL_CTL);
+
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rwspoll;
+  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_POLL_EVENT);
+  cap_rights_t r_epoll;
+  cap_rights_init(&r_epoll, CAP_EPOLL_CTL);
+
+  int cap_epoll_wo = dup(epoll_fd);
+  EXPECT_OK(cap_epoll_wo);
+  EXPECT_OK(cap_rights_limit(cap_epoll_wo, &r_ws));
+  int cap_epoll_ro = dup(epoll_fd);
+  EXPECT_OK(cap_epoll_ro);
+  EXPECT_OK(cap_rights_limit(cap_epoll_ro, &r_rs));
+  int cap_epoll_rw = dup(epoll_fd);
+  EXPECT_OK(cap_epoll_rw);
+  EXPECT_OK(cap_rights_limit(cap_epoll_rw, &r_rws));
+  int cap_epoll_poll = dup(epoll_fd);
+  EXPECT_OK(cap_epoll_poll);
+  EXPECT_OK(cap_rights_limit(cap_epoll_poll, &r_rwspoll));
+  int cap_epoll_ctl = dup(epoll_fd);
+  EXPECT_OK(cap_epoll_ctl);
+  EXPECT_OK(cap_rights_limit(cap_epoll_ctl, &r_epoll));
 
   // Can only modify the FDs being monitored if the CAP_EPOLL_CTL right is present.
   struct epoll_event eev;
@@ -245,17 +324,42 @@ TEST(Linux, fanotify) {
   EXPECT_OK(fa_fd);
   if (fa_fd < 0) return;  // May not be enabled
 
-  int cap_fd_ro = cap_new(fa_fd, CAP_READ|CAP_SEEK);
-  int cap_fd_wo = cap_new(fa_fd, CAP_WRITE|CAP_SEEK);
-  int cap_fd_rw = cap_new(fa_fd, CAP_READ|CAP_WRITE|CAP_SEEK);
-  int cap_fd_poll = cap_new(fa_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_POLL_EVENT);
-  int cap_fd_not = cap_new(fa_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_NOTIFY);
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rwspoll;
+  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_POLL_EVENT);
+  cap_rights_t r_rwsnotify;
+  cap_rights_init(&r_rwsnotify, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_NOTIFY);
+  cap_rights_t r_rslstat;
+  cap_rights_init(&r_rslstat, CAP_READ, CAP_SEEK, CAP_LOOKUP, CAP_FSTAT);
+
+  int cap_fd_ro = dup(fa_fd);
+  EXPECT_OK(cap_fd_ro);
+  EXPECT_OK(cap_rights_limit(cap_fd_ro, &r_rs));
+  int cap_fd_wo = dup(fa_fd);
+  EXPECT_OK(cap_fd_wo);
+  EXPECT_OK(cap_rights_limit(cap_fd_wo, &r_ws));
+  int cap_fd_rw = dup(fa_fd);
+  EXPECT_OK(cap_fd_rw);
+  EXPECT_OK(cap_rights_limit(cap_fd_rw, &r_rws));
+  int cap_fd_poll = dup(fa_fd);
+  EXPECT_OK(cap_fd_poll);
+  EXPECT_OK(cap_rights_limit(cap_fd_poll, &r_rwspoll));
+  int cap_fd_not = dup(fa_fd);
+  EXPECT_OK(cap_fd_not);
+  EXPECT_OK(cap_rights_limit(cap_fd_not, &r_rwsnotify));
 
   int rc = mkdir("/tmp/cap_notify", 0755);
   EXPECT_TRUE(rc == 0 || errno == EEXIST);
   int dfd = open("/tmp/cap_notify", O_RDONLY);
   EXPECT_OK(dfd);
-  int cap_dfd = cap_new(dfd, CAP_READ|CAP_SEEK|CAP_LOOKUP|CAP_FSTAT);
+  int cap_dfd = dup(dfd);
+  EXPECT_OK(cap_dfd);
+  EXPECT_OK(cap_rights_limit(cap_dfd, &r_rslstat));
   EXPECT_OK(cap_dfd);
 
   // Need CAP_NOTIFY to change what's monitored.
@@ -309,8 +413,8 @@ TEST(Linux, fanotify) {
   // only have rights that are a subset of those for the original
   // monitored directory file descriptor.
   cap_rights_t rights = CAP_ALL;
-  EXPECT_OK(cap_getrights(ev.fd, &rights));
-  EXPECT_RIGHTS_IN(rights, CAP_READ|CAP_SEEK|CAP_LOOKUP|CAP_FSTAT);
+  EXPECT_OK(cap_rights_get(ev.fd, &rights));
+  EXPECT_RIGHTS_IN(rights, r_rslstat);
 #endif
 
   // Wait for the child.
@@ -336,10 +440,27 @@ TEST(Linux, inotify) {
   int i_fd = inotify_init();
   EXPECT_OK(i_fd);
 
-  int cap_fd_ro = cap_new(i_fd, CAP_READ|CAP_SEEK);
-  int cap_fd_wo = cap_new(i_fd, CAP_WRITE|CAP_SEEK);
-  int cap_fd_rw = cap_new(i_fd, CAP_READ|CAP_WRITE|CAP_SEEK);
-  int cap_fd_all = cap_new(i_fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_NOTIFY);
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rwsnotify;
+  cap_rights_init(&r_rwsnotify, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_NOTIFY);
+
+  int cap_fd_ro = dup(i_fd);
+  EXPECT_OK(cap_fd_ro);
+  EXPECT_OK(cap_rights_limit(cap_fd_ro, &r_rs));
+  int cap_fd_wo = dup(i_fd);
+  EXPECT_OK(cap_fd_wo);
+  EXPECT_OK(cap_rights_limit(cap_fd_wo, &r_ws));
+  int cap_fd_rw = dup(i_fd);
+  EXPECT_OK(cap_fd_rw);
+  EXPECT_OK(cap_rights_limit(cap_fd_rw, &r_rws));
+  int cap_fd_all = dup(i_fd);
+  EXPECT_OK(cap_fd_all);
+  EXPECT_OK(cap_rights_limit(cap_fd_all, &r_rwsnotify));
 
   int fd = open("/tmp/cap_inotify", O_CREAT|O_RDWR, 0644);
   EXPECT_NOTCAPABLE(inotify_add_watch(cap_fd_rw, "/tmp/cap_inotify", IN_ACCESS|IN_MODIFY));
@@ -378,8 +499,18 @@ FORK_TEST(Linux, Namespace) {
   char buffer[256];
   sprintf(buffer, "/proc/%d/ns/uts", me);
   int ns_fd = open(buffer, O_RDONLY);
-  int cap_fd = cap_new(ns_fd, CAP_READ|CAP_WRITE|CAP_LOOKUP|CAP_FSTAT);
-  int cap_fd_setns = cap_new(ns_fd, CAP_READ|CAP_WRITE|CAP_LOOKUP|CAP_FSTAT|CAP_SETNS);
+
+  cap_rights_t r_rwlstat;
+  cap_rights_init(&r_rwlstat, CAP_READ, CAP_WRITE, CAP_LOOKUP, CAP_FSTAT);
+  cap_rights_t r_rwlstatns;
+  cap_rights_init(&r_rwlstatns, CAP_READ, CAP_WRITE, CAP_LOOKUP, CAP_FSTAT, CAP_SETNS);
+
+  int cap_fd = dup(ns_fd);
+  EXPECT_OK(cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_fd, &r_rwlstat));
+  int cap_fd_setns = dup(ns_fd);
+  EXPECT_OK(cap_fd_setns);
+  EXPECT_OK(cap_rights_limit(cap_fd_setns, &r_rwlstatns));
   EXPECT_NOTCAPABLE(setns(cap_fd, CLONE_NEWUTS));
   EXPECT_OK(setns(cap_fd_setns, CLONE_NEWUTS));
 
@@ -602,11 +733,25 @@ FORK_TEST(Linux, NoNewPrivs) {
 TEST(Linux, AIO) {
   int fd = open("/tmp/cap_aio", O_CREAT|O_RDWR, 0644);
   EXPECT_OK(fd);
-  int cap_ro = cap_new(fd, CAP_READ|CAP_SEEK);
+
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_rwssync;
+  cap_rights_init(&r_rwssync, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_FSYNC);
+
+  int cap_ro = dup(fd);
   EXPECT_OK(cap_ro);
-  int cap_wo = cap_new(fd, CAP_WRITE|CAP_SEEK);
+  EXPECT_OK(cap_rights_limit(cap_ro, &r_rs));
+  EXPECT_OK(cap_ro);
+  int cap_wo = dup(fd);
   EXPECT_OK(cap_wo);
-  int cap_all = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_FSYNC);
+  EXPECT_OK(cap_rights_limit(cap_wo, &r_ws));
+  EXPECT_OK(cap_wo);
+  int cap_all = dup(fd);
+  EXPECT_OK(cap_all);
+  EXPECT_OK(cap_rights_limit(cap_all, &r_rwssync));
   EXPECT_OK(cap_all);
 
   // Linux: io_setup, io_submit, io_getevents, io_cancel, io_destroy

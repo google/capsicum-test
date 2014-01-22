@@ -369,10 +369,16 @@ FORK_TEST(Pdfork, MissingRights) {
     while (true) sleep(1);
   }
   // Create two capabilities from the process descriptor.
-  int cap_incapable = cap_new(pd, CAP_READ|CAP_WRITE);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+  int cap_incapable = dup(pd);
   EXPECT_OK(cap_incapable);
-  int cap_capable = cap_new(pd, CAP_PDGETPID|CAP_PDWAIT|CAP_PDKILL);
+  EXPECT_OK(cap_rights_limit(cap_incapable, &r_rw));
+  cap_rights_t r_pdall;
+  cap_rights_init(&r_pdall, CAP_PDGETPID, CAP_PDWAIT, CAP_PDKILL);
+  int cap_capable = dup(pd);
   EXPECT_OK(cap_capable);
+  EXPECT_OK(cap_rights_limit(cap_capable, &r_pdall));
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
   pid_t other_pid;

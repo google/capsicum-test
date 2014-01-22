@@ -17,47 +17,60 @@
 #include "capsicum-test.h"
 
 FORK_TEST(Capability, CapNew) {
-  int cap_fd = cap_new(STDOUT_FILENO, CAP_READ|CAP_WRITE|CAP_SEEK);
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+
+  int cap_fd = dup(STDOUT_FILENO);
   EXPECT_OK(cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_fd, &r_rws));
   if (cap_fd < 0) return;
   int rc = write(cap_fd, "OK!\n", 4);
   EXPECT_OK(rc);
   EXPECT_EQ(4, rc);
   cap_rights_t rights;
-  EXPECT_OK(cap_getrights(cap_fd, &rights));
-  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  EXPECT_OK(cap_rights_get(cap_fd, &rights));
+  EXPECT_TRUE(cap_rights_contains(&r_rws, &rights));
+  EXPECT_TRUE(cap_rights_contains(&rights, &r_rws));
 
   // dup/dup2 should preserve rights.
   int cap_dup = dup(cap_fd);
   EXPECT_OK(cap_dup);
-  EXPECT_OK(cap_getrights(cap_dup, &rights));
-  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  EXPECT_OK(cap_rights_get(cap_dup, &rights));
+  EXPECT_TRUE(cap_rights_contains(&r_rws, &rights));
+  EXPECT_TRUE(cap_rights_contains(&rights, &r_rws));
   close(cap_dup);
   EXPECT_OK(dup2(cap_fd, cap_dup));
-  EXPECT_OK(cap_getrights(cap_dup, &rights));
-  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  EXPECT_OK(cap_rights_get(cap_dup, &rights));
+  EXPECT_TRUE(cap_rights_contains(&r_rws, &rights));
+  EXPECT_TRUE(cap_rights_contains(&rights, &r_rws));
   close(cap_dup);
 #ifdef HAVE_DUP3
   EXPECT_OK(dup3(cap_fd, cap_dup, 0));
-  EXPECT_OK(cap_getrights(cap_dup, &rights));
-  EXPECT_EQ(CAP_READ|CAP_WRITE|CAP_SEEK, rights);
+  EXPECT_OK(cap_rights_get(cap_dup, &rights));
+  EXPECT_TRUE(cap_rights_contains(&r_rws, &rights));
+  EXPECT_TRUE(cap_rights_contains(&rights, &r_rws));
   close(cap_dup);
 #endif
 
   // Try to get a disjoint set of rights in a sub-capability.
-  int cap_cap_fd = cap_new(cap_fd, CAP_READ|CAP_SEEK|CAP_MMAP|CAP_FCHMOD);
-  if (cap_cap_fd < 0) {
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_rsmapchmod;
+  cap_rights_init(&r_rsmapchmod, CAP_READ, CAP_SEEK, CAP_MMAP, CAP_FCHMOD);
+  int cap_cap_fd = dup(cap_fd);
+  EXPECT_OK(cap_cap_fd);
+  rc = cap_rights_limit(cap_cap_fd, &r_rsmapchmod);
+  if (rc < 0) {
     // Either we fail with ENOTCAPABLE
     EXPECT_EQ(ENOTCAPABLE, errno);
   } else {
     // Or we succeed and the rights are subsetted anyway.
-    EXPECT_OK(cap_getrights(cap_cap_fd, &rights));
-    EXPECT_EQ(CAP_READ|CAP_SEEK, rights);
+    EXPECT_OK(cap_rights_get(cap_cap_fd, &rights));
+    EXPECT_TRUE(cap_rights_contains(&r_rs, &rights));
+    EXPECT_TRUE(cap_rights_contains(&rights, &r_rs));
     // Check in practice as well as in theory.
     EXPECT_OK(cap_enter());
-    int rc = fchmod(cap_cap_fd, 0644);
-    EXPECT_EQ(-1, rc);
-    EXPECT_EQ(ENOTCAPABLE, errno);
+    EXPECT_NOTCAPABLE(fchmod(cap_cap_fd, 0644));
     EXPECT_OK(close(cap_cap_fd));
   }
   EXPECT_OK(close(cap_fd));
@@ -68,25 +81,25 @@ FORK_TEST(Capability, CapEnter) {
 }
 
 FORK_TEST(Capability, BasicInterception) {
-  int cap_fd = cap_new(1, 0);
-  EXPECT_NE(-1, cap_fd);
+  cap_rights_t r_0;
+  cap_rights_init(&r_0, 0);
+  int cap_fd = dup(1);
+  EXPECT_OK(cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_fd, &r_0));
 
-  int rc;
-  rc = write(cap_fd, "", 0);
-  EXPECT_EQ(-1, rc);
-  EXPECT_EQ(ENOTCAPABLE, errno);
+  EXPECT_NOTCAPABLE(write(cap_fd, "", 0));
 
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode
 
-  rc = write(cap_fd, "", 0);
-  EXPECT_EQ(-1, rc);
-  EXPECT_EQ(ENOTCAPABLE, errno);
+  EXPECT_NOTCAPABLE(write(cap_fd, "", 0));
 
   // Create a new capability which does have write permission
-  int cap_fd2 = cap_new(1, CAP_WRITE|CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+  int cap_fd2 = dup(1);
   EXPECT_OK(cap_fd2);
-  rc = write(cap_fd2, "", 0);
-  EXPECT_OK(rc);
+  EXPECT_OK(cap_rights_limit(cap_fd2, &r_ws));
+  EXPECT_OK(write(cap_fd2, "", 0));
 
   // Tidy up.
   if (cap_fd >= 0) close(cap_fd);
@@ -127,10 +140,15 @@ FORK_TEST_ON(Capability, FileInSync, "/tmp/cap_file_sync") {
   const char* message = "Hello capability world";
   EXPECT_OK(write(fd, message, strlen(message)));
 
-  int cap_fd = cap_new(fd, CAP_READ|CAP_SEEK|CAP_FSTAT);
+  cap_rights_t r_rsstat;
+  cap_rights_init(&r_rsstat, CAP_READ, CAP_SEEK, CAP_FSTAT);
+
+  int cap_fd = dup(fd);
   EXPECT_OK(cap_fd);
-  int cap_cap_fd = cap_new(cap_fd, CAP_READ|CAP_SEEK|CAP_FSTAT);
+  EXPECT_OK(cap_rights_limit(cap_fd, &r_rsstat));
+  int cap_cap_fd = dup(cap_fd);
   EXPECT_OK(cap_cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_cap_fd, &r_rsstat));
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
@@ -158,7 +176,13 @@ FORK_TEST_ON(Capability, FileInSync, "/tmp/cap_file_sync") {
 FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   int dir = open("/tmp", O_RDONLY);
   EXPECT_OK(dir);
-  int cap_dir = cap_new(dir, CAP_READ|CAP_LOOKUP);
+
+  cap_rights_t r_rl;
+  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP);
+
+  int cap_dir = dup(dir);
+  EXPECT_OK(cap_dir);
+  EXPECT_OK(cap_rights_limit(cap_dir, &r_rl));
 
   const char *filename = "cap_openat_write_testfile";
   int file = openat(dir, filename, O_WRONLY|O_CREAT, 0644);
@@ -172,8 +196,7 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   if (file >= 0) close(file);
 
   file = openat(cap_dir, filename, O_WRONLY|O_APPEND);
-  EXPECT_EQ(-1, file);
-  EXPECT_EQ(ENOTCAPABLE, errno);
+  EXPECT_NOTCAPABLE(file);
   if (file > 0) close(file);
 
   if (dir > 0) close(dir);
@@ -184,13 +207,15 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
 // Ensure that, if the capability had enough rights for the system call to
 // pass, then it did. Otherwise, ensure that the errno is ENOTCAPABLE;
 // capability restrictions should kick in before any other error logic.
-#define CHECK_RIGHT_RESULT(result, rights, rights_needed) do { \
-  if (((rights) & (rights_needed)) == (rights_needed)) {       \
-    EXPECT_OK(result);                                         \
-  } else {                                                     \
-    EXPECT_EQ(-1, result);                                     \
-    EXPECT_EQ(ENOTCAPABLE, errno);                             \
-  }                                                            \
+#define CHECK_RIGHT_RESULT(result, rights, ...) do {    \
+  cap_rights_t rights_needed;                           \
+  cap_rights_init(&rights_needed, __VA_ARGS__);         \
+  if (cap_rights_contains(&rights, &rights_needed)) {   \
+    EXPECT_OK(result);                                  \
+  } else {                                              \
+    EXPECT_EQ(-1, result);                              \
+    EXPECT_EQ(ENOTCAPABLE, errno);                      \
+  }                                                     \
 } while (0)
 
 #define EXPECT_MMAP_NOTCAPABLE(result) do {         \
@@ -208,28 +233,43 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
 
 
 // As above, but for the special mmap() case: unmap after successful mmap().
-#define CHECK_RIGHT_MMAP_RESULT(result, rights, rights_needed) do { \
-  if (((rights) & (rights_needed)) == (rights_needed)) {            \
-    EXPECT_MMAP_OK(result);                                         \
-  } else {                                                          \
-    EXPECT_MMAP_NOTCAPABLE(result);                                 \
-  }                                                                 \
-} while(0)
+#define CHECK_RIGHT_MMAP_RESULT(result, rights, ...) do { \
+  cap_rights_t rights_needed;                             \
+  cap_rights_init(&rights_needed, __VA_ARGS__);           \
+  if (cap_rights_contains(&rights, &rights_needed)) {     \
+    EXPECT_MMAP_OK(result);                               \
+  } else {                                                \
+    EXPECT_MMAP_NOTCAPABLE(result);                       \
+  }                                                       \
+} while (0)
 
 FORK_TEST_ON(Capability, Mmap, "/tmp/cap_mmap_operations") {
   int fd = open("/tmp/cap_mmap_operations", O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
 
+  cap_rights_t r_0;
+  cap_rights_init(&r_0, 0);
+  cap_rights_t r_mmap;
+  cap_rights_init(&r_mmap, CAP_MMAP);
+  cap_rights_t r_r;
+  cap_rights_init(&r_r, CAP_PREAD);
+  cap_rights_t r_rmmap;
+  cap_rights_init(&r_rmmap, CAP_PREAD, CAP_MMAP);
+
   // If we're missing a capability, it will fail.
-  int cap_none = cap_new(fd, 0);
+  int cap_none = dup(fd);
   EXPECT_OK(cap_none);
-  int cap_mmap = cap_new(fd, CAP_MMAP);
+  EXPECT_OK(cap_rights_limit(cap_none, &r_0));
+  int cap_mmap = dup(fd);
   EXPECT_OK(cap_mmap);
-  int cap_read = cap_new(fd, CAP_READ);
+  EXPECT_OK(cap_rights_limit(cap_mmap, &r_mmap));
+  int cap_read = dup(fd);
   EXPECT_OK(cap_read);
-  int cap_both = cap_new(fd, CAP_MMAP | CAP_READ);
+  EXPECT_OK(cap_rights_limit(cap_read, &r_r));
+  int cap_both = dup(fd);
   EXPECT_OK(cap_both);
+  EXPECT_OK(cap_rights_limit(cap_both, &r_rmmap));
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
@@ -251,28 +291,36 @@ FORK_TEST_ON(Capability, Mmap, "/tmp/cap_mmap_operations") {
 
 // Given a file descriptor, create a capability with specific rights and
 // make sure only those rights work.
+#define TRY_FILE_OPS(fd, ...) do {       \
+  cap_rights_t rights;                   \
+  cap_rights_init(&rights, __VA_ARGS__); \
+  TryFileOps((fd), rights);              \
+} while (0)
+
 static void TryFileOps(int fd, cap_rights_t rights) {
-  int cap_fd = cap_new(fd, rights);
+  int cap_fd = dup(fd);
   EXPECT_OK(cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_fd, &rights));
   if (cap_fd < 0) return;
 
-  // Check creation of a capability form a capability.
-  int cap_cap_fd = cap_new(cap_fd, rights);
+  // Check creation of a capability from a capability.
+  int cap_cap_fd = dup(cap_fd);
   EXPECT_OK(cap_cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_cap_fd, &rights));
   EXPECT_NE(cap_fd, cap_cap_fd);
   close(cap_cap_fd);
 
   char ch;
-  CHECK_RIGHT_RESULT(read(cap_fd, &ch, sizeof(ch)), rights, CAP_READ|CAP_SEEK);
+  CHECK_RIGHT_RESULT(read(cap_fd, &ch, sizeof(ch)), rights, CAP_READ, CAP_SEEK_ASWAS);
 
   ssize_t len1 = pread(cap_fd, &ch, sizeof(ch), 0);
-  CHECK_RIGHT_RESULT(len1, rights, CAP_READ);
+  CHECK_RIGHT_RESULT(len1, rights, CAP_PREAD);
   ssize_t len2 = pread(cap_fd, &ch, sizeof(ch), 0);
-  CHECK_RIGHT_RESULT(len2, rights, CAP_READ);
+  CHECK_RIGHT_RESULT(len2, rights, CAP_PREAD);
   EXPECT_EQ(len1, len2);
 
-  CHECK_RIGHT_RESULT(write(cap_fd, &ch, sizeof(ch)), rights, CAP_WRITE|CAP_SEEK);
-  CHECK_RIGHT_RESULT(pwrite(cap_fd, &ch, sizeof(ch), 0), rights, CAP_WRITE);
+  CHECK_RIGHT_RESULT(write(cap_fd, &ch, sizeof(ch)), rights, CAP_WRITE, CAP_SEEK_ASWAS);
+  CHECK_RIGHT_RESULT(pwrite(cap_fd, &ch, sizeof(ch), 0), rights, CAP_PWRITE);
   CHECK_RIGHT_RESULT(lseek(cap_fd, 0, SEEK_SET), rights, CAP_SEEK);
 
 #ifdef HAVE_CHFLAGS
@@ -289,23 +337,23 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(fstat(cap_fd, &sb), rights, CAP_FSTAT);
 
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP | CAP_READ);
+                          rights, CAP_MMAP, CAP_PREAD);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP | CAP_WRITE);
+                          rights, CAP_MMAP, CAP_PWRITE);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, (CAP_MMAP | CAP_MAPEXEC));
+                          rights, CAP_MMAP, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, (CAP_MMAP | CAP_READ | CAP_WRITE));
+                          rights, CAP_MMAP, CAP_PREAD, CAP_PWRITE);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, (CAP_MMAP | CAP_READ | CAP_MAPEXEC));
+                          rights, CAP_MMAP, CAP_PREAD, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, (CAP_MMAP | CAP_MAPEXEC | CAP_WRITE));
+                          rights, CAP_MMAP, CAP_MMAP_X, CAP_PWRITE);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, (CAP_MMAP | CAP_READ | CAP_WRITE | CAP_MAPEXEC));
+                          rights, CAP_MMAP, CAP_PREAD, CAP_PWRITE, CAP_MMAP_X);
 
   CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
 #ifdef HAVE_SYNC_FILE_RANGE
-  CHECK_RIGHT_RESULT(sync_file_range(cap_fd, 0, 1, 0), rights, CAP_FSYNC | CAP_SEEK);
+  CHECK_RIGHT_RESULT(sync_file_range(cap_fd, 0, 1, 0), rights, CAP_FSYNC, CAP_SEEK);
 #endif
 
   CHECK_RIGHT_RESULT(fchown(cap_fd, -1, -1), rights, CAP_FCHOWN);
@@ -331,7 +379,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   pollfd.events = POLLIN | POLLERR | POLLHUP;
   pollfd.revents = 0;
   int ret = poll(&pollfd, 1, 0);
-  if (rights & CAP_POLL_EVENT) {
+  if (cap_rights_is_set(&rights, CAP_POLL_EVENT)) {
     EXPECT_OK(ret);
   } else {
     EXPECT_NE(0, (pollfd.revents & POLLNVAL));
@@ -347,7 +395,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   FD_ZERO(&wset);
   FD_SET(cap_fd, &wset);
   ret = select(cap_fd+1, &rset, &wset, NULL, &tv);
-  if (rights & CAP_POLL_EVENT) {
+  if (cap_rights_is_set(&rights, CAP_POLL_EVENT)) {
     EXPECT_OK(ret);
   } else {
     EXPECT_NOTCAPABLE(ret);
@@ -367,50 +415,49 @@ FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
 
   // Try a variety of different combinations of rights - a full
   // enumeration is too large (2^N with N~30+) to perform.
-  TryFileOps(fd, CAP_READ);
-  TryFileOps(fd, CAP_READ | CAP_SEEK);
-  TryFileOps(fd, CAP_WRITE);
-  TryFileOps(fd, CAP_WRITE | CAP_SEEK);
-  TryFileOps(fd, CAP_READ | CAP_WRITE);
-  TryFileOps(fd, CAP_READ | CAP_WRITE | CAP_SEEK);
-  TryFileOps(fd, CAP_SEEK);
-  TryFileOps(fd, CAP_FCHFLAGS);
-  TryFileOps(fd, CAP_IOCTL);
-  TryFileOps(fd, CAP_FSTAT);
-  TryFileOps(fd, CAP_MMAP);
-  TryFileOps(fd, CAP_MMAP | CAP_READ);
-  TryFileOps(fd, CAP_MMAP | CAP_WRITE);
-  TryFileOps(fd, CAP_MMAP | CAP_MAPEXEC);
-  TryFileOps(fd, CAP_MMAP | CAP_READ | CAP_WRITE);
-  TryFileOps(fd, CAP_MMAP | CAP_READ | CAP_MAPEXEC);
-  TryFileOps(fd, CAP_MMAP | CAP_MAPEXEC | CAP_WRITE);
-  TryFileOps(fd, CAP_MMAP | CAP_READ | CAP_WRITE | CAP_MAPEXEC);
-  TryFileOps(fd, CAP_FCNTL);
-  TryFileOps(fd, CAP_POST_EVENT);
-  TryFileOps(fd, CAP_POLL_EVENT);
-  TryFileOps(fd, CAP_FSYNC);
-  TryFileOps(fd, CAP_FCHOWN);
-  TryFileOps(fd, CAP_FCHMOD);
-  TryFileOps(fd, CAP_FTRUNCATE);
-  TryFileOps(fd, CAP_FLOCK);
-  TryFileOps(fd, CAP_FSTATFS);
-  TryFileOps(fd, CAP_FPATHCONF);
-  TryFileOps(fd, CAP_FUTIMES);
-  TryFileOps(fd, CAP_ACL_GET);
-  TryFileOps(fd, CAP_ACL_SET);
-  TryFileOps(fd, CAP_ACL_DELETE);
-  TryFileOps(fd, CAP_ACL_CHECK);
-  TryFileOps(fd, CAP_EXTATTR_GET);
-  TryFileOps(fd, CAP_EXTATTR_SET);
-  TryFileOps(fd, CAP_EXTATTR_DELETE);
-  TryFileOps(fd, CAP_EXTATTR_LIST);
-  TryFileOps(fd, CAP_MAC_GET);
-  TryFileOps(fd, CAP_MAC_SET);
+  TRY_FILE_OPS(fd, CAP_READ);
+  TRY_FILE_OPS(fd, CAP_READ, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_WRITE);
+  TRY_FILE_OPS(fd, CAP_WRITE, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_READ, CAP_WRITE);
+  TRY_FILE_OPS(fd, CAP_READ, CAP_WRITE, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_FCHFLAGS);
+  TRY_FILE_OPS(fd, CAP_IOCTL);
+  TRY_FILE_OPS(fd, CAP_FSTAT);
+  TRY_FILE_OPS(fd, CAP_MMAP);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_WRITE);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_MMAP_X);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_WRITE);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_MMAP_X);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_MMAP_X, CAP_WRITE);
+  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_WRITE, CAP_MMAP_X);
+  TRY_FILE_OPS(fd, CAP_FCNTL);
+  TRY_FILE_OPS(fd, CAP_POLL_EVENT);
+  TRY_FILE_OPS(fd, CAP_FSYNC);
+  TRY_FILE_OPS(fd, CAP_FCHOWN);
+  TRY_FILE_OPS(fd, CAP_FCHMOD);
+  TRY_FILE_OPS(fd, CAP_FTRUNCATE);
+  TRY_FILE_OPS(fd, CAP_FLOCK);
+  TRY_FILE_OPS(fd, CAP_FSTATFS);
+  TRY_FILE_OPS(fd, CAP_FPATHCONF);
+  TRY_FILE_OPS(fd, CAP_FUTIMES);
+  TRY_FILE_OPS(fd, CAP_ACL_GET);
+  TRY_FILE_OPS(fd, CAP_ACL_SET);
+  TRY_FILE_OPS(fd, CAP_ACL_DELETE);
+  TRY_FILE_OPS(fd, CAP_ACL_CHECK);
+  TRY_FILE_OPS(fd, CAP_EXTATTR_GET);
+  TRY_FILE_OPS(fd, CAP_EXTATTR_SET);
+  TRY_FILE_OPS(fd, CAP_EXTATTR_DELETE);
+  TRY_FILE_OPS(fd, CAP_EXTATTR_LIST);
+  TRY_FILE_OPS(fd, CAP_MAC_GET);
+  TRY_FILE_OPS(fd, CAP_MAC_SET);
 
   // Socket-specific.
-  TryFileOps(fd, CAP_GETPEERNAME);
-  TryFileOps(fd, CAP_GETSOCKNAME);
-  TryFileOps(fd, CAP_ACCEPT);
+  TRY_FILE_OPS(fd, CAP_GETPEERNAME);
+  TRY_FILE_OPS(fd, CAP_GETSOCKNAME);
+  TRY_FILE_OPS(fd, CAP_ACCEPT);
 
   close(fd);
 }
@@ -441,6 +488,9 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
   mh.msg_controllen = sizeof(buffer2);
   struct cmsghdr *cmptr;
 
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+
   int child = fork();
   if (child == 0) {
     // Child: enter cap mode
@@ -458,8 +508,9 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
 
     // Child: confirm we can do the right operations on the capability
     cap_rights_t rights;
-    EXPECT_OK(cap_getrights(cap_fd, &rights));
-    EXPECT_EQ(CAP_READ|CAP_SEEK, rights);
+    EXPECT_OK(cap_rights_get(cap_fd, &rights));
+    EXPECT_TRUE(cap_rights_contains(&r_rs, &rights));
+    EXPECT_TRUE(cap_rights_contains(&rights, &r_rs));
     TryReadWrite(cap_fd);
 
     // Child: wait for a normal read
@@ -471,7 +522,9 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
   int fd = open("/tmp/cap_fd_transfer", O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
-  int cap_fd = cap_new(fd, CAP_READ|CAP_SEEK);
+  int cap_fd = dup(fd);
+  EXPECT_OK(cap_fd);
+  EXPECT_OK(cap_rights_limit(cap_fd, &r_rs));
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
@@ -501,31 +554,44 @@ TEST(Capability, SyscallAt) {
   EXPECT_OK(rc);
   if (rc < 0 && errno != EEXIST) return;
 
+  cap_rights_t r_all;
+  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
+  cap_rights_t r_no_unlink;
+  cap_rights_init(&r_no_unlink, CAP_READ, CAP_LOOKUP, CAP_MKDIRAT, CAP_MKFIFOAT);
+  cap_rights_t r_no_mkdir;
+  cap_rights_init(&r_no_mkdir, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKFIFOAT);
+  cap_rights_t r_no_mkfifo;
+  cap_rights_init(&r_no_mkfifo, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
+
   int dfd = open("/tmp/cap_at_topdir", O_RDONLY);
   EXPECT_OK(dfd);
-  int cap_dfd_all = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_RMDIR|CAP_MKDIR|CAP_MKFIFO);
+  int cap_dfd_all = dup(dfd);
   EXPECT_OK(cap_dfd_all);
-  int cap_dfd_no_rmdir = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_MKDIR|CAP_MKFIFO);
-  EXPECT_OK(cap_dfd_no_rmdir);
-  int cap_dfd_no_mkdir = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_RMDIR|CAP_MKFIFO);
+  EXPECT_OK(cap_rights_limit(cap_dfd_all, &r_all));
+  int cap_dfd_no_unlink = dup(dfd);
+  EXPECT_OK(cap_dfd_no_unlink);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_unlink, &r_no_unlink));
+  int cap_dfd_no_mkdir = dup(dfd);
   EXPECT_OK(cap_dfd_no_mkdir);
-  int cap_dfd_no_mkfifo = cap_new(dfd, CAP_LOOKUP|CAP_READ|CAP_RMDIR|CAP_MKDIR);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_mkdir, &r_no_mkdir));
+  int cap_dfd_no_mkfifo = dup(dfd);
   EXPECT_OK(cap_dfd_no_mkfifo);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_mkfifo, &r_no_mkfifo));
 
-  // Need CAP_MKDIR to mkdirat(2).
+  // Need CAP_MKDIRAT to mkdirat(2).
   EXPECT_NOTCAPABLE(mkdirat(cap_dfd_no_mkdir, "cap_subdir", 0755));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
   EXPECT_OK(mkdirat(cap_dfd_all, "cap_subdir", 0755));
 
-  // Need CAP_RMDIR to unlinkat(dfd, name, AT_REMOVEDIR).
-  EXPECT_NOTCAPABLE(unlinkat(cap_dfd_no_rmdir, "cap_subdir", AT_REMOVEDIR));
+  // Need CAP_UNLINKAT to unlinkat(dfd, name, AT_REMOVEDIR).
+  EXPECT_NOTCAPABLE(unlinkat(cap_dfd_no_unlink, "cap_subdir", AT_REMOVEDIR));
   EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
 
 #ifdef __linux__
   // TODO(drydale): revisit mknod/mkfifo after sync up with FreeBSD10.x semantics
 #ifdef HAVE_MKFIFOAT
-  // Need CAP_MKFIFO to mkfifoat(2).
+  // Need CAP_MKFIFOAT to mkfifoat(2).
   EXPECT_NOTCAPABLE(mkfifoat(cap_dfd_no_mkfifo, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
@@ -544,7 +610,7 @@ TEST(Capability, SyscallAt) {
 #endif
 #endif
 
-    // Need CAP_MKFIFO to mknodat(2) for a FIFO.
+    // Need CAP_MKFIFOAT to mknodat(2) for a FIFO.
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
@@ -555,7 +621,7 @@ TEST(Capability, SyscallAt) {
   close(cap_dfd_all);
   close(cap_dfd_no_mkfifo);
   close(cap_dfd_no_mkdir);
-  close(cap_dfd_no_rmdir);
+  close(cap_dfd_no_unlink);
   close(dfd);
 
   // Tidy up.
@@ -575,16 +641,32 @@ FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
     return;
   }
 
-  int cap = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  cap_rights_t r_rws;
+  cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
+  cap_rights_t r_xlist;
+  cap_rights_init(&r_xlist, CAP_EXTATTR_LIST);
+  cap_rights_t r_xget;
+  cap_rights_init(&r_xget, CAP_EXTATTR_GET);
+  cap_rights_t r_xset;
+  cap_rights_init(&r_xset, CAP_EXTATTR_SET);
+  cap_rights_t r_xdel;
+  cap_rights_init(&r_xdel, CAP_EXTATTR_DELETE);
+
+  int cap = dup(fd);
   EXPECT_OK(cap);
-  int cap_xlist = cap_new(fd, CAP_EXTATTR_LIST);
+  EXPECT_OK(cap_rights_limit(cap, &r_rws));
+  int cap_xlist = dup(fd);
   EXPECT_OK(cap_xlist);
-  int cap_xget = cap_new(fd, CAP_EXTATTR_GET);
+  EXPECT_OK(cap_rights_limit(cap_xlist, &r_xlist));
+  int cap_xget = dup(fd);
   EXPECT_OK(cap_xget);
-  int cap_xset = cap_new(fd, CAP_EXTATTR_SET);
+  EXPECT_OK(cap_rights_limit(cap_xget, &r_xget));
+  int cap_xset = dup(fd);
   EXPECT_OK(cap_xset);
-  int cap_xdel = cap_new(fd, CAP_EXTATTR_DELETE);
+  EXPECT_OK(cap_rights_limit(cap_xset, &r_xset));
+  int cap_xdel = dup(fd);
   EXPECT_OK(cap_xdel);
+  EXPECT_OK(cap_rights_limit(cap_xdel, &r_xdel));
 
   const char* value = "capsicum";
   int len = strlen(value) + 1;

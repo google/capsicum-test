@@ -49,16 +49,22 @@ FORK_TEST_F(Execve, FailInCapMode) {
 
 FORK_TEST_F(Execve, FailWithoutCap) {
   EXPECT_OK(cap_enter());
-  int cap_fd = cap_new(exec_fd_, 0);
-  EXPECT_NE(-1, cap_fd);
+  int cap_fd = dup(exec_fd_);
+  EXPECT_OK(cap_fd);
+  cap_rights_t rights;
+  cap_rights_init(&rights, 0);
+  EXPECT_OK(cap_rights_limit(cap_fd, &rights));
   EXPECT_EQ(-1, fexecve_(cap_fd, argv_fail, null_envp));
   EXPECT_EQ(ENOTCAPABLE, errno);
 }
 
 FORK_TEST_F(Execve, SucceedWithCap) {
   EXPECT_OK(cap_enter());
-  int cap_fd = cap_new(exec_fd_, CAP_FEXECVE);
-  EXPECT_NE(-1, cap_fd);
+  int cap_fd = dup(exec_fd_);
+  EXPECT_OK(cap_fd);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_FEXECVE);
+  EXPECT_OK(cap_rights_limit(cap_fd, &rights));
   EXPECT_OK(fexecve_(cap_fd, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
   EXPECT_TRUE(!"fexecve() should have succeeded");

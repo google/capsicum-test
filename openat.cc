@@ -25,18 +25,22 @@ FORK_TEST(Openat, Relative) {
   int etc = open("/etc/", O_RDONLY);
   EXPECT_OK(etc);
 
-  cap_rights_t rights;
-  EXPECT_SYSCALL_FAIL(EINVAL, cap_getrights(etc, &rights));
+  cap_rights_t r_base;
+  cap_rights_init(&r_base, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  cap_rights_t r_ro;
+  cap_rights_init(&r_ro, CAP_READ);
+  cap_rights_t r_rl;
+  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP);
 
-  cap_rights_t baserights = (CAP_READ | CAP_WRITE | CAP_SEEK | CAP_LOOKUP);
-  int etc_cap = cap_new(etc, CAP_READ);
+  int etc_cap = dup(etc);
   EXPECT_OK(etc_cap);
-  int etc_cap_ro = cap_new(etc, CAP_READ | CAP_LOOKUP);
+  EXPECT_OK(cap_rights_limit(etc_cap, &r_ro));
+  int etc_cap_ro = dup(etc);
   EXPECT_OK(etc_cap_ro);
-  int etc_cap_base = cap_new(etc, baserights);
+  EXPECT_OK(cap_rights_limit(etc_cap_ro, &r_rl));
+  int etc_cap_base = dup(etc);
   EXPECT_OK(etc_cap_base);
-  int etc_cap_all = cap_new(etc, CAP_MASK_VALID);
-  EXPECT_OK(etc_cap_all);
+  EXPECT_OK(cap_rights_limit(etc_cap_base, &r_base));
 
   // openat(2) with regular file descriptors in non-capability mode
   // Should Just Work (tm).
@@ -49,7 +53,6 @@ FORK_TEST(Openat, Relative) {
   // When not in capability mode, we don't actually require CAP_LOOKUP.
   EXPECT_OPEN_OK(openat(etc_cap_ro, "passwd", O_RDONLY));
   EXPECT_OPEN_OK(openat(etc_cap_base, "passwd", O_RDONLY));
-  EXPECT_OPEN_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
   // Performing openat(2) on a path with leading slash ignores
   // the provided directory FD.
@@ -59,20 +62,12 @@ FORK_TEST(Openat, Relative) {
   EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
   EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
 
-  // This requires discussion: do we treat a capability with
-  // CAP_MASK_VALID *exactly* like a non-capability file descriptor?
-  // (currently, the FreeBSD implementation says yes)
-  if (CAP_MASK_VALID_IS_UNCHECKED) {
-    EXPECT_OPEN_OK(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
-  } else {
-    EXPECT_NOTCAPABLE(openat(etc_cap_all, "../etc/passwd", O_RDONLY));
-  }
-
   // A file opened relative to a capability should itself be a capability.
   int fd = openat(etc_cap_base, "passwd", O_RDONLY);
   EXPECT_OK(fd);
-  EXPECT_OK(cap_getrights(fd, &rights));
-  EXPECT_RIGHTS_IN(rights, baserights);
+  cap_rights_t rights;
+  EXPECT_OK(cap_rights_get(fd, &rights));
+  EXPECT_RIGHTS_IN(rights, r_base);
   close(fd);
 
   // Enter capability mode; now ALL lookups are strictly relative.
@@ -83,7 +78,6 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OPEN_OK(openat(etc, "passwd", O_RDONLY));
   EXPECT_OPEN_OK(openat(etc_cap_ro, "passwd", O_RDONLY));
   EXPECT_OPEN_OK(openat(etc_cap_base, "passwd", O_RDONLY));
-  EXPECT_OPEN_OK(openat(etc_cap_all, "passwd", O_RDONLY));
 
   // Lookup relative to capabilities without CAP_LOOKUP should fail.
   EXPECT_NOTCAPABLE(openat(etc_cap, "passwd", O_RDONLY));
@@ -104,14 +98,14 @@ FORK_TEST(Openat, Relative) {
   // A file opened relative to a capability should itself be a capability.
   fd = openat(etc_cap_base, "passwd", O_RDONLY);
   EXPECT_OK(fd);
-  EXPECT_OK(cap_getrights(fd, &rights));
-  EXPECT_RIGHTS_IN(rights, baserights);
+  EXPECT_OK(cap_rights_get(fd, &rights));
+  EXPECT_RIGHTS_IN(rights, r_base);
   close(fd);
 
   fd = openat(etc_cap_ro, "passwd", O_RDONLY);
   EXPECT_OK(fd);
-  EXPECT_OK(cap_getrights(fd, &rights));
-  EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_LOOKUP));
+  EXPECT_OK(cap_rights_get(fd, &rights));
+  EXPECT_RIGHTS_IN(rights, r_rl);
   close(fd);
 }
 
@@ -124,10 +118,11 @@ TEST(Openat, Subdir) {
   EXPECT_OK(rc);
   if (rc < 0 && errno != EEXIST) return;
 
-  int dir_fd = open("/tmp/cap_topdir", O_RDONLY);
-  EXPECT_OK(dir_fd);
-  int cap_dir = cap_new(dir_fd, CAP_LOOKUP|CAP_READ);
+  int cap_dir = open("/tmp/cap_topdir", O_RDONLY);
   EXPECT_OK(cap_dir);
+  cap_rights_t r_rl;
+  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP);
+  EXPECT_OK(cap_rights_limit(cap_dir, &r_rl));
 
   // Check that we can't escape the top directory by the cunning
   // ruse of going via a subdirectory.
@@ -162,8 +157,11 @@ TEST(Openat, RelativeSymlink) {
   if (rc < 0 && errno != EEXIST) return;
   int dir_fd = open(SYMLINK_DIR, O_RDONLY);
   EXPECT_OK(dir_fd);
-  int cap_dir = cap_new(dir_fd, CAP_LOOKUP|CAP_READ);
+  int cap_dir = dup(dir_fd);
   EXPECT_OK(cap_dir);
+  cap_rights_t r_rl;
+  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP);
+  EXPECT_OK(cap_rights_limit(cap_dir, &r_rl));
   int normal = open(SYMLINK_DIR "/normal", O_CREAT|O_RDWR, 0644);
   EXPECT_OK(normal);
   const char *contents = "Hello world\n";

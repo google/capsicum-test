@@ -14,10 +14,23 @@ TEST(CapabilityPair, sendfile) {
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
 
-  int cap_in_ro = cap_new(in_fd, CAP_READ|CAP_SEEK);
-  int cap_in_wo = cap_new(in_fd, CAP_WRITE|CAP_SEEK);
-  int cap_out_ro = cap_new(sock_fds[0], CAP_READ|CAP_SEEK);
-  int cap_out_wo = cap_new(sock_fds[0], CAP_WRITE|CAP_SEEK);
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+
+  int cap_in_ro = dup(in_fd);
+  EXPECT_OK(cap_in_ro);
+  EXPECT_OK(cap_rights_limit(cap_in_ro, &r_rs));
+  int cap_in_wo = dup(in_fd);
+  EXPECT_OK(cap_in_wo);
+  EXPECT_OK(cap_rights_limit(cap_in_wo, &r_ws));
+  int cap_out_ro = dup(sock_fds[0]);
+  EXPECT_OK(cap_out_ro);
+  EXPECT_OK(cap_rights_limit(cap_out_ro, &r_rs));
+  int cap_out_wo = dup(sock_fds[0]);
+  EXPECT_OK(cap_out_wo);
+  EXPECT_OK(cap_rights_limit(cap_out_wo, &r_ws));
 
   off_t offset = 0;
   EXPECT_NOTCAPABLE(sendfile_(cap_out_ro, cap_in_ro, &offset, 4));
@@ -45,11 +58,26 @@ TEST(CapabilityPair, tee) {
   unsigned char buffer[4] = {1, 2, 3, 4};
   EXPECT_OK(write(pipe1_fds[1], buffer, 4));
 
+  cap_rights_t r_ro;
+  cap_rights_init(&r_ro, CAP_READ);
+  cap_rights_t r_wo;
+  cap_rights_init(&r_wo, CAP_WRITE);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+
   // Various attempts to tee into pipe2.
-  int cap_in_wo = cap_new(pipe1_fds[0], CAP_WRITE);
-  int cap_in_rw = cap_new(pipe1_fds[0], CAP_READ|CAP_WRITE);
-  int cap_out_ro = cap_new(pipe2_fds[1], CAP_READ);
-  int cap_out_rw = cap_new(pipe2_fds[1], CAP_READ|CAP_WRITE);
+  int cap_in_wo = dup(pipe1_fds[0]);
+  EXPECT_OK(cap_in_wo);
+  EXPECT_OK(cap_rights_limit(cap_in_wo, &r_wo));
+  int cap_in_rw = dup(pipe1_fds[0]);
+  EXPECT_OK(cap_in_rw);
+  EXPECT_OK(cap_rights_limit(cap_in_rw, &r_rw));
+  int cap_out_ro = dup(pipe2_fds[1]);
+  EXPECT_OK(cap_out_ro);
+  EXPECT_OK(cap_rights_limit(cap_out_ro, &r_ro));
+  int cap_out_rw = dup(pipe2_fds[1]);
+  EXPECT_OK(cap_out_rw);
+  EXPECT_OK(cap_rights_limit(cap_out_rw, &r_rw));
 
   EXPECT_NOTCAPABLE(tee(cap_in_wo, cap_out_rw, 4, SPLICE_F_NONBLOCK));
   EXPECT_NOTCAPABLE(tee(cap_in_rw, cap_out_ro, 4, SPLICE_F_NONBLOCK));
@@ -77,13 +105,34 @@ TEST(CapabilityPair, splice) {
   unsigned char buffer[4] = {1, 2, 3, 4};
   EXPECT_OK(write(pipe1_fds[1], buffer, 4));
 
+  cap_rights_t r_ro;
+  cap_rights_init(&r_ro, CAP_READ);
+  cap_rights_t r_wo;
+  cap_rights_init(&r_wo, CAP_WRITE);
+  cap_rights_t r_rs;
+  cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
+  cap_rights_t r_ws;
+  cap_rights_init(&r_ws, CAP_WRITE, CAP_SEEK);
+
   // Various attempts to splice.
-  int cap_in_wo = cap_new(pipe1_fds[0], CAP_WRITE);
-  int cap_in_ro = cap_new(pipe1_fds[0], CAP_READ);
-  int cap_in_ro_seek = cap_new(pipe1_fds[0], CAP_READ|CAP_SEEK);
-  int cap_out_wo = cap_new(pipe2_fds[1], CAP_WRITE);
-  int cap_out_ro = cap_new(pipe2_fds[1], CAP_READ);
-  int cap_out_wo_seek = cap_new(pipe2_fds[1], CAP_WRITE|CAP_SEEK);
+  int cap_in_wo = dup(pipe1_fds[0]);
+  EXPECT_OK(cap_in_wo);
+  EXPECT_OK(cap_rights_limit(cap_in_wo, &r_wo));
+  int cap_in_ro = dup(pipe1_fds[0]);
+  EXPECT_OK(cap_in_ro);
+  EXPECT_OK(cap_rights_limit(cap_in_ro, &r_ro));
+  int cap_in_ro_seek = dup(pipe1_fds[0]);
+  EXPECT_OK(cap_in_ro_seek);
+  EXPECT_OK(cap_rights_limit(cap_in_ro_seek, &r_rs));
+  int cap_out_wo = dup(pipe2_fds[1]);
+  EXPECT_OK(cap_out_wo);
+  EXPECT_OK(cap_rights_limit(cap_out_wo, &r_wo));
+  int cap_out_ro = dup(pipe2_fds[1]);
+  EXPECT_OK(cap_out_ro);
+  EXPECT_OK(cap_rights_limit(cap_out_ro, &r_ro));
+  int cap_out_wo_seek = dup(pipe2_fds[1]);
+  EXPECT_OK(cap_out_wo_seek);
+  EXPECT_OK(cap_rights_limit(cap_out_wo_seek, &r_ws));
 
   EXPECT_NOTCAPABLE(splice(cap_in_ro, NULL, cap_out_wo_seek, NULL, 4, SPLICE_F_NONBLOCK));
   EXPECT_NOTCAPABLE(splice(cap_in_wo, NULL, cap_out_wo_seek, NULL, 4, SPLICE_F_NONBLOCK));
@@ -110,8 +159,17 @@ TEST(CapabilityPair, vmsplice) {
   int pipe_fds[2];
   EXPECT_OK(pipe2(pipe_fds, O_NONBLOCK));
 
-  int cap_ro = cap_new(pipe_fds[1], CAP_READ);
-  int cap_rw = cap_new(pipe_fds[1], CAP_READ|CAP_WRITE);
+  cap_rights_t r_ro;
+  cap_rights_init(&r_ro, CAP_READ);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+
+  int cap_ro = dup(pipe_fds[1]);
+  EXPECT_OK(cap_ro);
+  EXPECT_OK(cap_rights_limit(cap_ro, &r_ro));
+  int cap_rw = dup(pipe_fds[1]);
+  EXPECT_OK(cap_rw);
+  EXPECT_OK(cap_rights_limit(cap_rw, &r_rw));
 
   unsigned char buffer[4] = {1, 2, 3, 4};
   struct iovec iov;

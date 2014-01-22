@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "cap_fd=%d\n", cap_fd);
   if (rc < 0) fprintf(stderr, "cap_rights_limit() failed: errno=%d %s\n", errno, strerror(errno));
 
-  /* cap_getrights() available? */
+  /* cap_rights_get() available? */
   cap_rights_t rights;
   cap_rights_init(&rights, 0);
   rc = cap_rights_get(cap_fd, &rights);

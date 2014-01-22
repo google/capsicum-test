@@ -125,7 +125,7 @@
 
 // Ensure that 'rights' are a subset of 'max'.
 #define EXPECT_RIGHTS_IN(rights, max) \
-    EXPECT_EQ((rights) & (max), (rights)) \
+    EXPECT_TRUE(cap_rights_contains(&max, &rights)) \
     << "rights " << std::hex << (rights)        \
     << " not a subset of " << std::hex << (max)
 

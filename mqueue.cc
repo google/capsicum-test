@@ -35,9 +35,22 @@ FORK_TEST_ON_MQ(PosixMqueue, CapMode, "/cap_mq") {
   //  - 'kldload mqueuefs'
   //  -  'options P1003_1B_MQUEUE' in kernel build config.
   if (mq < 0) return;
-  int cap_read_mq = cap_new(mq, CAP_READ);
-  int cap_write_mq = cap_new(mq, CAP_WRITE);
-  int cap_poll_mq = cap_new(mq, CAP_POLL_EVENT);
+  cap_rights_t r_read;
+  cap_rights_init(&r_read, CAP_READ);
+  cap_rights_t r_write;
+  cap_rights_init(&r_write, CAP_WRITE);
+  cap_rights_t r_poll;
+  cap_rights_init(&r_poll, CAP_POLL_EVENT);
+
+  int cap_read_mq = dup(mq);
+  EXPECT_OK(cap_read_mq);
+  EXPECT_OK(cap_rights_limit(cap_read_mq, &r_read));
+  int cap_write_mq = dup(mq);
+  EXPECT_OK(cap_write_mq);
+  EXPECT_OK(cap_rights_limit(cap_write_mq, &r_write));
+  int cap_poll_mq = dup(mq);
+  EXPECT_OK(cap_poll_mq);
+  EXPECT_OK(cap_rights_limit(cap_poll_mq, &r_poll));
   EXPECT_OK(mq_close_(mq));
 
   signal(SIGUSR2, seen_it_done_it);

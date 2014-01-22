@@ -19,7 +19,8 @@
 // Ensure that fcntl() works consistently for both regular file descriptors and
 // capability-wrapped ones.
 FORK_TEST(Fcntl, Basic) {
-  cap_rights_t rights = CAP_READ|CAP_FCNTL;
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_FCNTL);
 
   typedef std::map<std::string, int> FileMap;
 
@@ -39,8 +40,10 @@ FORK_TEST(Fcntl, Basic) {
 
   FileMap caps;
   for (FileMap::iterator ii = files.begin(); ii != files.end(); ++ii) {
-    caps[ii->first + " cap"] = cap_new(ii->second, rights);
-    EXPECT_OK(caps[ii->first]) << " on " << ii->first;
+    std::string key = ii->first + " cap";
+    caps[key] = dup(ii->second);
+    EXPECT_OK(cap_rights_limit(caps[key], &rights));
+    EXPECT_OK(caps[key]) << " on " << ii->first;
   }
 
   FileMap all(files);
@@ -49,10 +52,13 @@ FORK_TEST(Fcntl, Basic) {
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
   // Ensure that we can fcntl() all the files that we opened above.
+  cap_rights_t r_ro;
+  cap_rights_init(&r_ro, CAP_READ);
   for (FileMap::iterator ii = all.begin(); ii != all.end(); ++ii) {
     EXPECT_OK(fcntl(ii->second, F_GETFL, 0)) << " on " << ii->first;
-    int cap = cap_new(ii->second, CAP_READ);
+    int cap = dup(ii->second);
     EXPECT_OK(cap) << " on " << ii->first;
+    EXPECT_OK(cap_rights_limit(cap, &r_ro)) << " on " << ii->first;
     EXPECT_EQ(-1, fcntl(cap, F_GETFL, 0)) << " on " << ii->first;
     EXPECT_EQ(ENOTCAPABLE, errno) << " on " << ii->first;
     close(cap);
@@ -90,27 +96,35 @@ FORK_TEST(Fcntl, Basic) {
 //                F_SETPIPE_SZ     SETSOCKOPT         set pipe size
 namespace {
 #define FCNTL_NUM_RIGHTS 9
-cap_rights_t fcntl_rights[FCNTL_NUM_RIGHTS] = {
-  0,  // Later code assumes this is at [0]
-  CAP_READ|CAP_WRITE,
-  CAP_FCNTL,
-  CAP_FLOCK,
+cap_rights_t fcntl_rights[FCNTL_NUM_RIGHTS];
+void InitRights() {
+  cap_rights_init(&(fcntl_rights[0]), 0);  // Later code assumes this is at [0]
+  cap_rights_init(&(fcntl_rights[1]), CAP_READ, CAP_WRITE);
+  cap_rights_init(&(fcntl_rights[2]), CAP_FCNTL);
+  cap_rights_init(&(fcntl_rights[3]), CAP_FLOCK);
 #ifdef CAP_FSIGNAL
-  CAP_POLL_EVENT|CAP_FSIGNAL,
-  CAP_FLOCK|CAP_FSIGNAL,
+  cap_rights_init(&(fcntl_rights[4]), CAP_POLL_EVENT, CAP_FSIGNAL);
+  cap_rights_init(&(fcntl_rights[5]), CAP_FLOCK, CAP_FSIGNAL);
+#else
+  cap_rights_init(&(fcntl_rights[4]), 0);
+  cap_rights_init(&(fcntl_rights[5]), 0);
 #endif
 #ifdef CAP_NOTIFY
-  CAP_NOTIFY,
+  cap_rights_init(&(fcntl_rights[6]), CAP_NOTIFY);
+#else
+  cap_rights_init(&(fcntl_rights[6]), 0);
 #endif
-  CAP_SETSOCKOPT,
-  CAP_GETSOCKOPT,
-};
-int CheckFcntl(cap_rights_t rights, int caps[FCNTL_NUM_RIGHTS], int cmd, long arg,
-               const char* context) {
+  cap_rights_init(&(fcntl_rights[7]), CAP_SETSOCKOPT);
+  cap_rights_init(&(fcntl_rights[8]), CAP_GETSOCKOPT);
+}
+
+int CheckFcntl(unsigned long long right, int caps[FCNTL_NUM_RIGHTS], int cmd, long arg, const char* context) {
   SCOPED_TRACE(context);
+  cap_rights_t rights;
+  cap_rights_init(&rights, right);
   int ok_index = -1;
   for (int ii = 0; ii < FCNTL_NUM_RIGHTS; ++ii) {
-    if (rights == (fcntl_rights[ii] & rights)) {
+    if (cap_rights_contains(&(fcntl_rights[ii]), &rights)) {
       if (ok_index == -1) ok_index = ii;
       continue;
     }
@@ -123,10 +137,11 @@ int CheckFcntl(cap_rights_t rights, int caps[FCNTL_NUM_RIGHTS], int cmd, long ar
 }
 }  // namespace
 
-#define CHECK_FCNTL(rights, caps, cmd, arg) \
-    CheckFcntl(rights, caps, cmd, arg, "fcntl(" #cmd ") expect " #rights)
+#define CHECK_FCNTL(right, caps, cmd, arg) \
+    CheckFcntl(right, caps, cmd, arg, "fcntl(" #cmd ") expect " #right)
 
 TEST(Fcntl, Commands) {
+  InitRights();
   int fd = open("/tmp/cap_fcntl_cmds", O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
   write(fd, "TEST", 4);
@@ -135,25 +150,30 @@ TEST(Fcntl, Commands) {
   int caps[FCNTL_NUM_RIGHTS];
   int sock_caps[FCNTL_NUM_RIGHTS];
   for (int ii = 0; ii < FCNTL_NUM_RIGHTS; ++ii) {
-    caps[ii] = cap_new(fd, fcntl_rights[ii]);
+    caps[ii] = dup(fd);
     EXPECT_OK(caps[ii]);
-    sock_caps[ii] = cap_new(sock, fcntl_rights[ii]);
+    EXPECT_OK(cap_rights_limit(caps[ii], &(fcntl_rights[ii])));
+    sock_caps[ii] = dup(sock);
     EXPECT_OK(sock_caps[ii]);
+    EXPECT_OK(cap_rights_limit(sock_caps[ii], &(fcntl_rights[ii])));
   }
 
   // Check the things that need no rights against caps[0].
   int newfd = fcntl(caps[0], F_DUPFD, 0);
   EXPECT_OK(newfd);
   // dup()'ed FD should have same rights.
-  cap_rights_t rights = 0UL;
-  EXPECT_OK(cap_getrights(newfd, &rights));
-  EXPECT_EQ(0UL, rights);
+  cap_rights_t rights;
+  cap_rights_init(&rights, 0);
+  EXPECT_OK(cap_rights_get(newfd, &rights));
+  EXPECT_TRUE(cap_rights_contains(&(fcntl_rights[0]), &rights));
+  EXPECT_TRUE(cap_rights_contains(&rights, &(fcntl_rights[0])));
   close(newfd);
 #ifdef HAVE_F_DUP2FD
   EXPECT_OK(fcntl(caps[0], F_DUP2FD, newfd));
   // dup2()'ed FD should have same rights.
-  EXPECT_OK(cap_getrights(newfd, &rights));
-  EXPECT_EQ(0UL, rights);
+  EXPECT_OK(cap_rights_get(newfd, &rights));
+  EXPECT_TRUE(cap_rights_contains(&(fcntl_rights[0]), &rights));
+  EXPECT_TRUE(cap_rights_contains(&rights, &(fcntl_rights[0])));
   close(newfd);
 #endif
 

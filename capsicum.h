@@ -121,13 +121,14 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 
 #endif
 
+#ifdef OLD_CAP_RIGHTS_T
 /************************************************************
  * Capsicum compatibility layer: implement new (FreeBSD10.x)
  * API in terms of original (FreeBSD9.x) functionality.
  ************************************************************/
-#ifdef OLD_CAP_RIGHTS_T
 #include <stdarg.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /* Rights manipulation macros/functions */
 #define cap_rights_init(rights, ...)   _cap_rights_init((rights), __VA_ARGS__, 0ULL)
@@ -221,13 +222,39 @@ inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
 inline int cap_rights_get(int fd, cap_rights_t *rights) {
   return cap_getrights(fd, rights);
 }
-
+#define CAP_PREAD CAP_READ
+#define CAP_PWRITE CAP_WRITE
+#define CAP_MMAP_X CAP_MAPEXEC
+#define CAP_MKDIRAT CAP_MKDIR
+#define CAP_UNLINKAT CAP_RMDIR
+#define CAP_MKFIFOAT CAP_MKFIFO
+#define CAP_SOCK_CLIENT \
+        (CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
+         CAP_PEELOFF | CAP_READ | CAP_WRITE | CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#define CAP_SOCK_SERVER \
+        (CAP_ACCEPT | CAP_BIND | CAP_GETPEERNAME | CAP_GETSOCKNAME | \
+         CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_READ | CAP_WRITE | \
+         CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#define CAP_SEEK_ASWAS CAP_SEEK
 #else
-void cap_rights_describe(const cap_rights_t *rights, char *buffer) {
+/* New-style Capsicum API */
+#define CAP_SEEK_ASWAS 0
+
+#include <stdio.h>
+inline void cap_rights_describe(const cap_rights_t *rights, char *buffer) {
   for (int ii = 0; ii < (CAP_RIGHTS_VERSION+2); ii++) {
     int len = sprintf(buffer, "0x%016llx ", (unsigned long long)rights->cr_rights[ii]);
     buffer += len;
   }
+}
+
+#include <iostream>
+#include <iomanip>
+inline std::ostream& operator<<(std::ostream& os, cap_rights_t rights) {
+  for (int ii = 0; ii < (CAP_RIGHTS_VERSION+2); ii++) {
+    os << std::hex << std::setw(16) << std::setfill('0') << (unsigned long long)rights.cr_rights[ii] << " ";
+  }
+  return os;
 }
 #endif
 

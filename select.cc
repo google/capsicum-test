@@ -35,12 +35,18 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, "/tmp/cap_select") {
   // Create many POLL_EVENT capabilities.
   const int kCapCount = 64;
   int cap_fd[kCapCount];
+  cap_rights_t r_poll;
+  cap_rights_init(&r_poll, CAP_POLL_EVENT);
   for (int ii = 0; ii < kCapCount; ii++) {
-    cap_fd[ii] = cap_new(fd, CAP_POLL_EVENT);
+    cap_fd[ii] = dup(fd);
     EXPECT_OK(cap_fd[ii]);
+    EXPECT_OK(cap_rights_limit(cap_fd[ii], &r_poll));
   }
-  int cap_rw = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE, CAP_SEEK);
+  int cap_rw = dup(fd);
   EXPECT_OK(cap_rw);
+  EXPECT_OK(cap_rights_limit(cap_rw, &r_rw));
 
   EXPECT_OK(cap_enter());  // Enter capability mode
 
@@ -98,15 +104,21 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
   // Create many POLL_EVENT capabilities.
   const int kCapCount = 64;
   struct pollfd cap_fd[kCapCount + 2];
+  cap_rights_t r_poll;
+  cap_rights_init(&r_poll, CAP_POLL_EVENT);
   for (int ii = 0; ii < kCapCount; ii++) {
-    cap_fd[ii].fd = cap_new(fd, CAP_POLL_EVENT);
-    cap_fd[ii].events = POLLIN|POLLOUT;
+    cap_fd[ii].fd = dup(fd);
     EXPECT_OK(cap_fd[ii].fd);
+    EXPECT_OK(cap_rights_limit(cap_fd[ii].fd, &r_poll));
+    cap_fd[ii].events = POLLIN|POLLOUT;
   }
   cap_fd[kCapCount].fd = fd;
   cap_fd[kCapCount].events = POLLIN|POLLOUT;
-  int cap_rw = cap_new(fd, CAP_READ|CAP_WRITE|CAP_SEEK);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE, CAP_SEEK);
+  int cap_rw = dup(fd);
   EXPECT_OK(cap_rw);
+  EXPECT_OK(cap_rights_limit(cap_rw, &r_rw));
   cap_fd[kCapCount + 1].fd = cap_rw;
   cap_fd[kCapCount + 1].events = POLLIN|POLLOUT;
 

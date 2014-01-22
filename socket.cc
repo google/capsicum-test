@@ -15,6 +15,10 @@
 TEST(Socket, UnixDomain) {
   const char* socketName = "/tmp/capsicum-test.socket";
   unlink(socketName);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+  cap_rights_t r_all;
+  cap_rights_init(&r_all, CAP_READ, CAP_WRITE, CAP_SOCK_CLIENT, CAP_SOCK_SERVER);
 
   pid_t child = fork();
   if (child == 0) {
@@ -25,11 +29,14 @@ TEST(Socket, UnixDomain) {
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     EXPECT_OK(sock);
     if (sock < 0) return;
-    int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
+
+    int cap_sock_rw = dup(sock);
     EXPECT_OK(cap_sock_rw);
-    int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
+    EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
+    int cap_sock_all = dup(sock);
     EXPECT_OK(cap_sock_all);
-    close(sock);
+    EXPECT_OK(cap_rights_limit(cap_sock_all, &r_all));
+    EXPECT_OK(close(sock));
 
     // Connect socket
     struct sockaddr_un un;
@@ -47,10 +54,12 @@ TEST(Socket, UnixDomain) {
   EXPECT_OK(sock);
   if (sock < 0) return;
 
-  int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
+  int cap_sock_rw = dup(sock);
   EXPECT_OK(cap_sock_rw);
-  int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
+  EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
+  int cap_sock_all = dup(sock);
   EXPECT_OK(cap_sock_all);
+  EXPECT_OK(cap_rights_limit(cap_sock_all, &r_all));
   EXPECT_OK(close(sock));
 
   struct sockaddr_un un;
@@ -95,9 +104,10 @@ TEST(Socket, UnixDomain) {
 #ifdef OMIT
   // TODO(drysdale): investigate further
   // New connection should also be a capability.
-  cap_rights_t rights = CAP_ALL;
-  EXPECT_OK(cap_getrights(conn_fd, &rights));
-  EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_WRITE|CAP_SOCK_ALL));
+  cap_rights_t rights;
+  cap_rights_init(&rights, 0);
+  EXPECT_OK(cap_rights_get(conn_fd, &rights));
+  EXPECT_RIGHTS_IN(rights, r_all);
 #endif
 
   // Wait for the child.
@@ -117,11 +127,18 @@ TEST(Socket, TCP) {
   EXPECT_OK(sock);
   if (sock < 0) return;
 
-  int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+  cap_rights_t r_all;
+  cap_rights_init(&r_all, CAP_READ, CAP_WRITE, CAP_SOCK_CLIENT, CAP_SOCK_SERVER);
+
+  int cap_sock_rw = dup(sock);
   EXPECT_OK(cap_sock_rw);
-  int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
+  EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
+  int cap_sock_all = dup(sock);
   EXPECT_OK(cap_sock_all);
-  EXPECT_OK(close(sock));
+  EXPECT_OK(cap_rights_limit(cap_sock_all, &r_all));
+  close(sock);
 
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
@@ -147,10 +164,12 @@ TEST(Socket, TCP) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     EXPECT_OK(sock);
     if (sock < 0) return;
-    int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
+    int cap_sock_rw = dup(sock);
     EXPECT_OK(cap_sock_rw);
-    int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
+    EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
+    int cap_sock_all = dup(sock);
     EXPECT_OK(cap_sock_all);
+    EXPECT_OK(cap_rights_limit(cap_sock_all, &r_all));
     close(sock);
 
     // Connect socket
@@ -198,9 +217,10 @@ TEST(Socket, TCP) {
 #ifdef OMIT
   // TODO(drysdale): investigate further
   // New connection should also be a capability.
-  cap_rights_t rights = CAP_ALL;
-  EXPECT_OK(cap_getrights(conn_fd, &rights));
-  EXPECT_RIGHTS_IN(rights, (CAP_READ|CAP_WRITE|CAP_SOCK_ALL));
+  cap_rights_t rights;
+  cap_rights_init(&rights, 0);
+  EXPECT_OK(cap_rights_get(conn_fd, &rights));
+  EXPECT_RIGHTS_IN(rights, r_rw);
 #endif
 
   // Wait for the child.
@@ -219,11 +239,20 @@ TEST(Socket, UDP) {
   EXPECT_OK(sock);
   if (sock < 0) return;
 
-  int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE);
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+  cap_rights_t r_all;
+  cap_rights_init(&r_all, CAP_READ, CAP_WRITE, CAP_SOCK_CLIENT, CAP_SOCK_SERVER);
+  cap_rights_t r_connect;
+  cap_rights_init(&r_connect, CAP_READ, CAP_WRITE, CAP_CONNECT);
+
+  int cap_sock_rw = dup(sock);
   EXPECT_OK(cap_sock_rw);
-  int cap_sock_all = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SOCK_ALL);
+  EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
+  int cap_sock_all = dup(sock);
   EXPECT_OK(cap_sock_all);
-  EXPECT_OK(close(sock));
+  EXPECT_OK(cap_rights_limit(cap_sock_all, &r_all));
+  close(sock);
 
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
@@ -260,10 +289,12 @@ TEST(Socket, UDP) {
   if (child == 0) {
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     EXPECT_OK(sock);
-    int cap_sock_rw = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SEEK);
+    int cap_sock_rw = dup(sock);
     EXPECT_OK(cap_sock_rw);
-    int cap_sock_connect = cap_new(sock, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_CONNECT);
+    EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
+    int cap_sock_connect = dup(sock);
     EXPECT_OK(cap_sock_connect);
+    EXPECT_OK(cap_rights_limit(cap_sock_connect, &r_connect));
     close(sock);
 
     // Can only sendmsg(2) to an address over a socket with CAP_CONNECT.
