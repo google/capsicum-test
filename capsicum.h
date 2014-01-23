@@ -18,10 +18,6 @@ extern "C" {
 #include <sys/capability.h>
 #include <sys/procdesc.h>
 
-#if __FreeBSD__ == 9
-#define OLD_CAP_RIGHTS_T
-#endif
-
 #ifdef __cplusplus
 }
 #endif
@@ -47,8 +43,6 @@ extern "C" {
 #include <linux/seccomp.h>
 #include <linux/capsicum.h>
 #include <linux/procdesc.h>
-
-#define OLD_CAP_RIGHTS_T
 
 #define HAVE_PDWAIT4
 // Linux treats a capability with CAP_MASK_VALID differently than a non-capability
@@ -120,6 +114,13 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 #endif
 
 #endif
+
+
+#ifndef CAP_RIGHTS_VERSION
+/* Old-style (FreeBSD 9.x) Capsicum API */
+#define OLD_CAP_RIGHTS_T
+#endif
+
 
 #ifdef OLD_CAP_RIGHTS_T
 /************************************************************
@@ -222,6 +223,7 @@ inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
 inline int cap_rights_get(int fd, cap_rights_t *rights) {
   return cap_getrights(fd, rights);
 }
+
 #define CAP_PREAD CAP_READ
 #define CAP_PWRITE CAP_WRITE
 #define CAP_MMAP_X CAP_MAPEXEC
@@ -236,8 +238,10 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
          CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_READ | CAP_WRITE | \
          CAP_SETSOCKOPT | CAP_SHUTDOWN)
 #define CAP_SEEK_ASWAS CAP_SEEK
+
 #else
-/* New-style Capsicum API */
+
+/* New-style Capsicum API extras */
 #define CAP_SEEK_ASWAS 0
 
 #include <stdio.h>
