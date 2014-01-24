@@ -67,7 +67,7 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(fd);
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
-  EXPECT_RIGHTS_IN(rights, r_base);
+  EXPECT_RIGHTS_IN(&rights, &r_base);
   close(fd);
 
   // Enter capability mode; now ALL lookups are strictly relative.
@@ -99,13 +99,13 @@ FORK_TEST(Openat, Relative) {
   fd = openat(etc_cap_base, "passwd", O_RDONLY);
   EXPECT_OK(fd);
   EXPECT_OK(cap_rights_get(fd, &rights));
-  EXPECT_RIGHTS_IN(rights, r_base);
+  EXPECT_RIGHTS_IN(&rights, &r_base);
   close(fd);
 
   fd = openat(etc_cap_ro, "passwd", O_RDONLY);
   EXPECT_OK(fd);
   EXPECT_OK(cap_rights_get(fd, &rights));
-  EXPECT_RIGHTS_IN(rights, r_rl);
+  EXPECT_RIGHTS_IN(&rights, &r_rl);
   close(fd);
 }
 

@@ -165,13 +165,13 @@ TEST(Fcntl, Commands) {
   cap_rights_t rights;
   cap_rights_init(&rights, 0);
   EXPECT_OK(cap_rights_get(newfd, &rights));
-  EXPECT_RIGHTS_EQ(fcntl_rights[0], rights);
+  EXPECT_RIGHTS_EQ(&(fcntl_rights[0]), &rights);
   close(newfd);
 #ifdef HAVE_F_DUP2FD
   EXPECT_OK(fcntl(caps[0], F_DUP2FD, newfd));
   // dup2()'ed FD should have same rights.
   EXPECT_OK(cap_rights_get(newfd, &rights));
-  EXPECT_RIGHTS_EQ(fcntl_rights[0], rights);
+  EXPECT_RIGHTS_EQ(&(fcntl_rights[0]), &rights);
   close(newfd);
 #endif
 

@@ -29,22 +29,22 @@ FORK_TEST(Capability, CapNew) {
   EXPECT_EQ(4, rc);
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(cap_fd, &rights));
-  EXPECT_RIGHTS_EQ(r_rws, rights);
+  EXPECT_RIGHTS_EQ(&r_rws, &rights);
 
   // dup/dup2 should preserve rights.
   int cap_dup = dup(cap_fd);
   EXPECT_OK(cap_dup);
   EXPECT_OK(cap_rights_get(cap_dup, &rights));
-  EXPECT_RIGHTS_EQ(r_rws, rights);
+  EXPECT_RIGHTS_EQ(&r_rws, &rights);
   close(cap_dup);
   EXPECT_OK(dup2(cap_fd, cap_dup));
   EXPECT_OK(cap_rights_get(cap_dup, &rights));
-  EXPECT_RIGHTS_EQ(r_rws, rights);
+  EXPECT_RIGHTS_EQ(&r_rws, &rights);
   close(cap_dup);
 #ifdef HAVE_DUP3
   EXPECT_OK(dup3(cap_fd, cap_dup, 0));
   EXPECT_OK(cap_rights_get(cap_dup, &rights));
-  EXPECT_RIGHTS_EQ(r_rws, rights);
+  EXPECT_RIGHTS_EQ(&r_rws, &rights);
   close(cap_dup);
 #endif
 
@@ -62,7 +62,7 @@ FORK_TEST(Capability, CapNew) {
   } else {
     // Or we succeed and the rights are subsetted anyway.
     EXPECT_OK(cap_rights_get(cap_cap_fd, &rights));
-    EXPECT_RIGHTS_EQ(r_rs, rights);
+    EXPECT_RIGHTS_EQ(&r_rs, &rights);
     // Check in practice as well as in theory.
     EXPECT_OK(cap_enter());
     EXPECT_NOTCAPABLE(fchmod(cap_cap_fd, 0644));
@@ -192,7 +192,7 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   cap_rights_t rights;
   cap_rights_init(&rights, 0);
   EXPECT_OK(cap_rights_get(file, &rights));
-  EXPECT_RIGHTS_EQ(r_rl, rights);
+  EXPECT_RIGHTS_EQ(&r_rl, &rights);
   if (file >= 0) close(file);
 
   file = openat(cap_dir, filename, O_WRONLY|O_APPEND);
@@ -509,7 +509,7 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
     // Child: confirm we can do the right operations on the capability
     cap_rights_t rights;
     EXPECT_OK(cap_rights_get(cap_fd, &rights));
-    EXPECT_RIGHTS_EQ(r_rs, rights);
+    EXPECT_RIGHTS_EQ(&r_rs, &rights);
     TryReadWrite(cap_fd);
 
     // Child: wait for a normal read
