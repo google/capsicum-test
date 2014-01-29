@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/ptrace.h>
 #include <dirent.h>
 #include <netinet/in.h>
 #include <fcntl.h>
@@ -389,9 +390,12 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   pid_t pid = fork();
   EXPECT_OK(pid);
   if (pid == 0) {
-    // Child: immediately exit.
+    // Child: almost immediately exit.
+    sleep(1);
     exit(0);
   } else if (pid > 0) {
+    errno = 0;
+    EXPECT_CAPMODE(ptrace_(PTRACE_PEEKDATA_, pid, &pid, NULL));
     EXPECT_CAPMODE(waitpid(pid, NULL, 0));
   }
 
@@ -401,7 +405,6 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   EXPECT_EQ(0, errno);
 
   // TODO(FreeBSD): ktrace
-  // TODO(drysdale): ptrace
 
 #ifdef HAVE_SYSARCH
   // sysarch() is, by definition, architecture-dependent

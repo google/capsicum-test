@@ -80,6 +80,11 @@ extern int  __sys_kmq_unlink(const char *);
 #define mq_timedsend_ __sys_kmq_timedsend
 #define mq_unlink_ __sys_kmq_unlink
 #define mq_close_ close
+#include <sys/ptrace.h>
+inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
+  return ptrace(request, pid, (caddr_t)addr, static_cast<int>((long)data));
+}
+#define PTRACE_PEEKDATA_ PT_READ_D
 
 /* Features available */
 #define HAVE_CHFLAGS
@@ -151,6 +156,8 @@ inline pid_t getpid_() {
 #define mq_timedsend_ mq_timedsend
 #define mq_unlink_ mq_unlink
 #define mq_close_ mq_close
+#define ptrace_ ptrace
+#define PTRACE_PEEKDATA_ PTRACE_PEEKDATA
 
 /* Features available */
 #define HAVE_DUP3
