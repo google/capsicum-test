@@ -101,13 +101,12 @@ TEST(Socket, UnixDomain) {
   int conn_fd = accept(cap_sock_all, (struct sockaddr *)&un, &len);
   EXPECT_OK(conn_fd);
 
-#ifdef OMIT
-  // TODO(drysdale): investigate further
+#ifdef CAP_FROM_ACCEPT
   // New connection should also be a capability.
   cap_rights_t rights;
   cap_rights_init(&rights, 0);
   EXPECT_OK(cap_rights_get(conn_fd, &rights));
-  EXPECT_RIGHTS_IN(rights, r_all);
+  EXPECT_RIGHTS_IN(&rights, &r_all);
 #endif
 
   // Wait for the child.
@@ -214,13 +213,12 @@ TEST(Socket, TCP) {
   int conn_fd = accept(cap_sock_all, (struct sockaddr *)&addr, &len);
   EXPECT_OK(conn_fd);
 
-#ifdef OMIT
-  // TODO(drysdale): investigate further
+#ifdef CAP_FROM_ACCEPT
   // New connection should also be a capability.
   cap_rights_t rights;
   cap_rights_init(&rights, 0);
   EXPECT_OK(cap_rights_get(conn_fd, &rights));
-  EXPECT_RIGHTS_IN(rights, r_rw);
+  EXPECT_RIGHTS_IN(&rights, &r_rw);
 #endif
 
   // Wait for the child.

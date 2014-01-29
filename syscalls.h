@@ -93,7 +93,7 @@ extern int  __sys_kmq_unlink(const char *);
 #define HAVE_FPATHCONF
 #define HAVE_MKFIFOAT
 #define HAVE_F_DUP2FD
-/* Although FreeBSD has pselect(2), it is (oddly) not allowed in capability mode */
+/* TODO(FreeBSD): re-enable when pselect(2) is allowed in capability mode */
 /* #define HAVE_PSELECT */
 
 /* FreeBSD only allows root to call mlock[all]/munlock[all] */

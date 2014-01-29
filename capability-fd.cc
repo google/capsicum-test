@@ -401,7 +401,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
     EXPECT_NOTCAPABLE(ret);
   }
 
-  // TODO(drysdale): kqueue (FreeBSD only)
+  // TODO(FreeBSD): kqueue
 
   EXPECT_OK(close(cap_fd));
 }
@@ -591,8 +591,6 @@ TEST(Capability, SyscallAt) {
   EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
 
-#ifdef __linux__
-  // TODO(drydale): revisit mknod/mkfifo after sync up with FreeBSD10.x semantics
 #ifdef HAVE_MKFIFOAT
   // Need CAP_MKFIFOAT to mkfifoat(2).
   EXPECT_NOTCAPABLE(mkfifoat(cap_dfd_no_mkfifo, "cap_fifo", 0755));
@@ -618,7 +616,6 @@ TEST(Capability, SyscallAt) {
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
   }
-#endif
 
   close(cap_dfd_all);
   close(cap_dfd_no_mkfifo);

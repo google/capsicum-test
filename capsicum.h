@@ -25,8 +25,9 @@ extern "C" {
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
-// FreeBSD treats CAP_MASK_VALID exactly like a non-capability
-#define CAP_MASK_VALID_IS_UNCHECKED 1
+// TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on accept.
+// FreeBSD does not generate a capability from accept(cap_fd,...)
+// #define CAP_FROM_ACCEPT
 
 #endif
 
@@ -45,8 +46,9 @@ extern "C" {
 #include <linux/procdesc.h>
 
 #define HAVE_PDWAIT4
-// Linux treats a capability with CAP_MASK_VALID differently than a non-capability
-#define CAP_MASK_VALID_IS_UNCHECKED 0
+// TODO(drysdale): uncomment if/when FreeBSD propagates rights on accept.
+// Linux does not generate a capability from accept(cap_fd,...)
+// #define CAP_FROM_ACCEPT
 
 #ifdef __cplusplus
 extern "C" {

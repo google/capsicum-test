@@ -55,8 +55,9 @@ FORK_TEST_ON_MQ(PosixMqueue, CapMode, "/cap_mq") {
 
   signal(SIGUSR2, seen_it_done_it);
 
+  // TODO(FreeBSD): reinstate if/when FreeBSD sorts out use of POSIX message
+  // queues in capability mode.
 #ifndef __FreeBSD__
-  // TODO(drysdale): figure out why POSIX message queues get -ECAPMODE on FreeBSD.
   EXPECT_OK(cap_enter());  // Enter capability mode
 
   // Can no longer access the message queue via the POSIX IPC namespace.

@@ -407,14 +407,15 @@ TEST(Linux, fanotify) {
   EXPECT_EQ(child, ev.pid);
   EXPECT_NE(0, ev.fd);
 
+  // TODO(drysdale): reinstate if/when capsicum-linux propagates rights
+  // to fanotify-generated FDs.
 #ifdef OMIT
-  // TODO(drysdale): investigate further
   // fanotify(7) gives us a FD for the changed file.  This should
   // only have rights that are a subset of those for the original
   // monitored directory file descriptor.
   cap_rights_t rights = CAP_ALL;
   EXPECT_OK(cap_rights_get(ev.fd, &rights));
-  EXPECT_RIGHTS_IN(rights, r_rslstat);
+  EXPECT_RIGHTS_IN(&rights, &r_rslstat);
 #endif
 
   // Wait for the child.
