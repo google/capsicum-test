@@ -554,7 +554,11 @@ TEST(Capability, SyscallAt) {
   if (rc < 0 && errno != EEXIST) return;
 
   cap_rights_t r_all;
-  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
+  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP,
+#ifdef CAP_MKNODAT
+                  CAP_MKNODAT,
+#endif
+                  CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
   cap_rights_t r_no_unlink;
   cap_rights_init(&r_no_unlink, CAP_READ, CAP_LOOKUP, CAP_MKDIRAT, CAP_MKFIFOAT);
   cap_rights_t r_no_mkdir;
@@ -598,8 +602,7 @@ TEST(Capability, SyscallAt) {
 #endif
 
   if (!MKNOD_REQUIRES_ROOT || getuid() == 0) {
-#ifdef OMIT
-    // TODO(drysdale): revisit after FreeBSD10.x sync
+#ifdef CAP_MKNODAT
 #ifdef HAVE_MKNOD_IFREG
     // Need CAP_MKNODAT to mknodat(2) a regular file
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_regular", S_IFREG|0755, 0));
