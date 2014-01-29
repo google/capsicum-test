@@ -218,7 +218,7 @@ TEST(Socket, TCP) {
   cap_rights_t rights;
   cap_rights_init(&rights, 0);
   EXPECT_OK(cap_rights_get(conn_fd, &rights));
-  EXPECT_RIGHTS_IN(&rights, &r_rw);
+  EXPECT_RIGHTS_IN(&rights, &r_all);
 #endif
 
   // Wait for the child.

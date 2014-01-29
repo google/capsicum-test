@@ -46,9 +46,7 @@ extern "C" {
 #include <linux/procdesc.h>
 
 #define HAVE_PDWAIT4
-// TODO(drysdale): uncomment if/when FreeBSD propagates rights on accept.
-// Linux does not generate a capability from accept(cap_fd,...)
-// #define CAP_FROM_ACCEPT
+#define CAP_FROM_ACCEPT
 
 #ifdef __cplusplus
 extern "C" {
