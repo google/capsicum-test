@@ -379,7 +379,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   pollfd.events = POLLIN | POLLERR | POLLHUP;
   pollfd.revents = 0;
   int ret = poll(&pollfd, 1, 0);
-  if (cap_rights_is_set(&rights, CAP_POLL_EVENT)) {
+  if (cap_rights_is_set(&rights, CAP_EVENT)) {
     EXPECT_OK(ret);
   } else {
     EXPECT_NE(0, (pollfd.revents & POLLNVAL));
@@ -395,7 +395,7 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   FD_ZERO(&wset);
   FD_SET(cap_fd, &wset);
   ret = select(cap_fd+1, &rset, &wset, NULL, &tv);
-  if (cap_rights_is_set(&rights, CAP_POLL_EVENT)) {
+  if (cap_rights_is_set(&rights, CAP_EVENT)) {
     EXPECT_OK(ret);
   } else {
     EXPECT_NOTCAPABLE(ret);
@@ -434,7 +434,7 @@ FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
   TRY_FILE_OPS(fd, CAP_MMAP, CAP_MMAP_X, CAP_WRITE);
   TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_WRITE, CAP_MMAP_X);
   TRY_FILE_OPS(fd, CAP_FCNTL);
-  TRY_FILE_OPS(fd, CAP_POLL_EVENT);
+  TRY_FILE_OPS(fd, CAP_EVENT);
   TRY_FILE_OPS(fd, CAP_FSYNC);
   TRY_FILE_OPS(fd, CAP_FCHOWN);
   TRY_FILE_OPS(fd, CAP_FCHMOD);

@@ -103,7 +103,7 @@ void InitRights() {
   cap_rights_init(&(fcntl_rights[2]), CAP_FCNTL);
   cap_rights_init(&(fcntl_rights[3]), CAP_FLOCK);
 #ifdef CAP_FSIGNAL
-  cap_rights_init(&(fcntl_rights[4]), CAP_POLL_EVENT, CAP_FSIGNAL);
+  cap_rights_init(&(fcntl_rights[4]), CAP_EVENT, CAP_FSIGNAL);
   cap_rights_init(&(fcntl_rights[5]), CAP_FLOCK, CAP_FSIGNAL);
 #else
   cap_rights_init(&(fcntl_rights[4]), 0);

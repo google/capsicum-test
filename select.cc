@@ -36,7 +36,7 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, "/tmp/cap_select") {
   const int kCapCount = 64;
   int cap_fd[kCapCount];
   cap_rights_t r_poll;
-  cap_rights_init(&r_poll, CAP_POLL_EVENT);
+  cap_rights_init(&r_poll, CAP_EVENT);
   for (int ii = 0; ii < kCapCount; ii++) {
     cap_fd[ii] = dup(fd);
     EXPECT_OK(cap_fd[ii]);
@@ -53,7 +53,7 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, "/tmp/cap_select") {
   struct timeval tv;
   tv.tv_sec = 0;
   tv.tv_usec = 100;
-  // Add normal file descriptor and all CAP_POLL_EVENT capabilities
+  // Add normal file descriptor and all CAP_EVENT capabilities
   fd_set rset;
   fd_set wset;
   int maxfd = InitFDSet(&rset, cap_fd, kCapCount);
@@ -63,7 +63,7 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, "/tmp/cap_select") {
   int ret = select(maxfd+1, &rset, &wset, NULL, &tv);
   EXPECT_OK(ret);
 
-  // Now also include the capability with no CAP_POLL_EVENT.
+  // Now also include the capability with no CAP_EVENT.
   InitFDSet(&rset, cap_fd, kCapCount);
   AddFDToSet(&rset, fd, maxfd);
   maxfd = AddFDToSet(&rset, cap_rw, maxfd);
@@ -105,7 +105,7 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
   const int kCapCount = 64;
   struct pollfd cap_fd[kCapCount + 2];
   cap_rights_t r_poll;
-  cap_rights_init(&r_poll, CAP_POLL_EVENT);
+  cap_rights_init(&r_poll, CAP_EVENT);
   for (int ii = 0; ii < kCapCount; ii++) {
     cap_fd[ii].fd = dup(fd);
     EXPECT_OK(cap_fd[ii].fd);
@@ -125,7 +125,7 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
   EXPECT_OK(cap_enter());  // Enter capability mode
 
   EXPECT_OK(poll(cap_fd, kCapCount + 1, 10));
-  // Now also include the capability with no CAP_POLL_EVENT.
+  // Now also include the capability with no CAP_EVENT.
   EXPECT_OK(poll(cap_fd, kCapCount + 2, 10));
   EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
 
@@ -135,7 +135,7 @@ FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
   ts.tv_sec = 0;
   ts.tv_nsec = 100000;
   EXPECT_OK(ppoll(cap_fd, kCapCount + 1, &ts, NULL));
-  // Now also include the capability with no CAP_POLL_EVENT.
+  // Now also include the capability with no CAP_EVENT.
   EXPECT_OK(ppoll(cap_fd, kCapCount + 2, &ts, NULL));
   EXPECT_NE(0, (cap_fd[kCapCount + 1].revents & POLLNVAL));
 #endif

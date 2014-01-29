@@ -40,7 +40,7 @@ FORK_TEST_ON_MQ(PosixMqueue, CapMode, "/cap_mq") {
   cap_rights_t r_write;
   cap_rights_init(&r_write, CAP_WRITE);
   cap_rights_t r_poll;
-  cap_rights_init(&r_poll, CAP_POLL_EVENT);
+  cap_rights_init(&r_poll, CAP_EVENT);
 
   int cap_read_mq = dup(mq);
   EXPECT_OK(cap_read_mq);

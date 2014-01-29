@@ -31,7 +31,7 @@ TEST(Linux, TimerFD) {
   cap_rights_t r_rw;
   cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
   cap_rights_t r_rwpoll;
-  cap_rights_init(&r_rwpoll, CAP_READ, CAP_WRITE, CAP_POLL_EVENT);
+  cap_rights_init(&r_rwpoll, CAP_READ, CAP_WRITE, CAP_EVENT);
 
   int cap_fd_ro = dup(fd);
   EXPECT_OK(cap_fd_ro);
@@ -63,7 +63,7 @@ TEST(Linux, TimerFD) {
   EXPECT_OK(timerfd_gettime(cap_fd_rw, &old_ispec));
   EXPECT_OK(timerfd_gettime(cap_fd_all, &old_ispec));
 
-  // To be able to poll() for the timer pop, still need CAP_POLL_EVENT.
+  // To be able to poll() for the timer pop, still need CAP_EVENT.
   struct pollfd poll_fd;
   for (int ii = 0; ii < 3; ii++) {
     poll_fd.revents = 0;
@@ -117,7 +117,7 @@ FORK_TEST(Linux, SignalFD) {
   cap_rights_t r_rssig;
   cap_rights_init(&r_rssig, CAP_FSIGNAL, CAP_READ, CAP_SEEK);
   cap_rights_t r_rssig_poll;
-  cap_rights_init(&r_rssig_poll, CAP_FSIGNAL, CAP_READ, CAP_SEEK, CAP_POLL_EVENT);
+  cap_rights_init(&r_rssig_poll, CAP_FSIGNAL, CAP_READ, CAP_SEEK, CAP_EVENT);
 
   // Various capability variants.
   int cap_fd_none = dup(fd);
@@ -156,7 +156,7 @@ FORK_TEST(Linux, SignalFD) {
   EXPECT_NOTCAPABLE(signalfd(cap_fd_read, &mask, 0));
   EXPECT_EQ(cap_fd_sig, signalfd(cap_fd_sig, &mask, 0));
 
-  // Need CAP_POLL_EVENT to get notification of a signal in poll(2).
+  // Need CAP_EVENT to get notification of a signal in poll(2).
   kill(me, SIGUSR2);
 
   struct pollfd poll_fd;
@@ -184,7 +184,7 @@ TEST(Linux, EventFD) {
   cap_rights_t r_rws;
   cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
   cap_rights_t r_rwspoll;
-  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_POLL_EVENT);
+  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_EVENT);
 
   int cap_ro = dup(fd);
   EXPECT_OK(cap_ro);
@@ -258,7 +258,7 @@ TEST(Linux, epoll) {
   cap_rights_t r_rws;
   cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
   cap_rights_t r_rwspoll;
-  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_POLL_EVENT);
+  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_EVENT);
   cap_rights_t r_epoll;
   cap_rights_init(&r_epoll, CAP_EPOLL_CTL);
 
@@ -292,7 +292,7 @@ TEST(Linux, epoll) {
   EXPECT_NOTCAPABLE(epoll_ctl(cap_epoll_rw, EPOLL_CTL_MOD, sock_fds[0], &eev));
   EXPECT_OK(epoll_ctl(cap_epoll_ctl, EPOLL_CTL_MOD, sock_fds[0], &eev));
 
-  // Running epoll_pwait(2) requires CAP_POLL_EVENT.
+  // Running epoll_pwait(2) requires CAP_EVENT.
   eev.events = 0;
   EXPECT_NOTCAPABLE(epoll_pwait(cap_epoll_ro, &eev, 1, 100, NULL));
   EXPECT_NOTCAPABLE(epoll_pwait(cap_epoll_wo, &eev, 1, 100, NULL));
@@ -331,7 +331,7 @@ TEST(Linux, fanotify) {
   cap_rights_t r_rws;
   cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
   cap_rights_t r_rwspoll;
-  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_POLL_EVENT);
+  cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_EVENT);
   cap_rights_t r_rwsnotify;
   cap_rights_init(&r_rwsnotify, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_NOTIFY);
   cap_rights_t r_rslstat;
@@ -378,7 +378,7 @@ TEST(Linux, fanotify) {
     exit(0);
   }
 
-  // Need CAP_POLL_EVENT to poll.
+  // Need CAP_EVENT to poll.
   struct pollfd poll_fd;
   poll_fd.revents = 0;
   poll_fd.events = POLLIN;

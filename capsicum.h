@@ -239,6 +239,7 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
         (CAP_ACCEPT | CAP_BIND | CAP_GETPEERNAME | CAP_GETSOCKNAME | \
          CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_READ | CAP_WRITE | \
          CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#define CAP_EVENT CAP_POLL_EVENT
 #define CAP_SEEK_ASWAS CAP_SEEK
 
 #else
