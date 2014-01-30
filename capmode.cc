@@ -433,6 +433,18 @@ FORK_TEST(Capmode, NewThread) {
   int one = 1;  // second
   EXPECT_OK(pthread_create(&early_thread, NULL, thread_fn, &one));
 
+  // Fire off a new process before entering capability mode.
+  int early_child = fork();
+  EXPECT_OK(early_child);
+  if (early_child == 0) {
+    // Child: wait and then confirm this process is unaffect by capability mode in the parent.
+    sleep(1);
+    int fd = open("/dev/null", O_RDWR);
+    EXPECT_OK(fd);
+    close(fd);
+    exit(0);
+  }
+
   EXPECT_OK(cap_enter());  // Enter capability mode.
   // Do an allowed syscall.
   EXPECT_OK(getpid_());
@@ -444,7 +456,7 @@ FORK_TEST(Capmode, NewThread) {
     EXPECT_CAPMODE(open("/dev/null", O_RDWR));
     exit(0);
   }
-  // Don't (can't) wait for the child.
+  // Don't (can't) wait for either child.
 
   // Wait for the early-started thread.
   EXPECT_OK(pthread_join(early_thread, NULL));
@@ -465,5 +477,5 @@ FORK_TEST(Capmode, NewThread) {
     exit(0);
   }
   // Sleep for a bit to allow the subprocess to finish.
-  sleep(1);
+  sleep(2);
 }
