@@ -554,17 +554,15 @@ TEST(Capability, SyscallAt) {
   if (rc < 0 && errno != EEXIST) return;
 
   cap_rights_t r_all;
-  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP,
-#ifdef CAP_MKNODAT
-                  CAP_MKNODAT,
-#endif
-                  CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
+  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP, CAP_MKNODAT, CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
   cap_rights_t r_no_unlink;
   cap_rights_init(&r_no_unlink, CAP_READ, CAP_LOOKUP, CAP_MKDIRAT, CAP_MKFIFOAT);
   cap_rights_t r_no_mkdir;
   cap_rights_init(&r_no_mkdir, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKFIFOAT);
   cap_rights_t r_no_mkfifo;
   cap_rights_init(&r_no_mkfifo, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
+  cap_rights_t r_no_mknod;
+  cap_rights_init(&r_no_mknod, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
 
   int dfd = open("/tmp/cap_at_topdir", O_RDONLY);
   EXPECT_OK(dfd);
@@ -580,6 +578,9 @@ TEST(Capability, SyscallAt) {
   int cap_dfd_no_mkfifo = dup(dfd);
   EXPECT_OK(cap_dfd_no_mkfifo);
   EXPECT_OK(cap_rights_limit(cap_dfd_no_mkfifo, &r_no_mkfifo));
+  int cap_dfd_no_mknod = dup(dfd);
+  EXPECT_OK(cap_dfd_no_mknod);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_mknod, &r_no_mknod));
 
   // Need CAP_MKDIRAT to mkdirat(2).
   EXPECT_NOTCAPABLE(mkdirat(cap_dfd_no_mkdir, "cap_subdir", 0755));
@@ -591,32 +592,27 @@ TEST(Capability, SyscallAt) {
   EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
 
-#ifdef HAVE_MKFIFOAT
   // Need CAP_MKFIFOAT to mkfifoat(2).
   EXPECT_NOTCAPABLE(mkfifoat(cap_dfd_no_mkfifo, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
-#endif
 
-  if (!MKNOD_REQUIRES_ROOT || getuid() == 0) {
-#ifdef CAP_MKNODAT
-#ifdef HAVE_MKNOD_IFREG
-    // Need CAP_MKNODAT to mknodat(2) a regular file
-    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_regular", S_IFREG|0755, 0));
-    unlink("/tmp/cap_at_topdir/cap_regular");
-    EXPECT_OK(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
-    unlink("/tmp/cap_at_topdir/cap_regular");
-#endif
-#endif
+  if (getuid() == 0) {
+    // Need CAP_MKNODAT to mknodat(2) a device
+    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_device", S_IFCHR|0755, makedev(99, 123)));
+    unlink("/tmp/cap_at_topdir/cap_device");
+    EXPECT_OK(mknodat(cap_dfd_all, "cap_device", S_IFCHR|0755, makedev(99, 123)));
+    unlink("/tmp/cap_at_topdir/cap_device");
 
     // Need CAP_MKFIFOAT to mknodat(2) for a FIFO.
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
+  } else {
+    fprintf(stderr, "mknodat(2) tests need to be run as root; skipping\n");
   }
-
   close(cap_dfd_all);
   close(cap_dfd_no_mkfifo);
   close(cap_dfd_no_mkdir);

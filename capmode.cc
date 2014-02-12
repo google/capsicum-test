@@ -80,7 +80,7 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   EXPECT_CAPMODE(link("/tmp/foo", "/tmp/bar"));
   struct stat sb;
   EXPECT_CAPMODE(lstat("/tmp/cap_capmode_lstat", &sb));
-  EXPECT_CAPMODE(mknod("/tmp/capmode_mknod", 06440, 0));
+  EXPECT_CAPMODE(mknod("/tmp/capmode_mknod", 0644, 0));
   EXPECT_CAPMODE(bogus_mount_());
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
   char buf[64];

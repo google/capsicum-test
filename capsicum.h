@@ -125,6 +125,14 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 #define CAP_MMAP_X CAP_MAPEXEC
 #endif
 
+#ifndef CAP_MKFIFOAT
+#define CAP_MKFIFOAT CAP_MKFIFO
+#endif
+
+#ifndef CAP_MKNODAT
+#define CAP_MKNODAT CAP_MKFIFOAT
+#endif
+
 #ifndef CAP_RIGHTS_VERSION
 /************************************************************
  * Capsicum compatibility layer: implement new (FreeBSD10.x)
@@ -230,7 +238,6 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
 
 #define CAP_MKDIRAT CAP_MKDIR
 #define CAP_UNLINKAT CAP_RMDIR
-#define CAP_MKFIFOAT CAP_MKFIFO
 #define CAP_SOCK_CLIENT \
         (CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
          CAP_PEELOFF | CAP_READ | CAP_WRITE | CAP_SETSOCKOPT | CAP_SHUTDOWN)
