@@ -32,13 +32,12 @@ extern "C" {
 // FreeBSD does not generate a capability from accept(cap_fd,...)
 // #define CAP_FROM_ACCEPT
 
-#endif
+#endif  /* FreeBSD */
 
 /************************************************************
  * Linux
  ************************************************************/
 #ifdef __linux__
-/* Linux definitions */
 #include <errno.h>
 #include <unistd.h>
 #include <sys/prctl.h>
@@ -104,14 +103,12 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 }
 #endif
 
-#endif
+#endif  /* Linux */
 
-
-#ifndef CAP_RIGHTS_VERSION
-/* Old-style (FreeBSD 9.x) Capsicum API */
-#define OLD_CAP_RIGHTS_T
-#endif
-
+/************************************************************
+ * Define new-style rights in terms of old-style rights if
+ * absent.
+ ************************************************************/
 #ifdef CAP_PREAD
 /* Existence of CAP_PREAD implies new-style CAP_SEEK semantics */
 #define CAP_SEEK_ASWAS 0
@@ -128,10 +125,11 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 #define CAP_MMAP_X CAP_MAPEXEC
 #endif
 
-#ifdef OLD_CAP_RIGHTS_T
+#ifndef CAP_RIGHTS_VERSION
 /************************************************************
  * Capsicum compatibility layer: implement new (FreeBSD10.x)
- * API in terms of original (FreeBSD9.x) functionality.
+ * rights manipulation API in terms of original (FreeBSD9.x)
+ * functionality.
  ************************************************************/
 #include <stdarg.h>
 #include <stdio.h>
@@ -261,6 +259,7 @@ inline std::ostream& operator<<(std::ostream& os, cap_rights_t rights) {
   }
   return os;
 }
-#endif
+
+#endif  /* old/new style rights manipulation */
 
 #endif /*__CAPSICUM_H__*/

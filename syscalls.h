@@ -108,7 +108,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 /* FreeBSD effectively only allows root to call sched_setscheduler */
 #define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
 
-#endif
+#endif  /* FreeBSD */
 
 /************************************************************
  * Linux
@@ -185,6 +185,6 @@ inline pid_t getpid_() {
 /* Linux allows anyone to call sched_setscheduler */
 #define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
 
-#endif
+#endif  /* Linux */
 
 #endif /*__SYSCALLS_H__*/
