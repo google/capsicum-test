@@ -108,6 +108,15 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 #define OLD_CAP_RIGHTS_T
 #endif
 
+#ifdef CAP_PREAD
+/* Existence of CAP_PREAD implies new-style CAP_SEEK semantics */
+#define CAP_SEEK_ASWAS 0
+#else
+/* Old-style CAP_SEEK semantics */
+#define CAP_SEEK_ASWAS CAP_SEEK
+#define CAP_PREAD CAP_READ
+#define CAP_PWRITE CAP_WRITE
+#endif
 
 #ifndef CAP_MMAP_R
 #define CAP_MMAP_R CAP_READ
@@ -217,8 +226,6 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
   return cap_getrights(fd, rights);
 }
 
-#define CAP_PREAD CAP_READ
-#define CAP_PWRITE CAP_WRITE
 #define CAP_MKDIRAT CAP_MKDIR
 #define CAP_UNLINKAT CAP_RMDIR
 #define CAP_MKFIFOAT CAP_MKFIFO
@@ -230,13 +237,10 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
          CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_READ | CAP_WRITE | \
          CAP_SETSOCKOPT | CAP_SHUTDOWN)
 #define CAP_EVENT CAP_POLL_EVENT
-#define CAP_SEEK_ASWAS CAP_SEEK
 
 #else
 
 /* New-style Capsicum API extras */
-#define CAP_SEEK_ASWAS 0
-
 #include <stdio.h>
 inline void cap_rights_describe(const cap_rights_t *rights, char *buffer) {
   for (int ii = 0; ii < (CAP_RIGHTS_VERSION+2); ii++) {
