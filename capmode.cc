@@ -537,3 +537,27 @@ FORK_TEST(Capmode, NewThread) {
   // Sleep for a bit to allow the subprocess to finish.
   sleep(2);
 }
+
+static int had_signal = 0;
+static void handle_signal(int x) { had_signal = 1; }
+
+FORK_TEST(Capmode, SelfKill) {
+  pid_t me = getpid();
+  sighandler_t original = signal(SIGUSR1, handle_signal);
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: sleep and exit
+    sleep(1);
+    exit(0);
+  }
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // Can only kill(2) to own pid.
+  EXPECT_CAPMODE(kill(child, SIGUSR1));
+  EXPECT_OK(kill(me, SIGUSR1));
+  EXPECT_EQ(1, had_signal);
+
+  signal(SIGUSR1, original);
+}
