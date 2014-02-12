@@ -45,3 +45,7 @@ The following kernel configuration options are needed to run the tests:
  - `CONFIG_SECURITY_CAPSICUM`: enable the Capsicum LSM
  - `CONFIG_PROCDESC`: enable Capsicum process-descriptor functionality
  - `CONFIG_DEBUG_FS`: enable debug filesystem
+
+Also, the headers for POSIX.1e capabilities are needed to build the Linux version
+of the tests.  On Debian systems this is typically provided by the libcap-deb
+package.
