@@ -375,6 +375,64 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
 #endif
 }
 
+TEST(Capmode, AllowedAtSyscalls) {
+  int rc = mkdir("/tmp/cap_at_syscalls", 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+  int dfd = open("/tmp/cap_at_syscalls", O_RDONLY);
+  EXPECT_OK(dfd);
+
+  int file = openat(dfd, "testfile", O_RDONLY|O_CREAT, 0644);
+  EXPECT_OK(file);
+  EXPECT_OK(close(file));
+
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: enter cap mode and run tests
+    EXPECT_OK(cap_enter());  // Enter capability mode
+
+    struct stat fs;
+    EXPECT_OK(fstatat(dfd, "testfile", &fs, 0));
+    EXPECT_OK(mkdirat(dfd, "subdir", 0600));
+    EXPECT_OK(fchmodat(dfd, "subdir", 0644, 0));
+    EXPECT_OK(faccessat(dfd, "subdir", F_OK, 0));
+    EXPECT_OK(renameat(dfd, "subdir", dfd, "subdir2"));
+    EXPECT_OK(renameat(dfd, "subdir2", dfd, "subdir"));
+    struct timeval tv[2];
+    struct timezone tz;
+    EXPECT_OK(gettimeofday(&tv[0], &tz));
+    EXPECT_OK(gettimeofday(&tv[1], &tz));
+    EXPECT_OK(futimesat(dfd, "testfile", tv));
+
+#ifdef AT_SYSCALLS_IN_CAPMODE
+    EXPECT_OK(fchownat(dfd, "testfile",  fs.st_uid, fs.st_gid, 0));
+    EXPECT_OK(linkat(dfd, "testfile", dfd, "linky", 0));
+    EXPECT_OK(symlinkat("testfile", dfd, "symlink"));
+    char buffer[256];
+    EXPECT_OK(readlinkat(dfd, "symlink", buffer, sizeof(buffer)));
+    EXPECT_OK(unlinkat(dfd, "linky", 0));
+    EXPECT_OK(unlinkat(dfd, "subdir", AT_REMOVEDIR));
+#endif
+
+    exit(HasFailure());
+  }
+
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  // Tidy up.
+  close(dfd);
+  rmdir("/tmp/cap_at_syscalls/subdir");
+  unlink("/tmp/cap_at_syscalls/symlink");
+  unlink("/tmp/cap_at_syscalls/linky");
+  unlink("/tmp/cap_at_syscalls/testfile");
+  rmdir("/tmp/cap_at_syscalls");
+}
+
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   umask(022);
   mode_t um_before = umask(022);
