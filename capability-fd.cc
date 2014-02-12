@@ -337,19 +337,19 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(fstat(cap_fd, &sb), rights, CAP_FSTAT);
 
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD);
+                          rights, CAP_MMAP, CAP_MMAP_R);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PWRITE);
+                          rights, CAP_MMAP, CAP_MMAP_W);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC, MAP_SHARED, cap_fd, 0),
                           rights, CAP_MMAP, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD, CAP_PWRITE);
+                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_W);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD, CAP_MMAP_X);
+                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_X, CAP_PWRITE);
+                          rights, CAP_MMAP, CAP_MMAP_W, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD, CAP_PWRITE, CAP_MMAP_X);
+                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_W, CAP_MMAP_X);
 
   CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
 #ifdef HAVE_SYNC_FILE_RANGE
