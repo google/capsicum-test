@@ -488,6 +488,7 @@ TEST(Linux, inotify) {
   close(cap_fd_wo);
   close(cap_fd_ro);
   close(i_fd);
+  unlink("/tmp/cap_inotify");
 }
 
 FORK_TEST(Linux, Namespace) {
