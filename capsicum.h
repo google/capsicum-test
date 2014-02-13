@@ -20,6 +20,7 @@ extern "C" {
 #if __FreeBSD_version >= 1000000
 #define AT_SYSCALLS_IN_CAPMODE
 #define HAVE_CAP_RIGHTS_GET
+#define HAVE_CAP_RIGHTS_LIMIT
 #endif
 
 #ifdef __cplusplus
@@ -142,6 +143,14 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
 }
 #endif
 
+#ifndef HAVE_CAP_RIGHTS_LIMIT
+inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
+  int cap = cap_new(fd, *rights);
+  if (cap < 0) return cap;
+  return dup2(cap, fd);
+}
+#endif
+
 #ifndef CAP_RIGHTS_VERSION
 /************************************************************
  * Capsicum compatibility layer: implement new (FreeBSD10.x)
@@ -234,12 +243,6 @@ inline void cap_rights_describe(const cap_rights_t *rights, char *buffer) {
   sprintf(buffer, "0x%016llx", (*rights));
 }
 
-/* Core functionality */
-inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
-  int cap = cap_new(fd, *rights);
-  if (cap < 0) return cap;
-  return dup2(cap, fd);
-}
 
 #define CAP_MKDIRAT CAP_MKDIR
 #define CAP_UNLINKAT CAP_RMDIR
