@@ -136,6 +136,35 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 #define CAP_MKNODAT CAP_MKFIFOAT
 #endif
 
+#ifndef CAP_MKDIRAT
+#define CAP_MKDIRAT CAP_MKDIR
+#endif
+
+#ifndef CAP_UNLINKAT
+#define CAP_UNLINKAT CAP_RMDIR
+#endif
+
+#ifndef CAP_SOCK_CLIENT
+#define CAP_SOCK_CLIENT \
+        (CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
+         CAP_PEELOFF | CAP_READ | CAP_WRITE | CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#endif
+
+#ifndef CAP_SOCK_SERVER
+#define CAP_SOCK_SERVER \
+        (CAP_ACCEPT | CAP_BIND | CAP_GETPEERNAME | CAP_GETSOCKNAME | \
+         CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_READ | CAP_WRITE | \
+         CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#endif
+
+#ifndef CAP_EVENT
+#define CAP_EVENT CAP_POLL_EVENT
+#endif
+
+/************************************************************
+ * Define new-style API functions in terms of old-style API
+ * functions if absent.
+ ************************************************************/
 #ifndef HAVE_CAP_RIGHTS_GET
 /* Define cap_rights_get() in terms of old-style cap_getrights() */
 inline int cap_rights_get(int fd, cap_rights_t *rights) {
@@ -144,6 +173,7 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
 #endif
 
 #ifndef HAVE_CAP_RIGHTS_LIMIT
+/* Define cap_rights_limit() in terms of old-style cap_new() and dup2() */
 inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
   int cap = cap_new(fd, *rights);
   if (cap < 0) return cap;
@@ -242,18 +272,6 @@ inline bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *lit
 inline void cap_rights_describe(const cap_rights_t *rights, char *buffer) {
   sprintf(buffer, "0x%016llx", (*rights));
 }
-
-
-#define CAP_MKDIRAT CAP_MKDIR
-#define CAP_UNLINKAT CAP_RMDIR
-#define CAP_SOCK_CLIENT \
-        (CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
-         CAP_PEELOFF | CAP_READ | CAP_WRITE | CAP_SETSOCKOPT | CAP_SHUTDOWN)
-#define CAP_SOCK_SERVER \
-        (CAP_ACCEPT | CAP_BIND | CAP_GETPEERNAME | CAP_GETSOCKNAME | \
-         CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_READ | CAP_WRITE | \
-         CAP_SETSOCKOPT | CAP_SHUTDOWN)
-#define CAP_EVENT CAP_POLL_EVENT
 
 #else
 
