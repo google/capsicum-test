@@ -17,7 +17,7 @@ extern "C" {
 #include <sys/param.h>
 #include <sys/capability.h>
 #include <sys/procdesc.h>
-#if __FreeBSD__version >= 1000000
+#if __FreeBSD_version >= 1000000
 #define AT_SYSCALLS_IN_CAPMODE
 #define HAVE_CAP_RIGHTS_GET
 #endif
