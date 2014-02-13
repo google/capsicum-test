@@ -19,6 +19,7 @@ extern "C" {
 #include <sys/procdesc.h>
 #if __FreeBSD__version >= 1000000
 #define AT_SYSCALLS_IN_CAPMODE
+#define HAVE_CAP_RIGHTS_GET
 #endif
 
 #ifdef __cplusplus
@@ -72,8 +73,9 @@ inline int cap_new(int fd, cap_rights_t rights) {
   return syscall(__NR_cap_new, fd, rights);
 }
 
-inline int cap_getrights(int fd, cap_rights_t *rights) {
-  return syscall(__NR_cap_getrights, fd, rights);
+#define HAVE_CAP_RIGHTS_GET
+inline int cap_rights_get(int fd, cap_rights_t *rights) {
+  return syscall(__NR_cap_rights_get, fd, rights);
 }
 
 // Linux glibc includes an fexecve() function, implemented via the /proc
@@ -131,6 +133,13 @@ inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
 
 #ifndef CAP_MKNODAT
 #define CAP_MKNODAT CAP_MKFIFOAT
+#endif
+
+#ifndef HAVE_CAP_RIGHTS_GET
+/* Define cap_rights_get() in terms of old-style cap_getrights() */
+inline int cap_rights_get(int fd, cap_rights_t *rights) {
+  return cap_getrights(fd, rights);
+}
 #endif
 
 #ifndef CAP_RIGHTS_VERSION
@@ -230,10 +239,6 @@ inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
   int cap = cap_new(fd, *rights);
   if (cap < 0) return cap;
   return dup2(cap, fd);
-}
-
-inline int cap_rights_get(int fd, cap_rights_t *rights) {
-  return cap_getrights(fd, rights);
 }
 
 #define CAP_MKDIRAT CAP_MKDIR
