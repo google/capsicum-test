@@ -177,7 +177,10 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
 inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
   int cap = cap_new(fd, *rights);
   if (cap < 0) return cap;
-  return dup2(cap, fd);
+  int rc = dup2(cap, fd);
+  if (rc < 0) return rc;
+  close(cap);
+  return rc;
 }
 #endif
 
