@@ -60,12 +60,12 @@ TEST_F(new_cap, rewrap) {
 
 	old_count = file_count(self->orig);
 
-	fd = sys_cap_new(self->cap, -1);
+	fd = sys_cap_new(self->cap, 0);
 	ASSERT_GT(fd, 0);
 	f = fcheck(fd);
 
 	unwrapped_file = capsicum_unwrap(f, &rights);
-	EXPECT_EQ(rights, -1);
+	EXPECT_EQ(rights, 0);
 	EXPECT_EQ(unwrapped_file, self->orig);
 	EXPECT_EQ(file_count(self->orig), old_count + 1);
 	sys_close(fd);
