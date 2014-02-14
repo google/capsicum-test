@@ -20,7 +20,7 @@ FIXTURE(new_cap) {
 FIXTURE_SETUP(new_cap) {
 	self->orig = fget(0, CAP_NONE);
 	ASSERT_FALSE(IS_ERR(self->orig));
-	self->cap = capsicum_install_fd(self->orig, 0);
+	self->cap = sys_cap_new(0, 0);
 	ASSERT_GE(self->cap, 0);
 	/* The new capability fd must not be the same as the original (0). */
 	ASSERT_NE(self->cap, 0);
@@ -60,12 +60,12 @@ TEST_F(new_cap, rewrap) {
 
 	old_count = file_count(self->orig);
 
-	fd = capsicum_install_fd(self->capf, -1);
+	fd = sys_cap_new(self->cap, 0);
 	ASSERT_GT(fd, 0);
 	f = fcheck(fd);
 
 	unwrapped_file = capsicum_unwrap(f, &rights);
-	EXPECT_EQ(rights, -1);
+	EXPECT_EQ(rights, 0);
 	EXPECT_EQ(unwrapped_file, self->orig);
 	EXPECT_EQ(file_count(self->orig), old_count + 1);
 	sys_close(fd);
@@ -87,7 +87,7 @@ FIXTURE(fget) {
 FIXTURE_SETUP(fget) {
 	self->orig = fget(0, CAP_NONE);
 	self->orig_refs = file_count(self->orig);
-	self->cap = capsicum_install_fd(self->orig, CAP_READ|CAP_WRITE|CAP_SEEK);
+	self->cap = sys_cap_new(0, CAP_READ|CAP_WRITE|CAP_SEEK);
 	EXPECT_EQ(file_count(self->orig), self->orig_refs+1);
 	EXPECT_EQ(file_count(fcheck(self->cap)), 1);
 }

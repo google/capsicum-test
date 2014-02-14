@@ -9,7 +9,7 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #include <sys/fanotify.h>
-#include <sys/capability.h>
+#include <sys/capability.h>  // Requires e.g. libcap-dev package for POSIX.1e capabilities headers
 #include <linux/aio_abi.h>
 #include <linux/filter.h>
 #include <poll.h>
@@ -488,6 +488,7 @@ TEST(Linux, inotify) {
   close(cap_fd_wo);
   close(cap_fd_ro);
   close(i_fd);
+  unlink("/tmp/cap_inotify");
 }
 
 FORK_TEST(Linux, Namespace) {

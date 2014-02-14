@@ -96,19 +96,16 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define HAVE_STAT_BIRTHTIME
 #define HAVE_SYSCTL
 #define HAVE_FPATHCONF
-#define HAVE_MKFIFOAT
 #define HAVE_F_DUP2FD
 /* TODO(FreeBSD): re-enable when pselect(2) is allowed in capability mode */
 /* #define HAVE_PSELECT */
 
 /* FreeBSD only allows root to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 1
-/* FreeBSD only allows root to call mknod */
-#define MKNOD_REQUIRES_ROOT 1
 /* FreeBSD effectively only allows root to call sched_setscheduler */
 #define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
 
-#endif
+#endif  /* FreeBSD */
 
 /************************************************************
  * Linux
@@ -175,16 +172,12 @@ inline pid_t getpid_() {
 #define HAVE_VMSPLICE
 #define HAVE_PSELECT
 #define HAVE_PPOLL
-/* can call mknod("filename", S_IFREG|mode,..) */
-#define HAVE_MKNOD_IFREG
 
 /* Linux allows anyone to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 0
-/* Linux allows anyone to call mknod */
-#define MKNOD_REQUIRES_ROOT 0
 /* Linux allows anyone to call sched_setscheduler */
 #define SCHED_SETSCHEDULER_REQUIRES_ROOT 1
 
-#endif
+#endif  /* Linux */
 
 #endif /*__SYSCALLS_H__*/

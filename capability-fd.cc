@@ -55,19 +55,7 @@ FORK_TEST(Capability, CapNew) {
   cap_rights_init(&r_rsmapchmod, CAP_READ, CAP_SEEK, CAP_MMAP, CAP_FCHMOD);
   int cap_cap_fd = dup(cap_fd);
   EXPECT_OK(cap_cap_fd);
-  rc = cap_rights_limit(cap_cap_fd, &r_rsmapchmod);
-  if (rc < 0) {
-    // Either we fail with ENOTCAPABLE
-    EXPECT_EQ(ENOTCAPABLE, errno);
-  } else {
-    // Or we succeed and the rights are subsetted anyway.
-    EXPECT_OK(cap_rights_get(cap_cap_fd, &rights));
-    EXPECT_RIGHTS_EQ(&r_rs, &rights);
-    // Check in practice as well as in theory.
-    EXPECT_OK(cap_enter());
-    EXPECT_NOTCAPABLE(fchmod(cap_cap_fd, 0644));
-    EXPECT_OK(close(cap_cap_fd));
-  }
+  EXPECT_NOTCAPABLE(cap_rights_limit(cap_cap_fd, &r_rsmapchmod));
   EXPECT_OK(close(cap_fd));
 }
 
@@ -337,19 +325,19 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(fstat(cap_fd, &sb), rights, CAP_FSTAT);
 
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD);
+                          rights, CAP_MMAP, CAP_MMAP_R);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PWRITE);
+                          rights, CAP_MMAP, CAP_MMAP_W);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC, MAP_SHARED, cap_fd, 0),
                           rights, CAP_MMAP, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD, CAP_PWRITE);
+                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_W);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD, CAP_MMAP_X);
+                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_X, CAP_PWRITE);
+                          rights, CAP_MMAP, CAP_MMAP_W, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_PREAD, CAP_PWRITE, CAP_MMAP_X);
+                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_W, CAP_MMAP_X);
 
   CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
 #ifdef HAVE_SYNC_FILE_RANGE
@@ -554,17 +542,15 @@ TEST(Capability, SyscallAt) {
   if (rc < 0 && errno != EEXIST) return;
 
   cap_rights_t r_all;
-  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP,
-#ifdef CAP_MKNODAT
-                  CAP_MKNODAT,
-#endif
-                  CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
+  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP, CAP_MKNODAT, CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
   cap_rights_t r_no_unlink;
   cap_rights_init(&r_no_unlink, CAP_READ, CAP_LOOKUP, CAP_MKDIRAT, CAP_MKFIFOAT);
   cap_rights_t r_no_mkdir;
   cap_rights_init(&r_no_mkdir, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKFIFOAT);
   cap_rights_t r_no_mkfifo;
   cap_rights_init(&r_no_mkfifo, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
+  cap_rights_t r_no_mknod;
+  cap_rights_init(&r_no_mknod, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
 
   int dfd = open("/tmp/cap_at_topdir", O_RDONLY);
   EXPECT_OK(dfd);
@@ -580,6 +566,9 @@ TEST(Capability, SyscallAt) {
   int cap_dfd_no_mkfifo = dup(dfd);
   EXPECT_OK(cap_dfd_no_mkfifo);
   EXPECT_OK(cap_rights_limit(cap_dfd_no_mkfifo, &r_no_mkfifo));
+  int cap_dfd_no_mknod = dup(dfd);
+  EXPECT_OK(cap_dfd_no_mknod);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_mknod, &r_no_mknod));
 
   // Need CAP_MKDIRAT to mkdirat(2).
   EXPECT_NOTCAPABLE(mkdirat(cap_dfd_no_mkdir, "cap_subdir", 0755));
@@ -591,32 +580,27 @@ TEST(Capability, SyscallAt) {
   EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
   rmdir("/tmp/cap_at_topdir/cap_subdir");
 
-#ifdef HAVE_MKFIFOAT
   // Need CAP_MKFIFOAT to mkfifoat(2).
   EXPECT_NOTCAPABLE(mkfifoat(cap_dfd_no_mkfifo, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
   unlink("/tmp/cap_at_topdir/cap_fifo");
-#endif
 
-  if (!MKNOD_REQUIRES_ROOT || getuid() == 0) {
-#ifdef CAP_MKNODAT
-#ifdef HAVE_MKNOD_IFREG
-    // Need CAP_MKNODAT to mknodat(2) a regular file
-    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_regular", S_IFREG|0755, 0));
-    unlink("/tmp/cap_at_topdir/cap_regular");
-    EXPECT_OK(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
-    unlink("/tmp/cap_at_topdir/cap_regular");
-#endif
-#endif
+  if (getuid() == 0) {
+    // Need CAP_MKNODAT to mknodat(2) a device
+    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_device", S_IFCHR|0755, makedev(99, 123)));
+    unlink("/tmp/cap_at_topdir/cap_device");
+    EXPECT_OK(mknodat(cap_dfd_all, "cap_device", S_IFCHR|0755, makedev(99, 123)));
+    unlink("/tmp/cap_at_topdir/cap_device");
 
     // Need CAP_MKFIFOAT to mknodat(2) for a FIFO.
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
+  } else {
+    fprintf(stderr, "mknodat(2) tests need to be run as root; skipping\n");
   }
-
   close(cap_dfd_all);
   close(cap_dfd_no_mkfifo);
   close(cap_dfd_no_mkdir);
