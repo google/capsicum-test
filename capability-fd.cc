@@ -55,19 +55,7 @@ FORK_TEST(Capability, CapNew) {
   cap_rights_init(&r_rsmapchmod, CAP_READ, CAP_SEEK, CAP_MMAP, CAP_FCHMOD);
   int cap_cap_fd = dup(cap_fd);
   EXPECT_OK(cap_cap_fd);
-  rc = cap_rights_limit(cap_cap_fd, &r_rsmapchmod);
-  if (rc < 0) {
-    // Either we fail with ENOTCAPABLE
-    EXPECT_EQ(ENOTCAPABLE, errno);
-  } else {
-    // Or we succeed and the rights are subsetted anyway.
-    EXPECT_OK(cap_rights_get(cap_cap_fd, &rights));
-    EXPECT_RIGHTS_EQ(&r_rs, &rights);
-    // Check in practice as well as in theory.
-    EXPECT_OK(cap_enter());
-    EXPECT_NOTCAPABLE(fchmod(cap_cap_fd, 0644));
-    EXPECT_OK(close(cap_cap_fd));
-  }
+  EXPECT_NOTCAPABLE(cap_rights_limit(cap_cap_fd, &r_rsmapchmod));
   EXPECT_OK(close(cap_fd));
 }
 
