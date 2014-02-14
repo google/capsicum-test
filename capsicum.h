@@ -205,7 +205,7 @@ inline cap_rights_t* _cap_rights_init(cap_rights_t *rights, ...) {
   cap_rights_t right;
   *rights = 0;
   va_start(ap, rights);
-  while (true) {
+  while (1) {
     right = va_arg(ap, cap_rights_t);
     *rights |= right;
     if (right == 0) break;
@@ -218,7 +218,7 @@ inline cap_rights_t* _cap_rights_set(cap_rights_t *rights, ...) {
   va_list ap;
   cap_rights_t right;
   va_start(ap, rights);
-  while (true) {
+  while (1) {
     right = va_arg(ap, cap_rights_t);
     *rights |= right;
     if (right == 0) break;
@@ -231,7 +231,7 @@ inline cap_rights_t* _cap_rights_clear(cap_rights_t *rights, ...) {
   va_list ap;
   cap_rights_t right;
   va_start(ap, rights);
-  while (true) {
+  while (1) {
     right = va_arg(ap, cap_rights_t);
     *rights &= ~right;
     if (right == 0) break;
@@ -240,12 +240,12 @@ inline cap_rights_t* _cap_rights_clear(cap_rights_t *rights, ...) {
   return rights;
 }
 
-inline bool _cap_rights_is_set(const cap_rights_t *rights, ...) {
+inline int _cap_rights_is_set(const cap_rights_t *rights, ...) {
   va_list ap;
   cap_rights_t right;
   cap_rights_t accumulated = 0;
   va_start(ap, rights);
-  while (true) {
+  while (1) {
     right = va_arg(ap, cap_rights_t);
     accumulated |= right;
     if (right == 0) break;
@@ -254,8 +254,8 @@ inline bool _cap_rights_is_set(const cap_rights_t *rights, ...) {
   return (accumulated & *rights) == accumulated;
 }
 
-inline bool _cap_rights_is_valid(const cap_rights_t *rights) {
-  return true;
+inline int _cap_rights_is_valid(const cap_rights_t *rights) {
+  return 1;
 }
 
 inline cap_rights_t* cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src) {
@@ -268,7 +268,7 @@ inline cap_rights_t* cap_rights_remove(cap_rights_t *dst, const cap_rights_t *sr
   return dst;
 }
 
-inline bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little) {
+inline int cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little) {
   return ((*big) & (*little)) == (*little);
 }
 
