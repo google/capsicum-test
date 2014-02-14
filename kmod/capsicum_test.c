@@ -37,14 +37,14 @@ TEST_F(new_cap, init_ok) {
 	u64 rights;
 	struct file *f;
 
-	EXPECT_GT(file_count(self->orig), 1);
-	EXPECT_EQ(file_count(self->capf), 1);
+	EXPECT_LT(1, file_count(self->orig));
+	EXPECT_EQ(1, file_count(self->capf));
 
 	rights = (u64)-1;
 	f = capsicum_unwrap(self->capf, &rights);
 	/* Verify that the rights are as we set them in setup. */
-	EXPECT_EQ(rights, 0);
-	EXPECT_EQ(f, self->orig);
+	EXPECT_EQ(0, rights);
+	EXPECT_EQ(self->orig, f);
 }
 
 TEST_F(new_cap, rewrap) {
@@ -65,9 +65,9 @@ TEST_F(new_cap, rewrap) {
 	f = fcheck(fd);
 
 	unwrapped_file = capsicum_unwrap(f, &rights);
-	EXPECT_EQ(rights, 0);
-	EXPECT_EQ(unwrapped_file, self->orig);
-	EXPECT_EQ(file_count(self->orig), old_count + 1);
+	EXPECT_EQ(0, rights);
+	EXPECT_EQ(self->orig, unwrapped_file);
+	EXPECT_EQ(old_count + 1, file_count(self->orig));
 	sys_close(fd);
 }
 
@@ -101,9 +101,9 @@ FIXTURE_TEARDOWN(fget) {
 TEST_F(fget, fget) {
 	struct file *f = fget(self->cap, CAP_NONE);
 
-	EXPECT_EQ(f, self->orig);
-	EXPECT_EQ(file_count(fcheck(self->cap)), 1);
-	EXPECT_EQ(file_count(self->orig), self->orig_refs+2);
+	EXPECT_EQ(self->orig, f);
+	EXPECT_EQ(1, file_count(fcheck(self->cap)));
+	EXPECT_EQ(self->orig_refs + 2, file_count(self->orig));
 
 	fput(f);
 }
@@ -112,9 +112,9 @@ TEST_F(fget, fget_light) {
 	int fpn;
 	struct file *f = fget_light(self->cap, CAP_NONE, &fpn);
 
-	EXPECT_EQ(f, self->orig);
+	EXPECT_EQ(self->orig, f);
 	EXPECT_FALSE(fpn);
-	EXPECT_EQ(file_count(self->orig), self->orig_refs+1);
+	EXPECT_EQ(self->orig_refs + 1, file_count(self->orig));
 
 	fput_light(f, fpn);
 }
