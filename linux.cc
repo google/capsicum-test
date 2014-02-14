@@ -711,8 +711,9 @@ FORK_TEST(Linux, NoNewPrivs) {
   struct sock_filter filter[] = {
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
   };
-  struct sock_fprog bpf = {.len = (sizeof(filter) / sizeof(filter[0])),
-                           .filter = filter};
+  struct sock_fprog bpf; 
+  bpf.len = (sizeof(filter) / sizeof(filter[0]));
+  bpf.filter = filter;
   rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EACCES, errno);
