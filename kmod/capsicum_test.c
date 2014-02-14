@@ -9,10 +9,32 @@
 #include <linux/jiffies.h>
 #include <linux/sched.h>
 #include "test_harness.h"
+#include "../capsicum-rights.h"
+
+/* Local copy of sys_dup */
+
+unsigned int do_dup(unsigned int fildes)
+{
+	int ret = -EBADF;
+	struct file *file = fget_raw_no_unwrap(fildes);
+
+	if (!IS_ERR(file)) {
+		ret = get_unused_fd();
+		if (ret >= 0)
+			fd_install(ret, file);
+		else
+			fput(file);
+	} else {
+		ret = PTR_ERR(file);
+	}
+	return ret;
+}
 
 /* Test the wrapping and unwrapping of file descriptors in capabilities. */
 FIXTURE(new_cap) {
 	struct file *orig;
+	int orig_refs;
+	cap_rights_t rights;
 	int cap;
 	struct file *capf;
 };
@@ -20,15 +42,29 @@ FIXTURE(new_cap) {
 FIXTURE_SETUP(new_cap) {
 	self->orig = fget(0, CAP_NONE);
 	ASSERT_FALSE(IS_ERR(self->orig));
-	self->cap = sys_cap_new(0, 0);
+	self->orig_refs = file_count(self->orig);
+
+	/* Create a new FD to use for the test: +1 ref (from fdtable) */
+	self->cap = do_dup(0);
 	ASSERT_GE(self->cap, 0);
-	/* The new capability fd must not be the same as the original (0). */
-	ASSERT_NE(self->cap, 0);
+	EXPECT_EQ(self->orig_refs + 1, file_count(self->orig));
+
+	/* Limit its rights */
+	cap_rights_init(&self->rights, CAP_READ, CAP_WRITE, CAP_SEEK);
+	ASSERT_EQ(0, capsicum_rights_limit(self->cap, &self->rights));
+	/* Delta:
+	 *  +1 ref on underlying (from wrapper)
+	 *  -1 ref on underlying (removed from fdtable) */
+	EXPECT_EQ(self->orig_refs + 1, file_count(self->orig));
+
 	self->capf = fcheck(self->cap);
 	ASSERT_NE(self->capf, NULL);
+	EXPECT_EQ(1, file_count(self->capf));
 }
 
 FIXTURE_TEARDOWN(new_cap) {
+	if (self->orig_refs > 0)
+		EXPECT_EQ(self->orig_refs + 1, file_count(self->orig));
 	fput(self->orig);
 	sys_close(self->cap);
 }
@@ -43,7 +79,7 @@ TEST_F(new_cap, init_ok) {
 	rights = (u64)-1;
 	f = capsicum_unwrap(self->capf, &rights);
 	/* Verify that the rights are as we set them in setup. */
-	EXPECT_EQ(0, rights);
+	EXPECT_EQ(self->rights, rights);
 	EXPECT_EQ(self->orig, f);
 }
 
@@ -51,17 +87,18 @@ TEST_F(new_cap, rewrap) {
 	/* When we wrap an fd in a capability, then wrap that second fd
 	 * in another capability, the new capability will refer to the same
 	 * original file, and the reference count of the original file
-	 * will be incremented.
-	 */
+	 * will be incremented. */
 	struct file *f, *unwrapped_file;
 	u64 rights = CAP_NONE;
 
-	int old_count, fd;
+	int old_count, fd, rc;
 
 	old_count = file_count(self->orig);
 
-	fd = sys_cap_new(self->cap, 0);
+	fd = do_dup(self->cap);
 	ASSERT_GT(fd, 0);
+	rc = capsicum_rights_limit(fd, &rights);
+	EXPECT_EQ(0, rc);
 	f = fcheck(fd);
 
 	unwrapped_file = capsicum_unwrap(f, &rights);
@@ -69,6 +106,10 @@ TEST_F(new_cap, rewrap) {
 	EXPECT_EQ(self->orig, unwrapped_file);
 	EXPECT_EQ(old_count + 1, file_count(self->orig));
 	sys_close(fd);
+
+	/* Closing the fd won't immediately update the refcount on orig,
+	 * so disable the fixture shutdown check */
+	self->orig_refs = -1;
 }
 
 TEST_F(new_cap, is_cap) {
@@ -77,28 +118,7 @@ TEST_F(new_cap, is_cap) {
 }
 
 
-/* Test that the fget() family of functions unwraps capabilities correctly. */
-FIXTURE(fget) {
-	struct file *orig;
-	int cap;
-	int orig_refs;
-};
-
-FIXTURE_SETUP(fget) {
-	self->orig = fget(0, CAP_NONE);
-	self->orig_refs = file_count(self->orig);
-	self->cap = sys_cap_new(0, CAP_READ|CAP_WRITE|CAP_SEEK);
-	EXPECT_EQ(file_count(self->orig), self->orig_refs+1);
-	EXPECT_EQ(file_count(fcheck(self->cap)), 1);
-}
-
-FIXTURE_TEARDOWN(fget) {
-	EXPECT_EQ(file_count(self->orig), self->orig_refs+1);
-	sys_close(self->cap);
-	fput(self->orig);
-}
-
-TEST_F(fget, fget) {
+TEST_F(new_cap, fget) {
 	struct file *f = fget(self->cap, CAP_NONE);
 
 	EXPECT_EQ(self->orig, f);
@@ -108,7 +128,7 @@ TEST_F(fget, fget) {
 	fput(f);
 }
 
-TEST_F(fget, fget_light) {
+TEST_F(new_cap, fget_light) {
 	int fpn;
 	struct file *f = fget_light(self->cap, CAP_NONE, &fpn);
 
@@ -119,7 +139,7 @@ TEST_F(fget, fget_light) {
 	fput_light(f, fpn);
 }
 
-TEST_F(fget, fget_raw) {
+TEST_F(new_cap, fget_raw) {
 	struct file *f = fget_raw(self->cap, CAP_NONE);
 
 	EXPECT_EQ(f, self->orig);
@@ -129,7 +149,7 @@ TEST_F(fget, fget_raw) {
 	fput(f);
 }
 
-TEST_F(fget, fget_raw_light) {
+TEST_F(new_cap, fget_raw_light) {
 	int fpn;
 	struct file *f = fget_raw_light(self->cap, CAP_NONE, NULL, &fpn);
 
@@ -150,10 +170,10 @@ static int test_init(void)
 	REGISTER_TEST_F(new_cap, init_ok);
 	REGISTER_TEST_F(new_cap, rewrap);
 	REGISTER_TEST_F(new_cap, is_cap);
-	REGISTER_TEST_F(fget, fget);
-	REGISTER_TEST_F(fget, fget_light);
-	REGISTER_TEST_F(fget, fget_raw);
-	REGISTER_TEST_F(fget, fget_raw_light);
+	REGISTER_TEST_F(new_cap, fget);
+	REGISTER_TEST_F(new_cap, fget_light);
+	REGISTER_TEST_F(new_cap, fget_raw);
+	REGISTER_TEST_F(new_cap, fget_raw_light);
 	test_harness_run(NULL);
 
 	/* We've run the tests as part of module load processing, so don't load */
