@@ -71,8 +71,9 @@ inline int cap_getmode(unsigned int *mode) {
   return 0;
 }
 
-inline int cap_new(int fd, cap_rights_t rights) {
-  return syscall(__NR_cap_new, fd, rights);
+#define HAVE_CAP_RIGHTS_LIMIT
+inline int cap_rights_limit(int fd, cap_rights_t *rights) {
+  return syscall(__NR_cap_rights_limit, fd, rights);
 }
 
 #define HAVE_CAP_RIGHTS_GET
