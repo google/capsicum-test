@@ -24,8 +24,12 @@ extern "C" {
  * functionality.
  ************************************************************/
 #include <stdarg.h>
+#include <stdbool.h>
 
-/* Rights manipulation macros/functions */
+/* Rights manipulation macros/functions.
+ * Note that these use variadic macros, available in C99 / C++11 (and
+ * also in earlier gcc versions).
+ */
 #define cap_rights_init(rights, ...)   _cap_rights_init((rights), __VA_ARGS__, 0ULL)
 #define cap_rights_set(rights, ...)    _cap_rights_set((rights), __VA_ARGS__, 0ULL)
 #define cap_rights_clear(rights, ...)  _cap_rights_clear((rights), __VA_ARGS__, 0ULL)

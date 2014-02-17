@@ -176,6 +176,7 @@ inline int cap_rights_get(int fd, cap_rights_t *rights) {
 
 #ifndef HAVE_CAP_RIGHTS_LIMIT
 /* Define cap_rights_limit() in terms of old-style cap_new() and dup2() */
+#include <unistd.h>
 inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
   int cap = cap_new(fd, *rights);
   if (cap < 0) return cap;
