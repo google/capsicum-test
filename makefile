@@ -18,8 +18,9 @@ mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
 
 # Simple C test of Capsicum syscalls
-smoketest: smoketest.o capsicum-linux.o
-	$(CXX) -g -o $@ $^
+SMOKETEST_OBJECTS=smoketest.o capsicum-linux.o
+smoketest: $(SMOKETEST_OBJECTS)
+	$(CC) -g -o $@ $(SMOKETEST_OBJECTS)
 
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
@@ -29,4 +30,4 @@ libgtest.a: gtest-all.o
 	$(AR) -rv libgtest.a gtest-all.o
 
 clean:
-	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec smoketest $(OBJECTS)
+	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec smoketest $(SMOKETEST_OBJECTS) $(OBJECTS)

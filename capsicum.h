@@ -95,12 +95,14 @@ inline int cap_rights_limit(int fd, const cap_rights_t *rights) {
 #ifdef CAP_RIGHTS_VERSION
 /* New-style Capsicum API extras for debugging */
 inline void cap_rights_describe(const cap_rights_t *rights, char *buffer) {
-  for (int ii = 0; ii < (CAP_RIGHTS_VERSION+2); ii++) {
+  int ii;
+  for (ii = 0; ii < (CAP_RIGHTS_VERSION+2); ii++) {
     int len = sprintf(buffer, "0x%016llx ", (unsigned long long)rights->cr_rights[ii]);
     buffer += len;
   }
 }
 
+#ifdef __cplusplus
 #include <iostream>
 #include <iomanip>
 inline std::ostream& operator<<(std::ostream& os, cap_rights_t rights) {
@@ -109,6 +111,7 @@ inline std::ostream& operator<<(std::ostream& os, cap_rights_t rights) {
   }
   return os;
 }
+#endif
 
 #else
 
