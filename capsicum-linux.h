@@ -7,6 +7,7 @@
  ************************************************************/
 #include <errno.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -23,6 +24,9 @@ extern "C" {
 #endif
 
 
+/************************************************************
+ * Capsicum System Calls.
+ ************************************************************/
 inline int cap_enter() {
   int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
   if (rc < 0) return rc;
@@ -68,6 +72,33 @@ inline int pdkill(int fd, int signum) {
 inline int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
   return syscall(__NR_pdwait4, fd, status, options, rusage);
 }
+
+/************************************************************
+ * Capsicum Rights Manipulation Functions.
+ ************************************************************/
+
+/*
+ * Variadic macros (requiring C99/C++11) to invoke underlying varargs functions
+ * without need for terminating zero.
+ */
+#define cap_rights_init(...)						\
+	_cap_rights_init(CAP_RIGHTS_VERSION, __VA_ARGS__, 0ULL)
+#define cap_rights_set(rights, ...)					\
+	_cap_rights_set((rights), __VA_ARGS__, 0ULL)
+#define cap_rights_clear(rights, ...)					\
+	_cap_rights_clear((rights), __VA_ARGS__, 0ULL)
+#define cap_rights_is_set(rights, ...)					\
+	_cap_rights_is_set((rights), __VA_ARGS__, 0ULL)
+
+cap_rights_t *_cap_rights_init(int version, cap_rights_t *rights, ...);
+void _cap_rights_set(cap_rights_t *rights, ...);
+void _cap_rights_clear(cap_rights_t *rights, ...);
+bool _cap_rights_is_set(const cap_rights_t *rights, ...);
+
+bool cap_rights_is_valid(const cap_rights_t *rights);
+void cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
+void cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
+bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
 
 #ifdef __cplusplus
 }
