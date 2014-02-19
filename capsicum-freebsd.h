@@ -18,6 +18,7 @@ extern "C" {
 #define AT_SYSCALLS_IN_CAPMODE
 #define HAVE_CAP_RIGHTS_GET
 #define HAVE_CAP_RIGHTS_LIMIT
+#define HAVE_CAP_FCNTLS_LIMIT
 #endif
 
 #ifdef __cplusplus

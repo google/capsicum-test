@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <string>
 #include <map>
@@ -70,30 +71,34 @@ FORK_TEST(Fcntl, Basic) {
 }
 
 // Supported fcntl(2) operations:
-//   FreeBSD9.1:  Linux3.11:       Rights:            Summary:
-//   F_DUPFD      F_DUPFD          NONE               as dup(2)
-//                F_DUPFD_CLOEXEC  NONE               as dup(2) with close-on-exec
-//   F_DUP2FD                      NONE               as dup2(2)
-//   F_GETFD      F_GETFD          NONE               get close-on-exec flag
-//   F_SETFD      F_SETFD          NONE               set close-on-exec flag
-//   F_GETFL      F_GETFL          FCNTL              get file status flag
-//   F_SETFL      F_SETFL          FCNTL              set file status flag
-//   F_GETOWN     F_GETOWN         FCNTL              get pid receiving SIGIO/SIGURG
-//   F_SETOWN     F_SETOWN         FCNTL              set pid receiving SIGIO/SIGURG
-//                F_GETOWN_EX      FCNTL              get pid/thread receiving SIGIO/SIGURG
-//                F_SETOWN_EX      FCNTL              set pid/thread receiving SIGIO/SIGURG
-//   F_GETLK      F_GETLK          FLOCK              get lock info
-//   F_SETLK      F_SETLK          FLOCK              set lock info
-//   F_SETLKW     F_SETLKW         FLOCK              set lock info (blocking)
-//   F_READAHEAD                   NONE               set or clear readahead amount
-//   F_RDAHEAD                     NONE               set or clear readahead amount to 128KB
-//                F_GETSIG         POLL_EVENT|FSIGNAL get signal sent when I/O possible
-//                F_SETSIG         POLL_EVENT_FSIGNAL set signal sent when I/O possible
-//                F_GETLEASE       FLOCK|FSIGNAL      get lease on file descriptor
-//                F_SETLEASE       FLOCK|FSIGNAL      set new lease on file descriptor
-//                F_NOTIFY         NOTIFY             generate signal on changes (dnotify)
-//                F_GETPIPE_SZ     GETSOCKOPT         get pipe size
-//                F_SETPIPE_SZ     SETSOCKOPT         set pipe size
+//   FreeBSD10         FreeBSD9.1:  Linux3.11:       Rights:            Summary:
+//   F_DUPFD           F_DUPFD      F_DUPFD          NONE               as dup(2)
+//   F_DUPFD_CLOEXEC                F_DUPFD_CLOEXEC  NONE               as dup(2) with close-on-exec
+//   F_DUP2FD          F_DUP2FD                      NONE               as dup2(2)
+//   F_DUP2FD_CLOEXEC                                NONE               as dup2(2) with close-on-exec
+//   F_GETFD           F_GETFD      F_GETFD          NONE               get close-on-exec flag
+//   F_SETFD           F_SETFD      F_SETFD          NONE               set close-on-exec flag
+// * F_GETFL           F_GETFL      F_GETFL          FCNTL              get file status flag
+// * F_SETFL           F_SETFL      F_SETFL          FCNTL              set file status flag
+// * F_GETOWN          F_GETOWN     F_GETOWN         FCNTL              get pid receiving SIGIO/SIGURG
+// * F_SETOWN          F_SETOWN     F_SETOWN         FCNTL              set pid receiving SIGIO/SIGURG
+// *                                F_GETOWN_EX      FCNTL              get pid/thread receiving SIGIO/SIGURG
+// *                                F_SETOWN_EX      FCNTL              set pid/thread receiving SIGIO/SIGURG
+//   F_GETLK           F_GETLK      F_GETLK          FLOCK              get lock info
+//   F_SETLK           F_SETLK      F_SETLK          FLOCK              set lock info
+//   F_SETLK_REMOTE                                  FLOCK              set lock info
+//   F_SETLKW          F_SETLKW     F_SETLKW         FLOCK              set lock info (blocking)
+//   F_READAHEAD       F_READAHEAD                   NONE               set or clear readahead amount
+//   F_RDAHEAD         F_RDAHEAD                     NONE               set or clear readahead amount to 128KB
+//                                  F_GETSIG         POLL_EVENT+FSIGNAL get signal sent when I/O possible
+//                                  F_SETSIG         POLL_EVENT+FSIGNAL set signal sent when I/O possible
+//                                  F_GETLEASE       FLOCK+FSIGNAL      get lease on file descriptor
+//                                  F_SETLEASE       FLOCK+FSIGNAL      set new lease on file descriptor
+//                                  F_NOTIFY         NOTIFY             generate signal on changes (dnotify)
+//                                  F_GETPIPE_SZ     GETSOCKOPT         get pipe size
+//                                  F_SETPIPE_SZ     SETSOCKOPT         set pipe size
+// If HAVE_CAP_FCNTLS_LIMIT is defined, then fcntl(2) operations that require
+// CAP_FCNTL (marked with * above) can be further limited with cap_fcntls_limit(2).
 namespace {
 #define FCNTL_NUM_RIGHTS 9
 cap_rights_t fcntl_rights[FCNTL_NUM_RIGHTS];
@@ -184,6 +189,7 @@ TEST(Fcntl, Commands) {
   int owner = CHECK_FCNTL(CAP_FCNTL, sock_caps, F_GETOWN, 0);
   EXPECT_EQ(0, CHECK_FCNTL(CAP_FCNTL, sock_caps, F_SETOWN, owner));
 
+
   // Check an operation needing CAP_FLOCK.
   struct flock fl;
   memset(&fl, 0, sizeof(fl));
@@ -201,3 +207,95 @@ TEST(Fcntl, Commands) {
   close(fd);
   unlink("/tmp/cap_fcntl_cmds");
 }
+
+#ifdef HAVE_CAP_FCNTLS_LIMIT
+TEST(Fcntl, FLSubRights) {
+  int fd = open("/tmp/cap_fcntl_cmds", O_RDWR|O_CREAT, 0644);
+  EXPECT_OK(fd);
+  write(fd, "TEST", 4);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_FCNTL);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+
+  // Check operations that need CAP_FCNTL with subrights pristine => OK.
+  int fd_flag = fcntl(fd, F_GETFL, 0);
+  EXPECT_OK(fd_flag);
+  EXPECT_OK(fcntl(fd, F_SETFL, fd_flag));
+
+  // Check operations that need CAP_FCNTL with all subrights => OK.
+  EXPECT_OK(cap_fcntls_limit(fd, CAP_FCNTL_ALL));
+  fd_flag = fcntl(fd, F_GETFL, 0);
+  EXPECT_OK(fd_flag);
+  EXPECT_OK(fcntl(fd, F_SETFL, fd_flag));
+
+  // Check operations that need CAP_FCNTL with specific subrights.
+  int fd_get = dup(fd);
+  int fd_set = dup(fd);
+  EXPECT_OK(cap_fcntls_limit(fd_get, CAP_FCNTL_GETFL));
+  EXPECT_OK(cap_fcntls_limit(fd_set, CAP_FCNTL_SETFL));
+
+  fd_flag = fcntl(fd_get, F_GETFL, 0);
+  EXPECT_OK(fd_flag);
+  EXPECT_NOTCAPABLE(fcntl(fd_set, F_GETFL, 0));
+  EXPECT_OK(fcntl(fd_set, F_SETFL, fd_flag));
+  EXPECT_NOTCAPABLE(fcntl(fd_get, F_SETFL, fd_flag));
+  close(fd_get);
+  close(fd_set);
+
+  // Check operations that need CAP_FCNTL with no subrights => ENOTCAPABLE.
+  EXPECT_OK(cap_fcntls_limit(fd, 0));
+  EXPECT_NOTCAPABLE(fcntl(fd, F_GETFL, 0));
+  EXPECT_NOTCAPABLE(fcntl(fd, F_SETFL, fd_flag));
+
+  close(fd);
+  unlink("/tmp/cap_fcntl_cmds");
+}
+
+TEST(Fcntl, OWNSubRights) {
+  int sock = socket(PF_LOCAL, SOCK_STREAM, 0);
+  EXPECT_OK(sock);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_FCNTL);
+  EXPECT_OK(cap_rights_limit(sock, &rights));
+
+  // Check operations that need CAP_FCNTL with no subrights => OK.
+  int owner = fcntl(sock, F_GETOWN, 0);
+  EXPECT_OK(owner);
+  EXPECT_OK(fcntl(sock, F_SETOWN, owner));
+
+  // Check operations that need CAP_FCNTL with all subrights => OK.
+  EXPECT_OK(cap_fcntls_limit(sock, CAP_FCNTL_ALL));
+  owner = fcntl(sock, F_GETOWN, 0);
+  EXPECT_OK(owner);
+  EXPECT_OK(fcntl(sock, F_SETOWN, owner));
+
+  // Check operations that need CAP_FCNTL with specific subrights.
+  int sock_get = dup(sock);
+  int sock_set = dup(sock);
+  EXPECT_OK(cap_fcntls_limit(sock_get, CAP_FCNTL_GETOWN));
+  EXPECT_OK(cap_fcntls_limit(sock_set, CAP_FCNTL_SETOWN));
+  owner = fcntl(sock_get, F_GETOWN, 0);
+  EXPECT_OK(owner);
+  EXPECT_NOTCAPABLE(fcntl(sock_set, F_GETOWN, 0));
+  EXPECT_OK(fcntl(sock_set, F_SETOWN, owner));
+  EXPECT_NOTCAPABLE(fcntl(sock_get, F_SETOWN, owner));
+  // Also check we can retrieve the subrights.
+  uint32_t fcntls;
+  EXPECT_OK(cap_fcntls_get(sock_get, &fcntls));
+  EXPECT_EQ(CAP_FCNTL_GETOWN, fcntls);
+  EXPECT_OK(cap_fcntls_get(sock_set, &fcntls));
+  EXPECT_EQ(CAP_FCNTL_SETOWN, fcntls);
+  // And that we can't widen the subrights.
+  EXPECT_NOTCAPABLE(cap_fcntls_limit(sock_get, CAP_FCNTL_GETOWN|CAP_FCNTL_SETOWN));
+  EXPECT_NOTCAPABLE(cap_fcntls_limit(sock_set, CAP_FCNTL_GETOWN|CAP_FCNTL_SETOWN));
+  close(sock_get);
+  close(sock_set);
+
+  // Check operations that need CAP_FCNTL with no subrights => ENOTCAPABLE.
+  EXPECT_OK(cap_fcntls_limit(sock, 0));
+  EXPECT_NOTCAPABLE(fcntl(sock, F_GETOWN, 0));
+  EXPECT_NOTCAPABLE(fcntl(sock, F_SETOWN, owner));
+
+  close(sock);
+}
+#endif
