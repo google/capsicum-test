@@ -19,6 +19,7 @@ extern "C" {
 #define HAVE_CAP_RIGHTS_GET
 #define HAVE_CAP_RIGHTS_LIMIT
 #define HAVE_CAP_FCNTLS_LIMIT
+#define HAVE_CAP_IOCTLS_LIMIT
 #endif
 
 #ifdef __cplusplus
