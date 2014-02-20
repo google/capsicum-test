@@ -69,6 +69,44 @@ TEST(Ioctl, SubRightNormalFD) {
   close(fd);
 }
 
+TEST(Ioctl, PreserveSubRights) {
+  int fd = open("/etc/passwd", O_RDONLY);
+  EXPECT_OK(fd);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_IOCTL);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+  unsigned long ioctl_nread = FIONREAD;
+  EXPECT_OK(cap_ioctls_limit(fd, &ioctl_nread, 1));
+
+  cap_rights_t cur_rights;
+  unsigned long ioctls[16];
+  ssize_t nioctls;
+  EXPECT_OK(cap_rights_get(fd, &cur_rights));
+  EXPECT_RIGHTS_EQ(&rights, &cur_rights);
+  nioctls = cap_ioctls_get(fd, ioctls, 16);
+  EXPECT_OK(nioctls);
+  EXPECT_EQ(1, nioctls);
+  EXPECT_EQ(FIONREAD, ioctls[0]);
+
+  // Limiting the top-level rights leaves the subrights unaffected...
+  cap_rights_clear(&rights, CAP_READ);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+  nioctls = cap_ioctls_get(fd, ioctls, 16);
+  EXPECT_OK(nioctls);
+  EXPECT_EQ(1, nioctls);
+  EXPECT_EQ(FIONREAD, ioctls[0]);
+
+  // ... until we remove CAP_IOCTL
+  cap_rights_clear(&rights, CAP_IOCTL);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+  nioctls = cap_ioctls_get(fd, ioctls, 16);
+  EXPECT_OK(nioctls);
+  EXPECT_EQ(0, nioctls);
+  EXPECT_NOTCAPABLE(cap_ioctls_limit(fd, &ioctl_nread, 1));
+
+  close(fd);
+}
+
 TEST(Ioctl, SubRights) {
   int fd = open("/etc/passwd", O_RDONLY);
   EXPECT_OK(fd);

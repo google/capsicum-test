@@ -189,7 +189,6 @@ TEST(Fcntl, Commands) {
   int owner = CHECK_FCNTL(CAP_FCNTL, sock_caps, F_GETOWN, 0);
   EXPECT_EQ(0, CHECK_FCNTL(CAP_FCNTL, sock_caps, F_SETOWN, owner));
 
-
   // Check an operation needing CAP_FLOCK.
   struct flock fl;
   memset(&fl, 0, sizeof(fl));
@@ -234,6 +233,39 @@ TEST(Fcntl, SubRightNormalFD) {
 
   close(fd);
   unlink("/tmp/cap_fcntl_subrightnorm");
+}
+
+TEST(Fcntl, PreserveSubRights) {
+  int fd = open("/tmp/cap_fcntl_subrightnorm", O_RDWR|O_CREAT, 0644);
+  EXPECT_OK(fd);
+
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_FCNTL);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+  EXPECT_OK(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
+
+  cap_rights_t cur_rights;
+  uint32_t fcntls;
+  EXPECT_OK(cap_rights_get(fd, &cur_rights));
+  EXPECT_RIGHTS_EQ(&rights, &cur_rights);
+  EXPECT_OK(cap_fcntls_get(fd, &fcntls));
+  EXPECT_EQ(CAP_FCNTL_GETFL, fcntls);
+
+  // Limiting the top-level rights leaves the subrights unaffected...
+  cap_rights_clear(&rights, CAP_READ);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+  EXPECT_OK(cap_fcntls_get(fd, &fcntls));
+  EXPECT_EQ(CAP_FCNTL_GETFL, fcntls);
+
+  // ... until we remove CAP_FCNTL.
+  cap_rights_clear(&rights, CAP_FCNTL);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+  EXPECT_OK(cap_fcntls_get(fd, &fcntls));
+  EXPECT_EQ(0, fcntls);
+  EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
+
+  close(fd);
+  unlink("/tmp/cap_fcntl_subrightpreserve");
 }
 
 TEST(Fcntl, FLSubRights) {
