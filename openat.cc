@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include "capsicum.h"
 #include "capsicum-test.h"
@@ -26,7 +27,7 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(etc);
 
   cap_rights_t r_base;
-  cap_rights_init(&r_base, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  cap_rights_init(&r_base, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP, CAP_FCNTL, CAP_IOCTL);
   cap_rights_t r_ro;
   cap_rights_init(&r_ro, CAP_READ);
   cap_rights_t r_rl;
@@ -41,6 +42,15 @@ FORK_TEST(Openat, Relative) {
   int etc_cap_base = dup(etc);
   EXPECT_OK(etc_cap_base);
   EXPECT_OK(cap_rights_limit(etc_cap_base, &r_base));
+#ifdef HAVE_CAP_FCNTLS_LIMIT
+  // Also limit fcntl(2) subrights.
+  EXPECT_OK(cap_fcntls_limit(etc_cap_base, CAP_FCNTL_GETFL));
+#endif
+#ifdef HAVE_CAP_IOCTLS_LIMIT
+  // Also limit ioctl(2) subrights.
+  unsigned long ioctl_nread = FIONREAD;
+  EXPECT_OK(cap_ioctls_limit(etc_cap_base, &ioctl_nread, 1));
+#endif
 
   // openat(2) with regular file descriptors in non-capability mode
   // Should Just Work (tm).
@@ -68,6 +78,20 @@ FORK_TEST(Openat, Relative) {
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
   EXPECT_RIGHTS_IN(&rights, &r_base);
+#ifdef HAVE_CAP_FCNTLS_LIMIT
+  uint32_t fcntls;
+  EXPECT_OK(cap_fcntls_get(fd, &fcntls));
+  EXPECT_EQ(CAP_FCNTL_GETFL, fcntls);
+#endif
+#ifdef HAVE_CAP_IOCTLS_LIMIT
+  unsigned long ioctls[16];
+  ssize_t nioctls;
+  memset(ioctls, 0, sizeof(ioctls));
+  nioctls = cap_ioctls_get(fd, ioctls, 16);
+  EXPECT_OK(nioctls);
+  EXPECT_EQ(1, nioctls);
+  EXPECT_EQ(FIONREAD, ioctls[0]);
+#endif
   close(fd);
 
   // Enter capability mode; now ALL lookups are strictly relative.
