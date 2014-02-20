@@ -100,6 +100,17 @@ TEST(Ioctl, SubRights) {
   EXPECT_OK(ioctl(fd, FIONREAD, &bytes));
   EXPECT_OK(ioctl(fd, FIOCLEX, &one));
 
+
+  // Check what happens if we ask for subrights but don't have the space for them.
+  unsigned long before = 0xBBBBBBBB;
+  unsigned long one_ioctl = 0;
+  unsigned long after = 0xAAAAAAAA;
+  nioctls = cap_ioctls_get(fd, &one_ioctl, 1);
+  EXPECT_EQ(2, nioctls);
+  EXPECT_EQ(0xBBBBBBBB, before);
+  EXPECT_TRUE(one_ioctl == FIONREAD || one_ioctl == FIOCLEX);
+  EXPECT_EQ(0xAAAAAAAA, after);
+
   // Check operations that need CAP_IOCTL with particular subrights.
   int fd_nread = dup(fd);
   int fd_clex = dup(fd);
