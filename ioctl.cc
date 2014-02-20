@@ -37,6 +37,38 @@ TEST(Ioctl, Basic) {
 }
 
 #ifdef HAVE_CAP_IOCTLS_LIMIT
+TEST(Ioctl, SubRightNormalFD) {
+  int fd = open("/etc/passwd", O_RDONLY);
+  EXPECT_OK(fd);
+
+  // Restrict the ioctl(2) subrights of a normal FD.
+  unsigned long ioctl_nread = FIONREAD;
+  EXPECT_OK(cap_ioctls_limit(fd, &ioctl_nread, 1));
+  int bytes;
+  EXPECT_OK(ioctl(fd, FIONREAD, &bytes));
+  int one = 1;
+  EXPECT_NOTCAPABLE(ioctl(fd, FIOCLEX, &one));
+
+  // Expect to have all capabilities.
+  cap_rights_t rights;
+  EXPECT_OK(cap_rights_get(fd, &rights));
+  cap_rights_t all;
+  CAP_ALL(&all);
+  EXPECT_RIGHTS_EQ(&all, &rights);
+  unsigned long ioctls[16];
+  memset(ioctls, 0, sizeof(ioctls));
+  ssize_t nioctls = cap_ioctls_get(fd, ioctls, 16);
+  EXPECT_OK(nioctls);
+  EXPECT_EQ(1, nioctls);
+  EXPECT_EQ(FIONREAD, ioctls[0]);
+
+  // Can't widen the subrights.
+  unsigned long both_ioctls[2] = {FIONREAD, FIOCLEX};
+  EXPECT_NOTCAPABLE(cap_ioctls_limit(fd, both_ioctls, 2));
+
+  close(fd);
+}
+
 TEST(Ioctl, SubRights) {
   int fd = open("/etc/passwd", O_RDONLY);
   EXPECT_OK(fd);

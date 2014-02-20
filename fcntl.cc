@@ -209,8 +209,35 @@ TEST(Fcntl, Commands) {
 }
 
 #ifdef HAVE_CAP_FCNTLS_LIMIT
+TEST(Fcntl, SubRightNormalFD) {
+  int fd = open("/tmp/cap_fcntl_subrightnorm", O_RDWR|O_CREAT, 0644);
+  EXPECT_OK(fd);
+
+  // Restrict the fcntl(2) subrights of a normal FD.
+  EXPECT_OK(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
+  int fd_flag = fcntl(fd, F_GETFL, 0);
+  EXPECT_OK(fd_flag);
+  EXPECT_NOTCAPABLE(fcntl(fd, F_SETFL, fd_flag));
+
+  // Expect to have all capabilities.
+  cap_rights_t rights;
+  EXPECT_OK(cap_rights_get(fd, &rights));
+  cap_rights_t all;
+  CAP_ALL(&all);
+  EXPECT_RIGHTS_EQ(&all, &rights);
+  uint32_t fcntls;
+  EXPECT_OK(cap_fcntls_get(fd, &fcntls));
+  EXPECT_EQ(CAP_FCNTL_GETFL, fcntls);
+
+  // Can't widen the subrights.
+  EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL|CAP_FCNTL_SETFL));
+
+  close(fd);
+  unlink("/tmp/cap_fcntl_subrightnorm");
+}
+
 TEST(Fcntl, FLSubRights) {
-  int fd = open("/tmp/cap_fcntl_cmds", O_RDWR|O_CREAT, 0644);
+  int fd = open("/tmp/cap_fcntl_subrights", O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
   write(fd, "TEST", 4);
   cap_rights_t rights;
@@ -248,7 +275,7 @@ TEST(Fcntl, FLSubRights) {
   EXPECT_NOTCAPABLE(fcntl(fd, F_SETFL, fd_flag));
 
   close(fd);
-  unlink("/tmp/cap_fcntl_cmds");
+  unlink("/tmp/cap_fcntl_subrights");
 }
 
 TEST(Fcntl, OWNSubRights) {
