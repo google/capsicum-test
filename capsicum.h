@@ -12,6 +12,27 @@
 #include "capsicum-linux.h"
 #endif
 
+/*
+ * CAP_ALL/CAP_NONE is a value in FreeBSD9.x Capsicum, but a functional macro
+ * in FreeBSD10.x Capsicum.  Always use CAP_SET_ALL/CAP_SET_NONE instead.
+ */
+#ifndef CAP_SET_ALL
+#ifdef CAP_RIGHTS_VERSION
+#define CAP_SET_ALL(rights) CAP_ALL(rights)
+#else
+#define CAP_SET_ALL(rights) *(rights) = CAP_ALL
+#endif
+#endif
+
+#ifndef CAP_SET_NONE
+#ifdef CAP_RIGHTS_VERSION
+#define CAP_SET_NONE(rights) CAP_NONE(rights)
+#else
+#define CAP_SET_NONE(rights) *(rights) = CAP_NONE
+#endif
+#endif
+
+
 /************************************************************
  * Define new-style rights in terms of old-style rights if
  * absent.

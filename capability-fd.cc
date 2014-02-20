@@ -20,11 +20,11 @@ FORK_TEST(Capability, CapNew) {
   cap_rights_t r_rws;
   cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
   cap_rights_t r_all;
-  CAP_ALL(&r_all);
+  CAP_SET_ALL(&r_all);
 
   int cap_fd = dup(STDOUT_FILENO);
   cap_rights_t rights;
-  CAP_NONE(&rights);
+  CAP_SET_NONE(&rights);
   EXPECT_OK(cap_rights_get(cap_fd, &rights));
   EXPECT_RIGHTS_EQ(&r_all, &rights);
 

@@ -223,7 +223,7 @@ TEST(Fcntl, SubRightNormalFD) {
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
   cap_rights_t all;
-  CAP_ALL(&all);
+  CAP_SET_ALL(&all);
   EXPECT_RIGHTS_EQ(&all, &rights);
   uint32_t fcntls;
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));

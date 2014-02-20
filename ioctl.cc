@@ -53,7 +53,7 @@ TEST(Ioctl, SubRightNormalFD) {
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
   cap_rights_t all;
-  CAP_ALL(&all);
+  CAP_SET_ALL(&all);
   EXPECT_RIGHTS_EQ(&all, &rights);
   unsigned long ioctls[16];
   memset(ioctls, 0, sizeof(ioctls));

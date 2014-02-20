@@ -413,7 +413,8 @@ TEST(Linux, fanotify) {
   // fanotify(7) gives us a FD for the changed file.  This should
   // only have rights that are a subset of those for the original
   // monitored directory file descriptor.
-  cap_rights_t rights = CAP_ALL;
+  cap_rights_t rights;
+  CAP_SET_ALL(&rights);
   EXPECT_OK(cap_rights_get(ev.fd, &rights));
   EXPECT_RIGHTS_IN(&rights, &r_rslstat);
 #endif
