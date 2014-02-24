@@ -207,6 +207,53 @@ TEST(Fcntl, Commands) {
   unlink("/tmp/cap_fcntl_cmds");
 }
 
+TEST(Fcntl, WriteLock) {
+  int fd = open("/tmp/cap_fcntl_readlock", O_RDWR|O_CREAT, 0644);
+  EXPECT_OK(fd);
+  write(fd, "TEST", 4);
+
+  int cap = dup(fd);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_FCNTL, CAP_READ, CAP_WRITE, CAP_FLOCK);
+  EXPECT_OK(cap_rights_limit(cap, &rights));
+
+  struct flock fl;
+  memset(&fl, 0, sizeof(fl));
+  fl.l_type = F_WRLCK;
+  fl.l_whence = SEEK_SET;
+  fl.l_start = 0;
+  fl.l_len = 1;
+  // Write-Lock
+  EXPECT_OK(fcntl(cap, F_SETLK, (long)&fl));
+
+  // Check write-locked (from another process).
+  pid_t child = fork();
+  if (child == 0) {
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 0;
+    fl.l_len = 1;
+    EXPECT_OK(fcntl(fd, F_GETLK, (long)&fl));
+    EXPECT_NE(F_UNLCK, fl.l_type);
+    exit(HasFailure());
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  // Unlock
+  fl.l_type = F_UNLCK;
+  fl.l_whence = SEEK_SET;
+  fl.l_start = 0;
+  fl.l_len = 1;
+  EXPECT_OK(fcntl(cap, F_SETLK, (long)&fl));
+
+  close(cap);
+  close(fd);
+  unlink("/tmp/cap_fcntl_readlock");
+}
+
 #ifdef HAVE_CAP_FCNTLS_LIMIT
 TEST(Fcntl, SubRightNormalFD) {
   int fd = open("/tmp/cap_fcntl_subrightnorm", O_RDWR|O_CREAT, 0644);
