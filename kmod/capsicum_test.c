@@ -34,13 +34,15 @@ unsigned int do_dup(unsigned int fildes)
 FIXTURE(new_cap) {
 	struct file *orig;
 	int orig_refs;
-	cap_rights_t rights;
+	struct cap_rights rights;
 	int cap;
 	struct file *capf;
 };
 
 FIXTURE_SETUP(new_cap) {
-	self->orig = fget(0, CAP_NONE);
+	struct cap_rights none;
+	cap_rights_init(&none, 0);
+	self->orig = fget(0, &none);
 	ASSERT_FALSE(IS_ERR(self->orig));
 	self->orig_refs = file_count(self->orig);
 
@@ -70,16 +72,16 @@ FIXTURE_TEARDOWN(new_cap) {
 }
 
 TEST_F(new_cap, init_ok) {
-	u64 rights;
+	struct cap_rights rights;
 	struct file *f;
 
 	EXPECT_LT(1, file_count(self->orig));
 	EXPECT_EQ(1, file_count(self->capf));
 
-	rights = (u64)-1;
 	f = capsicum_unwrap(self->capf, &rights);
 	/* Verify that the rights are as we set them in setup. */
-	EXPECT_EQ(self->rights, rights);
+	EXPECT_EQ(self->rights.cr_rights[0], rights.cr_rights[0]);
+	EXPECT_EQ(self->rights.cr_rights[1], rights.cr_rights[1]);
 	EXPECT_EQ(self->orig, f);
 }
 
@@ -89,20 +91,21 @@ TEST_F(new_cap, rewrap) {
 	 * original file, and the reference count of the original file
 	 * will be incremented. */
 	struct file *f, *unwrapped_file;
-	u64 rights = CAP_NONE;
-
+	struct cap_rights none;
+	struct cap_rights rights;
 	int old_count, fd, rc;
-
+	cap_rights_init(&none, 0);
 	old_count = file_count(self->orig);
 
 	fd = do_dup(self->cap);
 	ASSERT_GT(fd, 0);
-	rc = capsicum_rights_limit(fd, &rights);
+	rc = capsicum_rights_limit(fd, &none);
 	EXPECT_EQ(0, rc);
 	f = fcheck(fd);
 
 	unwrapped_file = capsicum_unwrap(f, &rights);
-	EXPECT_EQ(0, rights);
+	EXPECT_EQ(none.cr_rights[0], rights.cr_rights[0]);
+	EXPECT_EQ(none.cr_rights[1], rights.cr_rights[1]);
 	EXPECT_EQ(self->orig, unwrapped_file);
 	EXPECT_EQ(old_count + 1, file_count(self->orig));
 	sys_close(fd);
@@ -119,7 +122,8 @@ TEST_F(new_cap, is_cap) {
 
 
 TEST_F(new_cap, fget) {
-	struct file *f = fget(self->cap, CAP_NONE);
+	struct cap_rights none;
+	struct file *f = fget(self->cap, cap_rights_init(&none, 0));
 
 	EXPECT_EQ(self->orig, f);
 	EXPECT_EQ(1, file_count(fcheck(self->cap)));
@@ -130,7 +134,8 @@ TEST_F(new_cap, fget) {
 
 TEST_F(new_cap, fget_light) {
 	int fpn;
-	struct file *f = fget_light(self->cap, CAP_NONE, &fpn);
+	struct cap_rights none;
+	struct file *f = fget_light(self->cap, cap_rights_init(&none, 0), &fpn);
 
 	EXPECT_EQ(self->orig, f);
 	EXPECT_FALSE(fpn);
@@ -140,7 +145,8 @@ TEST_F(new_cap, fget_light) {
 }
 
 TEST_F(new_cap, fget_raw) {
-	struct file *f = fget_raw(self->cap, CAP_NONE);
+	struct cap_rights none;
+	struct file *f = fget_raw(self->cap, cap_rights_init(&none, 0));
 
 	EXPECT_EQ(f, self->orig);
 	EXPECT_EQ(file_count(fcheck(self->cap)), 1);
@@ -151,7 +157,8 @@ TEST_F(new_cap, fget_raw) {
 
 TEST_F(new_cap, fget_raw_light) {
 	int fpn;
-	struct file *f = fget_raw_light(self->cap, CAP_NONE, NULL, &fpn);
+	struct cap_rights none;
+	struct file *f = fget_raw_light(self->cap, cap_rights_init(&none, 0), NULL, &fpn);
 
 	EXPECT_EQ(f, self->orig);
 	EXPECT_EQ(fpn, 0);
