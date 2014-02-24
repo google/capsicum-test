@@ -805,6 +805,44 @@ TEST(Linux, AIO) {
   close(fd);
   unlink("/tmp/cap_aio");
 }
+
+#ifndef KCMP_FILE
+#define KCMP_FILE 0
+#endif
+TEST(Linux, Kcmp) {
+  // This requires CONFIG_CHECKPOINT_RESTORE in kernel config.
+  int fd = open("/etc/passwd", O_RDONLY);
+  EXPECT_OK(fd);
+  pid_t parent = getpid_();
+
+  errno = 0;
+  int rc = syscall(__NR_kcmp, parent, parent, KCMP_FILE, fd, fd);
+  if (rc == -1 && errno == ENOSYS) {
+    fprintf(stderr, "Skipping kcmp(2) test as -ENOSYS\n");
+    return;
+  }
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: limit rights on FD.
+    child = getpid_();
+    EXPECT_EQ(0, syscall(__NR_kcmp, parent, child, KCMP_FILE, fd, fd));
+    cap_rights_t rights;
+    cap_rights_init(&rights, CAP_READ, CAP_WRITE);
+    EXPECT_OK(cap_rights_limit(fd, &rights));
+    // A capability wrapping a normal FD is different (from a kcmp(2) perspective)
+    // than the original file.
+    EXPECT_NE(0, syscall(__NR_kcmp, parent, child, KCMP_FILE, fd, fd));
+    exit(HasFailure());
+  }
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  close(fd);
+}
 #else
 void noop() {}
 #endif
