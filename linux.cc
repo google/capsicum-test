@@ -17,6 +17,8 @@
 #include <signal.h>
 #include <fcntl.h>
 
+#include <string>
+
 #include "capsicum.h"
 #include "syscalls.h"
 #include "capsicum-test.h"
@@ -843,6 +845,38 @@ TEST(Linux, Kcmp) {
 
   close(fd);
 }
+
+TEST(Linux, ProcFS) {
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_SEEK);
+  int fd = open("/etc/passwd", O_RDONLY);
+  EXPECT_OK(fd);
+  lseek(fd, 4, SEEK_SET);
+  int cap = dup(fd);
+  EXPECT_OK(cap);
+  EXPECT_OK(cap_rights_limit(cap, &rights));
+  pid_t me = getpid_();
+
+  char buffer[1024];
+  sprintf(buffer, "/proc/%d/fdinfo/%d", me, cap);
+  int procfd = open(buffer, O_RDONLY);
+  EXPECT_OK(procfd);
+  int proccap = dup(procfd);
+  EXPECT_OK(proccap);
+  EXPECT_OK(cap_rights_limit(proccap, &rights));
+
+  EXPECT_OK(read(proccap, buffer, sizeof(buffer)));
+  // The fdinfo should include the file pos of the underlying file
+  EXPECT_NE((char*)NULL, strstr(buffer, "pos:\t4"));
+  // ...and the rights of the Capsicum capability.
+  EXPECT_NE((char*)NULL, strstr(buffer, "rights:\t0x"));
+
+  close(procfd);
+  close(proccap);
+  close(cap);
+  close(fd);
+}
+
 #else
 void noop() {}
 #endif
