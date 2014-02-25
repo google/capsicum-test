@@ -8,6 +8,7 @@
 #include <signal.h>
 
 #include <ios>
+#include <ostream>
 
 #include "gtest/gtest.h"
 
@@ -135,12 +136,6 @@
     EXPECT_RIGHTS_IN((a), (b)); \
     EXPECT_RIGHTS_IN((b), (a)); \
   } while (0)
-// Mark a test that can only be run as root.
-#define REQUIRE_ROOT() \
-  if (getuid() != 0) { \
-    fprintf(stderr, "This test needs to be run as root; skipping\n"); \
-    return; \
-  }
 
 // Get the state of a process as a single character.
 //  - 'D': disk wait
@@ -168,5 +163,21 @@ char ProcessState(int pid);
 
 #define EXPECT_PID_ALIVE(pid) EXPECT_PID_REACHES_STATES(pid, 'R', 'S')
 #define EXPECT_PID_DEAD(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', '\0')
+
+void ShowSkippedTests(std::ostream& os);
+void TestSkipped(const char *testcase, const char *test, const std::string& reason);
+#define TEST_SKIPPED(reason) \
+  do { \
+    const ::testing::TestInfo* const info = ::testing::UnitTest::GetInstance()->current_test_info(); \
+    TestSkipped(info->test_case_name(), info->name(), reason);          \
+  } while (0)
+
+// Mark a test that can only be run as root.
+#define REQUIRE_ROOT() \
+  if (getuid() != 0) { \
+    fprintf(stderr, "This test needs to be run as root; skipping\n"); \
+    TEST_SKIPPED("requires root"); \
+    return; \
+  }
 
 #endif  // CAPSICUM_TEST_H

@@ -606,6 +606,7 @@ TEST(Capability, SyscallAt) {
     unlink("/tmp/cap_at_topdir/cap_fifo");
   } else {
     fprintf(stderr, "mknodat(2) tests need to be run as root; skipping\n");
+    TEST_SKIPPED("requires root (partial)");
   }
   close(cap_dfd_all);
   close(cap_dfd_no_mkfifo);
@@ -626,6 +627,7 @@ FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
   if (rc < 0 && errno == ENOTSUP) {
     fprintf(stderr, "Filesystem for /tmp doesn't support extended attributes, skipping tests\n");
     fprintf(stderr, "(need user_xattr mount option for non-root users on Linux)\n");
+    TEST_SKIPPED("/tmp doesn't support extended attributes");
     close(fd);
     return;
   }
