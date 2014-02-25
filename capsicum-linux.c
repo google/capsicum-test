@@ -182,7 +182,7 @@ _cap_rights_init(int version, cap_rights_t *rights, ...)
 
 	n = version + 2;
 	memset(rights->cr_rights, 0, sizeof(rights->cr_rights[0]) * n);
-	CAP_NONE(rights);
+	CAP_SET_NONE(rights);
 	va_start(ap, rights);
 	cap_rights_vset(rights, ap);
 	va_end(ap);
@@ -237,7 +237,7 @@ cap_rights_is_valid(const cap_rights_t *rights)
 
 	if (CAPVER(rights) != CAP_RIGHTS_VERSION_00)
 		return (false);
-	CAP_ALL(&allrights);
+	CAP_SET_ALL(&allrights);
 	if (!cap_rights_contains(&allrights, rights))
 		return (false);
 	for (i = 0; i < CAPARSIZE(rights); i++) {
