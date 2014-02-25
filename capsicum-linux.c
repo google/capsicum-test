@@ -51,12 +51,10 @@ int cap_getmode(unsigned int *mode) {
   return 0;
 }
 
-#define HAVE_CAP_RIGHTS_LIMIT
 int cap_rights_limit(int fd, cap_rights_t *rights) {
   return syscall(__NR_cap_rights_limit, fd, rights);
 }
 
-#define HAVE_CAP_RIGHTS_GET
 int cap_rights_get(int fd, cap_rights_t *rights) {
   return syscall(__NR_cap_rights_get, fd, rights);
 }
