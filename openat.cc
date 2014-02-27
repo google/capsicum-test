@@ -81,7 +81,7 @@ FORK_TEST(Openat, Relative) {
 #ifdef HAVE_CAP_FCNTLS_LIMIT
   uint32_t fcntls;
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
-  EXPECT_EQ(CAP_FCNTL_GETFL, fcntls);
+  EXPECT_EQ((uint32_t)CAP_FCNTL_GETFL, fcntls);
 #endif
 #ifdef HAVE_CAP_IOCTLS_LIMIT
   unsigned long ioctls[16];
@@ -90,7 +90,7 @@ FORK_TEST(Openat, Relative) {
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ(FIONREAD, ioctls[0]);
+  EXPECT_EQ((uint32_t)FIONREAD, ioctls[0]);
 #endif
   close(fd);
 

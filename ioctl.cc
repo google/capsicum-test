@@ -1,4 +1,4 @@
-// Test that iotl works in capability mode.
+// Test that ioctl works in capability mode.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -60,7 +60,7 @@ TEST(Ioctl, SubRightNormalFD) {
   ssize_t nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ(FIONREAD, ioctls[0]);
+  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
 
   // Can't widen the subrights.
   unsigned long both_ioctls[2] = {FIONREAD, FIOCLEX};
@@ -86,7 +86,7 @@ TEST(Ioctl, PreserveSubRights) {
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ(FIONREAD, ioctls[0]);
+  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
 
   // Limiting the top-level rights leaves the subrights unaffected...
   cap_rights_clear(&rights, CAP_READ);
@@ -94,7 +94,7 @@ TEST(Ioctl, PreserveSubRights) {
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ(FIONREAD, ioctls[0]);
+  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
 
   // ... until we remove CAP_IOCTL
   cap_rights_clear(&rights, CAP_IOCTL);
@@ -166,12 +166,12 @@ TEST(Ioctl, SubRights) {
   nioctls = cap_ioctls_get(fd_nread, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ(FIONREAD, ioctls[0]);
+  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
   memset(ioctls, 0, sizeof(ioctls));
   nioctls = cap_ioctls_get(fd_clex, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ(FIOCLEX, ioctls[0]);
+  EXPECT_EQ((unsigned long)FIOCLEX, ioctls[0]);
   // And that we can't widen the subrights.
   EXPECT_NOTCAPABLE(cap_ioctls_limit(fd_nread, both_ioctls, 2));
   EXPECT_NOTCAPABLE(cap_ioctls_limit(fd_clex, both_ioctls, 2));
