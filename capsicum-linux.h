@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -18,6 +19,8 @@
 #define HAVE_PDWAIT4
 #define HAVE_CAP_RIGHTS_LIMIT
 #define HAVE_CAP_RIGHTS_GET
+//#define HAVE_CAP_FCNTLS_LIMIT
+//#define HAVE_CAP_IOCTLS_LIMIT
 #define CAP_FROM_ACCEPT
 #define AT_SYSCALLS_IN_CAPMODE
 
@@ -32,6 +35,10 @@ int cap_enter();
 int cap_getmode(unsigned int *mode);
 int cap_rights_limit(int fd, cap_rights_t *rights);
 int cap_rights_get(int fd, cap_rights_t *rights);
+int cap_fcntls_limit(int fd, uint32_t fcntls);
+int cap_fcntls_get(int fd, uint32_t *fcntlsp);
+int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds);
+ssize_t cap_ioctls_get(int fd, unsigned long *cmds, size_t maxcmds);
 int fexecve_(int fd, char **argv, char **envp);
 int pdfork(int *fd, int flags);
 int pdgetpid(int fd, pid_t *pid);

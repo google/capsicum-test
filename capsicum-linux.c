@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "capsicum-linux.h"
 
 /************************************************************
@@ -51,12 +52,88 @@ int cap_getmode(unsigned int *mode) {
   return 0;
 }
 
+/* Caller owns (*ioctls) */
+static int cap_rights_get_all(int fd,
+                              cap_rights_t *rights,
+                              unsigned long *fcntls,
+                              long *nioctls,
+                              unsigned long **ioctls) {
+  int rc;
+  syscall(__NR_cap_rights_get, fd, rights, fcntls, nioctls, NULL);
+  if (*nioctls > 0) {
+    *ioctls = malloc(*nioctls * sizeof(unsigned long));
+    if (*ioctls == NULL) {
+      errno = ENOMEM;
+      return -1;
+    }
+    syscall(__NR_cap_rights_get, fd, NULL, NULL, &nioctls, *ioctls);
+  } else {
+    *ioctls = NULL;
+  }
+  return 0;
+}
+
 int cap_rights_limit(int fd, cap_rights_t *rights) {
-  return syscall(__NR_cap_rights_limit, fd, rights);
+  cap_rights_t primary;
+  unsigned long fcntls;
+  long nioctls;
+  unsigned long *ioctls = NULL;
+  int rc;
+  rc = cap_rights_get_all(fd, &primary, &fcntls, &nioctls, &ioctls);
+  if (rc) {
+    return rc;
+  }
+  rc = syscall(__NR_cap_rights_limit, fd, rights, fcntls, nioctls, ioctls);
+  if (ioctls) {
+    free(ioctls);
+  }
+  return rc;
 }
 
 int cap_rights_get(int fd, cap_rights_t *rights) {
-  return syscall(__NR_cap_rights_get, fd, rights);
+  return syscall(__NR_cap_rights_get, fd, rights, NULL, NULL, NULL);
+}
+
+int cap_fcntls_limit(int fd, uint32_t fcntls) {
+  cap_rights_t primary;
+  long nioctls;
+  unsigned long *ioctls = NULL;
+  int rc;
+  rc = cap_rights_get_all(fd, &primary, NULL, &nioctls, &ioctls);
+  if (rc) {
+    return rc;
+  }
+  rc = syscall(__NR_cap_rights_limit, fd, &primary, fcntls, nioctls, ioctls);
+  if (ioctls) {
+    free(ioctls);
+  }
+  return rc;
+}
+
+int cap_fcntls_get(int fd, uint32_t *fcntlsp) {
+  return syscall(__NR_cap_rights_get, fd, NULL, fcntlsp, NULL, NULL);
+}
+
+int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds) {
+  cap_rights_t primary;
+  unsigned long fcntls;
+  int rc;
+  rc = cap_rights_get_all(fd, &primary, &fcntls, NULL, NULL);
+  if (rc) {
+    return rc;
+  }
+  rc = syscall(__NR_cap_rights_limit, fd, &primary, fcntls, ncmds, cmds);
+  return rc;
+}
+
+ssize_t cap_ioctls_get(int fd, unsigned long *cmds, size_t maxcmds) {
+  long n = maxcmds;
+  int rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, &n, cmds);
+  if (rc >= 0) {
+    return n;
+  } else {
+    return rc;
+  }
 }
 
 /* Linux glibc includes an fexecve() function, implemented via the /proc
