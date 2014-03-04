@@ -79,24 +79,24 @@ static inline bool has_right(const cap_rights_t *rights, __u64 right)
 
 static void print_rights_all(FILE *f,
                              const cap_rights_t *rights,
-                             unsigned long fcntls,
-                             long nioctls,
-                             const unsigned long *ioctls) {
+                             unsigned int fcntls,
+                             int nioctls,
+                             const unsigned int *ioctls) {
   int ii;
-  fprintf(f, "%016llx %016llx fcntls=%08lx |%ld|",
+  fprintf(f, "%016llx %016llx fcntls=%08x |%d|",
           rights->cr_rights[0], rights->cr_rights[1], fcntls, nioctls);
   if (ioctls) {
     for (ii = 0; ii < nioctls; ii++) {
-      fprintf(f, " %08lx", ioctls[ii]);
+      fprintf(f, " %08x", ioctls[ii]);
     }
   }
   fprintf(f, "\n");
 }
 
 static void cap_rights_regularize(const cap_rights_t * rights,
-                                  unsigned long *fcntls,
-                                  long *nioctls,
-                                  unsigned long **ioctls) {
+                                  unsigned int *fcntls,
+                                  int *nioctls,
+                                  unsigned int **ioctls) {
   if (!has_right(rights, CAP_FCNTL)) {
     *fcntls = 0x00;
   }
@@ -110,14 +110,14 @@ static void cap_rights_regularize(const cap_rights_t * rights,
 /* Caller owns (*ioctls) on return */
 static int cap_rights_get_all(int fd,
                               cap_rights_t *rights,
-                              unsigned long *fcntls,
-                              long *nioctls,
-                              unsigned long **ioctls) {
+                              unsigned int *fcntls,
+                              int *nioctls,
+                              unsigned int **ioctls) {
   int rc;
   syscall(__NR_cap_rights_get, fd, rights, fcntls, nioctls, NULL);
   if (ioctls) {
     if (*nioctls > 0) {
-      *ioctls = malloc(*nioctls * sizeof(unsigned long));
+      *ioctls = malloc(*nioctls * sizeof(unsigned int));
       if (*ioctls == NULL) {
         errno = ENOMEM;
         return -1;
@@ -132,9 +132,9 @@ static int cap_rights_get_all(int fd,
 
 int cap_rights_limit(int fd, const cap_rights_t *rights) {
   cap_rights_t primary;
-  unsigned long fcntls;
-  long nioctls;
-  unsigned long *ioctls = NULL;
+  unsigned int fcntls;
+  int nioctls;
+  unsigned int *ioctls = NULL;
   int rc;
   rc = cap_rights_get_all(fd, &primary, &fcntls, &nioctls, &ioctls);
   if (rc) {
@@ -152,11 +152,11 @@ int cap_rights_get(int fd, cap_rights_t *rights) {
   return syscall(__NR_cap_rights_get, fd, rights, NULL, NULL, NULL);
 }
 
-int cap_fcntls_limit(int fd, uint32_t fcntls) {
+int cap_fcntls_limit(int fd, cap_fcntl_t fcntls) {
   cap_rights_t primary;
-  long nioctls;
-  unsigned long prev_fcntls;
-  unsigned long *ioctls = NULL;
+  int nioctls;
+  unsigned int prev_fcntls;
+  unsigned int *ioctls = NULL;
   int rc;
   rc = cap_rights_get_all(fd, &primary, &prev_fcntls, &nioctls, &ioctls);
   if (rc) {
@@ -169,14 +169,14 @@ int cap_fcntls_limit(int fd, uint32_t fcntls) {
   return rc;
 }
 
-int cap_fcntls_get(int fd, uint32_t *fcntlsp) {
+int cap_fcntls_get(int fd, cap_fcntl_t *fcntlsp) {
   return syscall(__NR_cap_rights_get, fd, NULL, fcntlsp, NULL, NULL);
 }
 
-int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds) {
+int cap_ioctls_limit(int fd, const unsigned int *cmds, size_t ncmds) {
   cap_rights_t primary;
-  unsigned long fcntls;
-  long prev_nioctls;
+  unsigned int fcntls;
+  int prev_nioctls;
   int rc;
   rc = cap_rights_get_all(fd, &primary, &fcntls, &prev_nioctls, NULL);
   if (rc) {
@@ -186,8 +186,8 @@ int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds) {
   return rc;
 }
 
-ssize_t cap_ioctls_get(int fd, unsigned long *cmds, size_t maxcmds) {
-  long n = maxcmds;
+ssize_t cap_ioctls_get(int fd, unsigned int *cmds, size_t maxcmds) {
+  int n = maxcmds;
   int rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, &n, cmds);
   if (rc >= 0) {
     return (n == -1) ? CAP_IOCTLS_ALL : n;

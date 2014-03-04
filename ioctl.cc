@@ -42,7 +42,7 @@ TEST(Ioctl, SubRightNormalFD) {
   EXPECT_OK(fd);
 
   // Restrict the ioctl(2) subrights of a normal FD.
-  unsigned long ioctl_nread = FIONREAD;
+  cap_ioctl_t ioctl_nread = FIONREAD;
   EXPECT_OK(cap_ioctls_limit(fd, &ioctl_nread, 1));
   int bytes;
   EXPECT_OK(ioctl(fd, FIONREAD, &bytes));
@@ -55,15 +55,15 @@ TEST(Ioctl, SubRightNormalFD) {
   cap_rights_t all;
   CAP_SET_ALL(&all);
   EXPECT_RIGHTS_EQ(&all, &rights);
-  unsigned long ioctls[16];
+  cap_ioctl_t ioctls[16];
   memset(ioctls, 0, sizeof(ioctls));
   ssize_t nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
+  EXPECT_EQ((cap_ioctl_t)FIONREAD, ioctls[0]);
 
   // Can't widen the subrights.
-  unsigned long both_ioctls[2] = {FIONREAD, FIOCLEX};
+  cap_ioctl_t both_ioctls[2] = {FIONREAD, FIOCLEX};
   EXPECT_NOTCAPABLE(cap_ioctls_limit(fd, both_ioctls, 2));
 
   close(fd);
@@ -75,18 +75,18 @@ TEST(Ioctl, PreserveSubRights) {
   cap_rights_t rights;
   cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_IOCTL);
   EXPECT_OK(cap_rights_limit(fd, &rights));
-  unsigned long ioctl_nread = FIONREAD;
+  cap_ioctl_t ioctl_nread = FIONREAD;
   EXPECT_OK(cap_ioctls_limit(fd, &ioctl_nread, 1));
 
   cap_rights_t cur_rights;
-  unsigned long ioctls[16];
+  cap_ioctl_t ioctls[16];
   ssize_t nioctls;
   EXPECT_OK(cap_rights_get(fd, &cur_rights));
   EXPECT_RIGHTS_EQ(&rights, &cur_rights);
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
+  EXPECT_EQ((cap_ioctl_t)FIONREAD, ioctls[0]);
 
   // Limiting the top-level rights leaves the subrights unaffected...
   cap_rights_clear(&rights, CAP_READ);
@@ -94,7 +94,7 @@ TEST(Ioctl, PreserveSubRights) {
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
+  EXPECT_EQ((cap_ioctl_t)FIONREAD, ioctls[0]);
 
   // ... until we remove CAP_IOCTL
   cap_rights_clear(&rights, CAP_IOCTL);
@@ -111,7 +111,7 @@ TEST(Ioctl, SubRights) {
   int fd = open("/etc/passwd", O_RDONLY);
   EXPECT_OK(fd);
 
-  unsigned long ioctls[16];
+  cap_ioctl_t ioctls[16];
   ssize_t nioctls;
   memset(ioctls, 0, sizeof(ioctls));
   nioctls = cap_ioctls_get(fd, ioctls, 16);
@@ -133,16 +133,16 @@ TEST(Ioctl, SubRights) {
   EXPECT_OK(ioctl(fd, FIOCLEX, &one));
 
   // Check operations that need CAP_IOCTL with all relevant subrights => OK.
-  unsigned long both_ioctls[2] = {FIONREAD, FIOCLEX};
+  cap_ioctl_t both_ioctls[2] = {FIONREAD, FIOCLEX};
   EXPECT_OK(cap_ioctls_limit(fd, both_ioctls, 2));
   EXPECT_OK(ioctl(fd, FIONREAD, &bytes));
   EXPECT_OK(ioctl(fd, FIOCLEX, &one));
 
 
   // Check what happens if we ask for subrights but don't have the space for them.
-  unsigned long before = 0xBBBBBBBB;
-  unsigned long one_ioctl = 0;
-  unsigned long after = 0xAAAAAAAA;
+  cap_ioctl_t before = 0xBBBBBBBB;
+  cap_ioctl_t one_ioctl = 0;
+  cap_ioctl_t after = 0xAAAAAAAA;
   nioctls = cap_ioctls_get(fd, &one_ioctl, 1);
   EXPECT_EQ(2, nioctls);
   EXPECT_EQ(0xBBBBBBBB, before);
@@ -152,8 +152,8 @@ TEST(Ioctl, SubRights) {
   // Check operations that need CAP_IOCTL with particular subrights.
   int fd_nread = dup(fd);
   int fd_clex = dup(fd);
-  unsigned long ioctl_nread = FIONREAD;
-  unsigned long ioctl_clex = FIOCLEX;
+  cap_ioctl_t ioctl_nread = FIONREAD;
+  cap_ioctl_t ioctl_clex = FIOCLEX;
   EXPECT_OK(cap_ioctls_limit(fd_nread, &ioctl_nread, 1));
   EXPECT_OK(cap_ioctls_limit(fd_clex, &ioctl_clex, 1));
   EXPECT_OK(ioctl(fd_nread, FIONREAD, &bytes));
@@ -166,12 +166,12 @@ TEST(Ioctl, SubRights) {
   nioctls = cap_ioctls_get(fd_nread, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ((unsigned long)FIONREAD, ioctls[0]);
+  EXPECT_EQ((cap_ioctl_t)FIONREAD, ioctls[0]);
   memset(ioctls, 0, sizeof(ioctls));
   nioctls = cap_ioctls_get(fd_clex, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ((unsigned long)FIOCLEX, ioctls[0]);
+  EXPECT_EQ((cap_ioctl_t)FIOCLEX, ioctls[0]);
   // And that we can't widen the subrights.
   EXPECT_NOTCAPABLE(cap_ioctls_limit(fd_nread, both_ioctls, 2));
   EXPECT_NOTCAPABLE(cap_ioctls_limit(fd_clex, both_ioctls, 2));

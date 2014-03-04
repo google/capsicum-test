@@ -19,7 +19,11 @@ extern "C" {
 #define HAVE_CAP_RIGHTS_GET
 #define HAVE_CAP_RIGHTS_LIMIT
 #define HAVE_CAP_FCNTLS_LIMIT
+// fcntl(2) takes int, cap_fcntls_limit(2) takes uint32_t.
+typedef uint32_t cap_fcntl_t;
 #define HAVE_CAP_IOCTLS_LIMIT
+// ioctl(2) and cap_ioctls_limit(2) take unsigned long.
+typedef unsigned long cap_ioctl_t;
 #endif
 
 #ifdef __cplusplus

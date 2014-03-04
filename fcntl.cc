@@ -271,9 +271,9 @@ TEST(Fcntl, SubRightNormalFD) {
   cap_rights_t all;
   CAP_SET_ALL(&all);
   EXPECT_RIGHTS_EQ(&all, &rights);
-  uint32_t fcntls;
+  cap_fcntl_t fcntls;
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
-  EXPECT_EQ((uint32_t)CAP_FCNTL_GETFL, fcntls);
+  EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_GETFL, fcntls);
 
   // Can't widen the subrights.
   EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL|CAP_FCNTL_SETFL));
@@ -292,23 +292,23 @@ TEST(Fcntl, PreserveSubRights) {
   EXPECT_OK(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
 
   cap_rights_t cur_rights;
-  uint32_t fcntls;
+  cap_fcntl_t fcntls;
   EXPECT_OK(cap_rights_get(fd, &cur_rights));
   EXPECT_RIGHTS_EQ(&rights, &cur_rights);
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
-  EXPECT_EQ((uint32_t)CAP_FCNTL_GETFL, fcntls);
+  EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_GETFL, fcntls);
 
   // Limiting the top-level rights leaves the subrights unaffected...
   cap_rights_clear(&rights, CAP_READ);
   EXPECT_OK(cap_rights_limit(fd, &rights));
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
-  EXPECT_EQ((uint32_t)CAP_FCNTL_GETFL, fcntls);
+  EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_GETFL, fcntls);
 
   // ... until we remove CAP_FCNTL.
   cap_rights_clear(&rights, CAP_FCNTL);
   EXPECT_OK(cap_rights_limit(fd, &rights));
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
-  EXPECT_EQ((uint32_t)0, fcntls);
+  EXPECT_EQ((cap_fcntl_t)0, fcntls);
   EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
 
   close(fd);
@@ -386,11 +386,11 @@ TEST(Fcntl, OWNSubRights) {
   EXPECT_OK(fcntl(sock_set, F_SETOWN, owner));
   EXPECT_NOTCAPABLE(fcntl(sock_get, F_SETOWN, owner));
   // Also check we can retrieve the subrights.
-  uint32_t fcntls;
+  cap_fcntl_t fcntls;
   EXPECT_OK(cap_fcntls_get(sock_get, &fcntls));
-  EXPECT_EQ((uint32_t)CAP_FCNTL_GETOWN, fcntls);
+  EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_GETOWN, fcntls);
   EXPECT_OK(cap_fcntls_get(sock_set, &fcntls));
-  EXPECT_EQ((uint32_t)CAP_FCNTL_SETOWN, fcntls);
+  EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_SETOWN, fcntls);
   // And that we can't widen the subrights.
   EXPECT_NOTCAPABLE(cap_fcntls_limit(sock_get, CAP_FCNTL_GETOWN|CAP_FCNTL_SETOWN));
   EXPECT_NOTCAPABLE(cap_fcntls_limit(sock_set, CAP_FCNTL_GETOWN|CAP_FCNTL_SETOWN));

@@ -48,7 +48,7 @@ FORK_TEST(Openat, Relative) {
 #endif
 #ifdef HAVE_CAP_IOCTLS_LIMIT
   // Also limit ioctl(2) subrights.
-  unsigned long ioctl_nread = FIONREAD;
+  cap_ioctl_t ioctl_nread = FIONREAD;
   EXPECT_OK(cap_ioctls_limit(etc_cap_base, &ioctl_nread, 1));
 #endif
 
@@ -79,18 +79,18 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OK(cap_rights_get(fd, &rights));
   EXPECT_RIGHTS_IN(&rights, &r_base);
 #ifdef HAVE_CAP_FCNTLS_LIMIT
-  uint32_t fcntls;
+  cap_fcntl_t fcntls;
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
-  EXPECT_EQ((uint32_t)CAP_FCNTL_GETFL, fcntls);
+  EXPECT_EQ((cap_fcntl_t)CAP_FCNTL_GETFL, fcntls);
 #endif
 #ifdef HAVE_CAP_IOCTLS_LIMIT
-  unsigned long ioctls[16];
+  cap_ioctl_t ioctls[16];
   ssize_t nioctls;
   memset(ioctls, 0, sizeof(ioctls));
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(1, nioctls);
-  EXPECT_EQ((uint32_t)FIONREAD, ioctls[0]);
+  EXPECT_EQ((cap_ioctl_t)FIONREAD, ioctls[0]);
 #endif
   close(fd);
 
