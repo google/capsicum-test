@@ -34,6 +34,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "capsicum-linux.h"
 
 /************************************************************
@@ -50,6 +51,19 @@ int cap_getmode(unsigned int *mode) {
   if (rc < 0) return rc;
   *mode = (rc == SECCOMP_MODE_LSM);
   return 0;
+}
+
+static void print_rights_all(FILE *f,
+                             const cap_rights_t *rights,
+                             unsigned long fcntls,
+                             long nioctls,
+                             const unsigned long *ioctls) {
+  int ii;
+  fprintf(f, "%016llx %016llx fcntls=%08lx |%ld|",
+          rights->cr_rights[0], rights->cr_rights[1], fcntls, nioctls);
+  for (ii = 0; ii < nioctls; ii++) {
+    fprintf(f, " %08lx", ioctls[ii]);
+  }
 }
 
 /* Caller owns (*ioctls) */
