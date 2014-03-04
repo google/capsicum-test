@@ -53,6 +53,30 @@ int cap_getmode(unsigned int *mode) {
   return 0;
 }
 
+static inline unsigned int
+right_to_index(uint64_t right)
+{
+	static const int bit2idx[] = {
+		-1, 0, 1, -1, 2, -1, -1, -1, 3, -1, -1, -1, -1, -1, -1, -1,
+		4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+	};
+	int idx;
+
+	idx = CAPIDXBIT(right);
+	assert(idx == 1 || idx == 2 || idx == 4 || idx == 8 || idx == 16);
+
+	idx = bit2idx[idx];
+	assert(idx >= 0 && idx <= 4);
+
+	return ((unsigned int)idx);
+}
+
+static inline bool has_right(const cap_rights_t *rights, __u64 right)
+{
+	int idx = right_to_index(right);
+	return (rights->cr_rights[idx] & right) == right;
+}
+
 static void print_rights_all(FILE *f,
                              const cap_rights_t *rights,
                              unsigned long fcntls,
@@ -63,6 +87,20 @@ static void print_rights_all(FILE *f,
           rights->cr_rights[0], rights->cr_rights[1], fcntls, nioctls);
   for (ii = 0; ii < nioctls; ii++) {
     fprintf(f, " %08lx", ioctls[ii]);
+  }
+}
+
+static void cap_rights_regularize(const cap_rights_t * rights,
+                                  unsigned long *fcntls,
+                                  long *nioctls,
+                                  unsigned long **ioctls) {
+  if (!has_right(rights, CAP_FCNTL)) {
+    *fcntls = 0x00;
+  }
+  if (!has_right(rights, CAP_IOCTL)) {
+    *nioctls = 0;
+    free(*ioctls);
+    *ioctls = NULL;
   }
 }
 
@@ -97,6 +135,7 @@ int cap_rights_limit(int fd, const cap_rights_t *rights) {
   if (rc) {
     return rc;
   }
+  cap_rights_regularize(rights, &fcntls, &nioctls, &ioctls);
   rc = syscall(__NR_cap_rights_limit, fd, rights, fcntls, nioctls, ioctls);
   if (ioctls) {
     free(ioctls);
@@ -172,24 +211,6 @@ int pdkill(int fd, int signum) {
 
 int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
   return syscall(__NR_pdwait4, fd, status, options, rusage);
-}
-
-static inline unsigned int
-right_to_index(uint64_t right)
-{
-	static const int bit2idx[] = {
-		-1, 0, 1, -1, 2, -1, -1, -1, 3, -1, -1, -1, -1, -1, -1, -1,
-		4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-	};
-	int idx;
-
-	idx = CAPIDXBIT(right);
-	assert(idx == 1 || idx == 2 || idx == 4 || idx == 8 || idx == 16);
-
-	idx = bit2idx[idx];
-	assert(idx >= 0 && idx <= 4);
-
-	return ((unsigned int)idx);
 }
 
 static void
