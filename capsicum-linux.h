@@ -33,7 +33,7 @@ extern "C" {
  ************************************************************/
 int cap_enter();
 int cap_getmode(unsigned int *mode);
-int cap_rights_limit(int fd, cap_rights_t *rights);
+int cap_rights_limit(int fd, const cap_rights_t *rights);
 int cap_rights_get(int fd, cap_rights_t *rights);
 int cap_fcntls_limit(int fd, uint32_t fcntls);
 int cap_fcntls_get(int fd, uint32_t *fcntlsp);

@@ -73,7 +73,7 @@ static int cap_rights_get_all(int fd,
   return 0;
 }
 
-int cap_rights_limit(int fd, cap_rights_t *rights) {
+int cap_rights_limit(int fd, const cap_rights_t *rights) {
   cap_rights_t primary;
   unsigned long fcntls;
   long nioctls;
