@@ -85,9 +85,12 @@ static void print_rights_all(FILE *f,
   int ii;
   fprintf(f, "%016llx %016llx fcntls=%08lx |%ld|",
           rights->cr_rights[0], rights->cr_rights[1], fcntls, nioctls);
-  for (ii = 0; ii < nioctls; ii++) {
-    fprintf(f, " %08lx", ioctls[ii]);
+  if (ioctls) {
+    for (ii = 0; ii < nioctls; ii++) {
+      fprintf(f, " %08lx", ioctls[ii]);
+    }
   }
+  fprintf(f, "\n");
 }
 
 static void cap_rights_regularize(const cap_rights_t * rights,
@@ -104,7 +107,7 @@ static void cap_rights_regularize(const cap_rights_t * rights,
   }
 }
 
-/* Caller owns (*ioctls) */
+/* Caller owns (*ioctls) on return */
 static int cap_rights_get_all(int fd,
                               cap_rights_t *rights,
                               unsigned long *fcntls,
@@ -112,15 +115,17 @@ static int cap_rights_get_all(int fd,
                               unsigned long **ioctls) {
   int rc;
   syscall(__NR_cap_rights_get, fd, rights, fcntls, nioctls, NULL);
-  if (*nioctls > 0) {
-    *ioctls = malloc(*nioctls * sizeof(unsigned long));
-    if (*ioctls == NULL) {
-      errno = ENOMEM;
-      return -1;
+  if (ioctls) {
+    if (*nioctls > 0) {
+      *ioctls = malloc(*nioctls * sizeof(unsigned long));
+      if (*ioctls == NULL) {
+        errno = ENOMEM;
+        return -1;
+      }
+      syscall(__NR_cap_rights_get, fd, NULL, NULL, nioctls, *ioctls);
+    } else {
+      *ioctls = NULL;
     }
-    syscall(__NR_cap_rights_get, fd, NULL, NULL, &nioctls, *ioctls);
-  } else {
-    *ioctls = NULL;
   }
   return 0;
 }
@@ -150,9 +155,10 @@ int cap_rights_get(int fd, cap_rights_t *rights) {
 int cap_fcntls_limit(int fd, uint32_t fcntls) {
   cap_rights_t primary;
   long nioctls;
+  unsigned long prev_fcntls;
   unsigned long *ioctls = NULL;
   int rc;
-  rc = cap_rights_get_all(fd, &primary, NULL, &nioctls, &ioctls);
+  rc = cap_rights_get_all(fd, &primary, &prev_fcntls, &nioctls, &ioctls);
   if (rc) {
     return rc;
   }
@@ -170,8 +176,9 @@ int cap_fcntls_get(int fd, uint32_t *fcntlsp) {
 int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds) {
   cap_rights_t primary;
   unsigned long fcntls;
+  long prev_nioctls;
   int rc;
-  rc = cap_rights_get_all(fd, &primary, &fcntls, NULL, NULL);
+  rc = cap_rights_get_all(fd, &primary, &fcntls, &prev_nioctls, NULL);
   if (rc) {
     return rc;
   }
@@ -183,7 +190,7 @@ ssize_t cap_ioctls_get(int fd, unsigned long *cmds, size_t maxcmds) {
   long n = maxcmds;
   int rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, &n, cmds);
   if (rc >= 0) {
-    return n;
+    return (n == -1) ? CAP_IOCTLS_ALL : n;
   } else {
     return rc;
   }

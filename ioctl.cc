@@ -49,7 +49,7 @@ TEST(Ioctl, SubRightNormalFD) {
   int one = 1;
   EXPECT_NOTCAPABLE(ioctl(fd, FIOCLEX, &one));
 
-  // Expect to have all capabilities.
+  // Expect to have all primary rights.
   cap_rights_t rights;
   EXPECT_OK(cap_rights_get(fd, &rights));
   cap_rights_t all;
