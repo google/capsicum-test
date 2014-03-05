@@ -31,7 +31,9 @@ FORK_TEST(Fcntl, Basic) {
   EXPECT_OK(files["file"]);
   files["socket"] = socket(PF_LOCAL, SOCK_STREAM, 0);
   EXPECT_OK(files["socket"]);
-  files["SHM"] = shm_open("/capsicum-test", (O_CREAT|O_RDWR), 0600);
+  char shm_name[128];
+  sprintf(shm_name, "/capsicum-test-%d", getuid());
+  files["SHM"] = shm_open(shm_name, (O_CREAT|O_RDWR), 0600);
   if ((files["SHM"] == -1) && errno == ENOSYS) {
     // shm_open() is not implemented in user-mode Linux.
     files.erase("SHM");
@@ -67,7 +69,7 @@ FORK_TEST(Fcntl, Basic) {
   for (FileMap::iterator ii = all.begin(); ii != all.end(); ++ii) {
     close(ii->second);
   }
-  shm_unlink("/capsicum-test");
+  shm_unlink(shm_name);
 }
 
 // Supported fcntl(2) operations:
@@ -283,7 +285,7 @@ TEST(Fcntl, SubRightNormalFD) {
 }
 
 TEST(Fcntl, PreserveSubRights) {
-  int fd = open("/tmp/cap_fcntl_subrightnorm", O_RDWR|O_CREAT, 0644);
+  int fd = open("/tmp/cap_fcntl_subrightpreserve", O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
 
   cap_rights_t rights;
