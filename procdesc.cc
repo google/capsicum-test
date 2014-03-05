@@ -232,10 +232,25 @@ TEST_F(PipePdfork, NoSigchld) {
   sighandler_t original = signal(SIGCHLD, handle_signal);
   TerminateChild();
   int rc = 0;
-  waitpid(pid_, &rc, 0);
+  // Can waitpid() for the specific pid of the pdfork()ed child.
+  EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_EQ(0, had_signal);
   signal(SIGCHLD, original);
+}
+
+TEST_F(PipePdfork, WildcardWait) {
+  TerminateChild();
+  sleep(1);  // Ensure child is truly dead.
+  // Wildcard waitpid should not see the pdfork()ed child.
+  int rc;
+  EXPECT_EQ(0, waitpid(-1, &rc, WNOHANG));
+#ifdef HAVE_PDWAIT4
+  int status;
+  rc = pdwait4(pd_, &status, 0, NULL);
+  EXPECT_OK(rc);
+  EXPECT_EQ(pid_, rc);
+#endif
 }
 
 void CheckChildFinished(pid_t pid, bool signaled=false) {
