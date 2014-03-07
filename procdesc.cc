@@ -177,6 +177,16 @@ TEST_F(PipePdfork, Close) {
   EXPECT_PID_DEAD(pid_);
 }
 
+TEST_F(PipePdfork, CloseLast) {
+  // Child should only die when last process descriptor is closed.
+  EXPECT_PID_ALIVE(pid_);
+  int pd_other = dup(pd_);
+  EXPECT_OK(close(pd_));
+  EXPECT_PID_ALIVE(pid_);
+  EXPECT_OK(close(pd_other));
+  EXPECT_PID_DEAD(pid_);
+}
+
 TEST(Pdfork, WaitPid) {
   int pd = -1;
   int pid = pdfork(&pd, 0);
