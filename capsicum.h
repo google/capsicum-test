@@ -20,7 +20,7 @@
 #ifdef CAP_RIGHTS_VERSION
 #define CAP_SET_ALL(rights) CAP_ALL(rights)
 #else
-#define CAP_SET_ALL(rights) *(rights) = CAP_ALL
+#define CAP_SET_ALL(rights) *(rights) = CAP_MASK_VALID
 #endif
 #endif
 
@@ -28,7 +28,7 @@
 #ifdef CAP_RIGHTS_VERSION
 #define CAP_SET_NONE(rights) CAP_NONE(rights)
 #else
-#define CAP_SET_NONE(rights) *(rights) = CAP_NONE
+#define CAP_SET_NONE(rights) *(rights) = 0
 #endif
 #endif
 
@@ -50,9 +50,13 @@
 #endif
 
 #ifndef CAP_MMAP_R
-#define CAP_MMAP_R CAP_READ
-#define CAP_MMAP_W CAP_WRITE
-#define CAP_MMAP_X CAP_MAPEXEC
+#define CAP_MMAP_R (CAP_READ|CAP_MMAP)
+#define CAP_MMAP_W (CAP_WRITE|CAP_MMAP)
+#define CAP_MMAP_X (CAP_MAPEXEC|CAP_MMAP)
+#define CAP_MMAP_RW (CAP_MMAP_R|CAP_MMAP_W)
+#define CAP_MMAP_RX (CAP_MMAP_R|CAP_MMAP_X)
+#define CAP_MMAP_WX (CAP_MMAP_W|CAP_MMAP_X)
+#define CAP_MMAP_RWX (CAP_MMAP_R|CAP_MMAP_W|CAP_MMAP_X)
 #endif
 
 #ifndef CAP_MKFIFOAT

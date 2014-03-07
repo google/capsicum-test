@@ -87,10 +87,17 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define PTRACE_PEEKDATA_ PT_READ_D
 
 /* Features available */
+#if __FreeBSD_version >= 1000000
+#define HAVE_CHFLAGSAT
+#define HAVE_BINDAT
+#define HAVE_CONNECTAT
+#endif
 #define HAVE_CHFLAGS
+#define HAVE_FSTATAT
 #define HAVE_GETFSSTAT
 #define HAVE_REVOKE
 #define HAVE_GETLOGIN
+#define HAVE_MKFIFOAT
 #define HAVE_SYSARCH
 #include <machine/sysarch.h>
 #define HAVE_STAT_BIRTHTIME

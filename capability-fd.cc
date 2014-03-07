@@ -205,9 +205,14 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   cap_rights_t rights_needed;                           \
   cap_rights_init(&rights_needed, __VA_ARGS__);         \
   if (cap_rights_contains(&rights, &rights_needed)) {   \
-    EXPECT_OK(result);                                  \
+    EXPECT_OK(result) << std::endl                      \
+                      << " need: " << rights_needed     \
+                      << std::endl                      \
+                      << " got:  " << rights;           \
   } else {                                              \
-    EXPECT_EQ(-1, result);                              \
+    EXPECT_EQ(-1, result) << " need: " << rights_needed \
+                          << std::endl                  \
+                          << " got:  "<< rights;        \
     EXPECT_EQ(ENOTCAPABLE, errno);                      \
   }                                                     \
 } while (0)
@@ -296,12 +301,17 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   EXPECT_OK(cap_fd);
   EXPECT_OK(cap_rights_limit(cap_fd, &rights));
   if (cap_fd < 0) return;
+  cap_rights_t erights;
+  EXPECT_OK(cap_rights_get(cap_fd, &erights));
+  EXPECT_RIGHTS_EQ(&rights, &erights);
 
   // Check creation of a capability from a capability.
   int cap_cap_fd = dup(cap_fd);
   EXPECT_OK(cap_cap_fd);
   EXPECT_OK(cap_rights_limit(cap_cap_fd, &rights));
   EXPECT_NE(cap_fd, cap_cap_fd);
+  EXPECT_OK(cap_rights_get(cap_cap_fd, &erights));
+  EXPECT_RIGHTS_EQ(&rights, &erights);
   close(cap_cap_fd);
 
   char ch;
@@ -327,28 +337,32 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   }
 #endif
 
-  struct stat sb;
-  CHECK_RIGHT_RESULT(fstat(cap_fd, &sb), rights, CAP_FSTAT);
-
+  CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_NONE, MAP_SHARED, cap_fd, 0),
+                          rights, CAP_MMAP);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_R);
+                          rights, CAP_MMAP_R);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_W);
+                          rights, CAP_MMAP_W);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_X);
+                          rights, CAP_MMAP_X);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_W);
+                          rights, CAP_MMAP_RW);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_X);
+                          rights, CAP_MMAP_RX);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_EXEC | PROT_WRITE, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_W, CAP_MMAP_X);
+                          rights, CAP_MMAP_WX);
   CHECK_RIGHT_MMAP_RESULT(mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED, cap_fd, 0),
-                          rights, CAP_MMAP, CAP_MMAP_R, CAP_MMAP_W, CAP_MMAP_X);
+                          rights, CAP_MMAP_RWX);
 
   CHECK_RIGHT_RESULT(fsync(cap_fd), rights, CAP_FSYNC);
 #ifdef HAVE_SYNC_FILE_RANGE
   CHECK_RIGHT_RESULT(sync_file_range(cap_fd, 0, 1, 0), rights, CAP_FSYNC, CAP_SEEK);
 #endif
+
+  int rc = fcntl(cap_fd, F_GETFL);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FCNTL);
+  rc = fcntl(cap_fd, F_SETFL, rc);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FCNTL);
 
   CHECK_RIGHT_RESULT(fchown(cap_fd, -1, -1), rights, CAP_FCHOWN);
 
@@ -358,6 +372,9 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(flock(cap_fd, LOCK_UN), rights, CAP_FLOCK);
 
   CHECK_RIGHT_RESULT(ftruncate(cap_fd, 0), rights, CAP_FTRUNCATE);
+
+  struct stat sb;
+  CHECK_RIGHT_RESULT(fstat(cap_fd, &sb), rights, CAP_FSTAT);
 
   struct statfs cap_sf;
   CHECK_RIGHT_RESULT(fstatfs(cap_fd, &cap_sf), rights, CAP_FSTATFS);
@@ -405,28 +422,28 @@ FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
   EXPECT_OK(fd);
   if (fd < 0) return;
 
-  EXPECT_OK(cap_enter());
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   // Try a variety of different combinations of rights - a full
   // enumeration is too large (2^N with N~30+) to perform.
   TRY_FILE_OPS(fd, CAP_READ);
-  TRY_FILE_OPS(fd, CAP_READ, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_PREAD);
   TRY_FILE_OPS(fd, CAP_WRITE);
-  TRY_FILE_OPS(fd, CAP_WRITE, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_PWRITE);
   TRY_FILE_OPS(fd, CAP_READ, CAP_WRITE);
-  TRY_FILE_OPS(fd, CAP_READ, CAP_WRITE, CAP_SEEK);
+  TRY_FILE_OPS(fd, CAP_PREAD, CAP_PWRITE);
   TRY_FILE_OPS(fd, CAP_SEEK);
   TRY_FILE_OPS(fd, CAP_FCHFLAGS);
   TRY_FILE_OPS(fd, CAP_IOCTL);
   TRY_FILE_OPS(fd, CAP_FSTAT);
   TRY_FILE_OPS(fd, CAP_MMAP);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_WRITE);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_MMAP_X);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_WRITE);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_MMAP_X);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_MMAP_X, CAP_WRITE);
-  TRY_FILE_OPS(fd, CAP_MMAP, CAP_READ, CAP_WRITE, CAP_MMAP_X);
+  TRY_FILE_OPS(fd, CAP_MMAP_R);
+  TRY_FILE_OPS(fd, CAP_MMAP_W);
+  TRY_FILE_OPS(fd, CAP_MMAP_X);
+  TRY_FILE_OPS(fd, CAP_MMAP_RW);
+  TRY_FILE_OPS(fd, CAP_MMAP_RX);
+  TRY_FILE_OPS(fd, CAP_MMAP_WX);
+  TRY_FILE_OPS(fd, CAP_MMAP_RWX);
   TRY_FILE_OPS(fd, CAP_FCNTL);
   TRY_FILE_OPS(fd, CAP_EVENT);
   TRY_FILE_OPS(fd, CAP_FSYNC);
@@ -454,6 +471,263 @@ FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
   TRY_FILE_OPS(fd, CAP_ACCEPT);
 
   close(fd);
+}
+
+#define TRY_DIR_OPS(dfd, ...) do {       \
+  cap_rights_t rights;                   \
+  cap_rights_init(&rights, __VA_ARGS__); \
+  TryDirOps((dfd), rights);              \
+} while (0)
+
+static void TryDirOps(int dirfd, cap_rights_t rights) {
+  cap_rights_t erights;
+  int dfd_cap = dup(dirfd);
+  EXPECT_OK(dfd_cap);
+  EXPECT_OK(cap_rights_limit(dfd_cap, &rights));
+  EXPECT_OK(cap_rights_get(dfd_cap, &erights));
+  EXPECT_RIGHTS_EQ(&rights, &erights);
+
+  int rc = openat(dfd_cap, "cap_create", O_CREAT | O_RDONLY, 0600);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_CREATE, CAP_READ, CAP_LOOKUP);
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+    EXPECT_OK(unlinkat(dirfd, "cap_create", 0));
+  }
+  rc = openat(dfd_cap, "cap_create", O_CREAT | O_WRONLY | O_APPEND, 0600);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_CREATE, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+    EXPECT_OK(unlinkat(dirfd, "cap_create", 0));
+  }
+  rc = openat(dfd_cap, "cap_create", O_CREAT | O_RDWR | O_APPEND, 0600);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_CREATE, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+    EXPECT_OK(unlinkat(dirfd, "cap_create", 0));
+  }
+
+  rc = openat(dirfd, "cap_fsync", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDONLY);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_WRONLY | O_APPEND);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDWR | O_APPEND);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDONLY);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_WRONLY | O_APPEND);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDWR | O_APPEND);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  EXPECT_OK(unlinkat(dirfd, "cap_fsync", 0));
+
+  rc = openat(dirfd, "cap_ftruncate", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_ftruncate", O_TRUNC | O_RDONLY);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FTRUNCATE, CAP_READ, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_ftruncate", O_TRUNC | O_WRONLY);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FTRUNCATE, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_ftruncate", O_TRUNC | O_RDWR);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FTRUNCATE, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  EXPECT_OK(unlinkat(dirfd, "cap_ftruncate", 0));
+
+  rc = openat(dfd_cap, "cap_create", O_CREAT | O_WRONLY, 0600);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_CREATE, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+    EXPECT_OK(unlinkat(dirfd, "cap_create", 0));
+  }
+  rc = openat(dfd_cap, "cap_create", O_CREAT | O_RDWR, 0600);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_CREATE, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+    EXPECT_OK(unlinkat(dirfd, "cap_create", 0));
+  }
+
+  rc = openat(dirfd, "cap_fsync", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_WRONLY);
+  CHECK_RIGHT_RESULT(rc,
+               rights, CAP_FSYNC, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDWR);
+  CHECK_RIGHT_RESULT(rc,
+               rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_WRONLY);
+  CHECK_RIGHT_RESULT(rc,
+               rights, CAP_FSYNC, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDWR);
+  CHECK_RIGHT_RESULT(rc,
+               rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(close(rc));
+  EXPECT_OK(unlinkat(dirfd, "cap_fsync", 0));
+
+#ifdef HAVE_CHFLAGSAT
+  rc = openat(dirfd, "cap_chflagsat", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = chflagsat(dfd_cap, "cap_chflagsat", UF_NODUMP, 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_CHFLAGSAT, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_chflagsat", 0));
+#endif
+
+  rc = openat(dirfd, "cap_fchownat", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = fchownat(dfd_cap, "cap_fchownat", -1, -1, 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FCHOWN, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_fchownat", 0));
+
+  rc = openat(dirfd, "cap_fchmodat", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = fchmodat(dfd_cap, "cap_fchmodat", 0600, 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FCHMOD, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_fchmodat", 0));
+
+#ifdef HAVE_FSTATAT
+  rc = openat(dirfd, "cap_fstatat", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  struct stat sb;
+  rc = fstatat(dfd_cap, "cap_fstatat", &sb, 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSTAT, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_fstatat", 0));
+#endif
+
+  rc = openat(dirfd, "cap_futimesat", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = futimesat(dfd_cap, "cap_futimesat", NULL);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FUTIMES, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_futimesat", 0));
+
+#ifdef CAP_LINKAT
+  rc = openat(dirfd, "cap_linkat_src", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = linkat(dirfd, "cap_linkat_src", dfd_cap, "cap_linkat_dst", 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_linkat_src", 0));
+  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
+#endif
+
+  rc = mkdirat(dfd_cap, "cap_mkdirat", 0700);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_MKDIRAT, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mkdirat", AT_REMOVEDIR));
+
+#ifdef HAVE_MKFIFOAT
+  rc = mkfifoat(dfd_cap, "cap_mkfifoat", 0600);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_MKFIFOAT, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mkfifoat", 0));
+#endif
+
+  if (getuid() == 0) {
+    rc = mknodat(dfd_cap, "cap_mknodat", S_IFCHR | 0600, 0);
+    CHECK_RIGHT_RESULT(rc, rights, CAP_MKNODAT, CAP_LOOKUP);
+    if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mknodat", 0));
+  }
+
+#ifdef CAP_RENAMEAT
+  // For renameat(2), need CAP_RENAMEAT on source, CAP_LINKAT on destination.
+  rc = openat(dirfd, "cap_renameat_src", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = renameat(dirfd, "cap_renameat_src", dfd_cap, "cap_renameat_dst");
+  CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT);
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_dst", 0));
+  } else {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_src", 0));
+  }
+  rc = openat(dirfd, "cap_renameat_src", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = renameat(dfd_cap, "cap_renameat_src", dirfd, "cap_renameat_dst");
+  CHECK_RIGHT_RESULT(rc, rights, CAP_RENAMEAT);
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_dst", 0));
+  } else {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_src", 0));
+  }
+#endif
+
+#ifdef CAP_SYMLINKAT
+  rc = symlinkat("test", dfd_cap, "cap_symlinkat");
+  CHECK_RIGHT_RESULT(rc, rights, CAP_SYMLINKAT, CAP_LOOKUP);
+  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_symlinkat", 0));
+#endif
+
+  rc = openat(dirfd, "cap_unlinkat", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = unlinkat(dfd_cap, "cap_unlinkat", 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_UNLINKAT, CAP_LOOKUP);
+  unlinkat(dirfd, "cap_unlinkat", 0);
+  EXPECT_OK(mkdirat(dirfd, "cap_unlinkat", 0700));
+  rc = unlinkat(dfd_cap, "cap_unlinkat", AT_REMOVEDIR);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_UNLINKAT, CAP_LOOKUP);
+  unlinkat(dirfd, "cap_unlinkat", AT_REMOVEDIR);
+
+  EXPECT_OK(close(dfd_cap));
+}
+
+FORK_TEST(Capability, DirOperations) {
+  int rc = mkdir("/tmp/cap_dirops", 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+  int dfd = open("/tmp/cap_dirops", O_RDONLY | O_DIRECTORY);
+  EXPECT_OK(dfd);
+  int tmpfd = open("/tmp", O_RDONLY | O_DIRECTORY);
+  EXPECT_OK(tmpfd);
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+#ifdef CAP_LINKAT
+  TRY_DIR_OPS(dfd, CAP_LINKAT);
+  TRY_DIR_OPS(dfd, CAP_LINKAT, CAP_LOOKUP);
+#endif
+  TRY_DIR_OPS(dfd, CAP_CREATE, CAP_READ, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_CREATE, CAP_WRITE, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_CREATE, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FSYNC, CAP_READ, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FSYNC, CAP_WRITE, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FTRUNCATE, CAP_READ, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FTRUNCATE, CAP_WRITE, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FTRUNCATE, CAP_READ, CAP_WRITE, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FCHOWN, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FCHMOD, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FSTAT, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_FUTIMES, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_MKDIRAT, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_MKFIFOAT, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_MKNODAT, CAP_LOOKUP);
+#ifdef CAP_SYMLINKAT
+  TRY_DIR_OPS(dfd, CAP_SYMLINKAT, CAP_LOOKUP);
+#endif
+  TRY_DIR_OPS(dfd, CAP_UNLINKAT, CAP_LOOKUP);
+#ifdef CAP_RENAMEAT
+  // Rename needs CAP_RENAMEAT on source directory and CAP_LINKAT on destination directory.
+  TRY_DIR_OPS(dfd, CAP_RENAMEAT, CAP_UNLINKAT, CAP_LOOKUP);
+#endif
+
+  EXPECT_OK(unlinkat(tmpfd, "cap_dirops", AT_REMOVEDIR));
 }
 
 static void TryReadWrite(int cap_fd) {
