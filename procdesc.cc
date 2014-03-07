@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <poll.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -231,6 +232,55 @@ TEST_F(PipePdfork, Pdkill) {
   // SIGINT isn't
   pdkill(pd_, SIGINT);
   EXPECT_PID_DEAD(pid_);
+}
+
+pid_t PdforkParentDeath(int flags) {
+  bool verbose = false;
+  int sock_fds[2];
+  EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
+  if (verbose) fprintf(stderr, "[%d] parent about to fork()...\n", getpid_());
+  pid_t child = fork();
+  EXPECT_OK(child);
+  if (child == 0) {
+    int pd;
+    if (verbose) fprintf(stderr, "  [%d] child about to pdfork()...\n", getpid_());
+    pid_t grandchild = pdfork(&pd, flags);
+    if (grandchild == 0) {
+      while (true) {
+        if (verbose) fprintf(stderr, "    [%d] grandchild still alive\n", getpid_());
+        sleep(1);
+      }
+    }
+    if (verbose) fprintf(stderr, "  [%d] pdfork()ed grandchild %d, sending ID to parent\n", getpid_(), grandchild);
+    // send grandchild pid to parent
+    write(sock_fds[1], &grandchild, sizeof(grandchild));
+    sleep(4);
+    if (verbose) fprintf(stderr, "  [%d] child terminating\n", getpid_());
+    exit(0);
+  }
+  if (verbose) fprintf(stderr, "[%d] fork()ed child is %d\n", getpid_(), child);
+  pid_t grandchild;
+  read(sock_fds[0], &grandchild, sizeof(grandchild));
+  if (verbose) fprintf(stderr, "[%d] receive grandchild id %d\n", getpid_(), grandchild);
+  EXPECT_PID_ALIVE(child);
+  EXPECT_PID_ALIVE(grandchild);
+  sleep(6);
+  // child dies, closing its process descriptor
+  EXPECT_PID_DEAD(child);
+  return grandchild;
+}
+
+TEST(Pdfork, Bagpuss) {
+  pid_t grandchild = PdforkParentDeath(0);
+  // Child death => closed process descriptor => grandchild death
+  EXPECT_PID_DEAD(grandchild);
+}
+
+TEST(Pdfork, BagpussDaemon) {
+  pid_t grandchild = PdforkParentDeath(PD_DAEMON);
+  // Child death => closed process descriptor => no effect on grandchild
+  EXPECT_PID_ALIVE(grandchild);
+  EXPECT_OK(kill(grandchild, SIGKILL));
 }
 
 static int had_signal = 0;
