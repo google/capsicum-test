@@ -600,7 +600,6 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(rc, rights, CAP_FCHMOD, CAP_LOOKUP);
   EXPECT_OK(unlinkat(dirfd, "cap_fchmodat", 0));
 
-#ifdef HAVE_FSTATAT
   rc = openat(dirfd, "cap_fstatat", O_CREAT, 0600);
   EXPECT_OK(rc);
   EXPECT_OK(close(rc));
@@ -608,7 +607,6 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   rc = fstatat(dfd_cap, "cap_fstatat", &sb, 0);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSTAT, CAP_LOOKUP);
   EXPECT_OK(unlinkat(dirfd, "cap_fstatat", 0));
-#endif
 
   rc = openat(dirfd, "cap_futimesat", O_CREAT, 0600);
   EXPECT_OK(rc);

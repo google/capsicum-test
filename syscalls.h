@@ -93,7 +93,6 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define HAVE_CONNECTAT
 #endif
 #define HAVE_CHFLAGS
-#define HAVE_FSTATAT
 #define HAVE_GETFSSTAT
 #define HAVE_REVOKE
 #define HAVE_GETLOGIN
