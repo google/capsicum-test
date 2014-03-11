@@ -336,8 +336,12 @@ TEST(Linux, fanotify) {
   cap_rights_init(&r_rwspoll, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_EVENT);
   cap_rights_t r_rwsnotify;
   cap_rights_init(&r_rwsnotify, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_NOTIFY);
+  cap_rights_t r_rsl;
+  cap_rights_init(&r_rsl, CAP_READ, CAP_SEEK, CAP_LOOKUP);
   cap_rights_t r_rslstat;
   cap_rights_init(&r_rslstat, CAP_READ, CAP_SEEK, CAP_LOOKUP, CAP_FSTAT);
+  cap_rights_t r_rsstat;
+  cap_rights_init(&r_rsstat, CAP_READ, CAP_SEEK, CAP_FSTAT);
 
   int cap_fd_ro = dup(fa_fd);
   EXPECT_OK(cap_fd_ro);
@@ -359,16 +363,39 @@ TEST(Linux, fanotify) {
   EXPECT_TRUE(rc == 0 || errno == EEXIST);
   int dfd = open("/tmp/cap_notify", O_RDONLY);
   EXPECT_OK(dfd);
+  int fd = open("/tmp/cap_notify/file", O_CREAT|O_RDWR, 0644);
+  close(fd);
   int cap_dfd = dup(dfd);
   EXPECT_OK(cap_dfd);
   EXPECT_OK(cap_rights_limit(cap_dfd, &r_rslstat));
   EXPECT_OK(cap_dfd);
+  int cap_dfd_rs = dup(dfd);
+  EXPECT_OK(cap_dfd_rs);
+  EXPECT_OK(cap_rights_limit(cap_dfd_rs, &r_rs));
+  EXPECT_OK(cap_dfd_rs);
+  int cap_dfd_rsstat = dup(dfd);
+  EXPECT_OK(cap_dfd_rsstat);
+  EXPECT_OK(cap_rights_limit(cap_dfd_rsstat, &r_rsstat));
+  EXPECT_OK(cap_dfd_rsstat);
+  int cap_dfd_rsl = dup(dfd);
+  EXPECT_OK(cap_dfd_rsl);
+  EXPECT_OK(cap_rights_limit(cap_dfd_rsl, &r_rsl));
+  EXPECT_OK(cap_dfd_rsl);
 
   // Need CAP_NOTIFY to change what's monitored.
   EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_ro, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
   EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_wo, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
   EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_rw, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
   EXPECT_OK(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd, NULL));
+
+  // Need CAP_FSTAT on the thing monitored.
+  EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd_rs, NULL));
+  EXPECT_OK(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY|FAN_EVENT_ON_CHILD, cap_dfd_rsstat, NULL));
+
+  // Too add monitoring of a file under a dfd, need CAP_LOOKUP|CAP_FSTAT on the dfd.
+  EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY, cap_dfd_rsstat, "file"));
+  EXPECT_NOTCAPABLE(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY, cap_dfd_rsl, "file"));
+  EXPECT_OK(fanotify_mark(cap_fd_not, FAN_MARK_ADD, FAN_OPEN|FAN_MODIFY, cap_dfd, "file"));
 
   pid_t child = fork();
   if (child == 0) {
@@ -427,8 +454,12 @@ TEST(Linux, fanotify) {
   rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
   EXPECT_EQ(0, rc);
 
+  close(cap_dfd_rsstat);
+  close(cap_dfd_rsl);
+  close(cap_dfd_rs);
   close(cap_dfd);
   close(dfd);
+  unlink("/tmp/cap_notify/file");
   unlink("/tmp/cap_notify/temp");
   rmdir("/tmp/cap_notify");
   close(cap_fd_not);
