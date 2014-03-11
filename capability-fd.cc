@@ -506,6 +506,13 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
     EXPECT_OK(unlinkat(dirfd, "cap_create", 0));
   }
 
+  rc = openat(dirfd, "cap_faccess", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+  rc = faccessat(dfd_cap, "cap_faccess", F_OK, 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_FSTAT, CAP_LOOKUP);
+  EXPECT_OK(unlinkat(dirfd, "cap_faccess", 0));
+
   rc = openat(dirfd, "cap_fsync", O_CREAT, 0600);
   EXPECT_OK(rc);
   EXPECT_OK(close(rc));
