@@ -136,6 +136,10 @@ int cap_rights_limit(int fd, const cap_rights_t *rights) {
   int nioctls;
   unsigned int *ioctls = NULL;
   int rc;
+  if (!cap_rights_is_valid(rights)) {
+    errno = EINVAL;
+    return -1;
+  }
   rc = cap_rights_get_all(fd, &primary, &fcntls, &nioctls, &ioctls);
   if (rc) {
     return rc;
@@ -355,21 +359,19 @@ cap_rights_is_valid(const cap_rights_t *rights)
 	unsigned int i, j;
 
 	if (CAPVER(rights) != CAP_RIGHTS_VERSION_00)
-		return (false);
+		return false;
+	if (CAPARSIZE(rights) != (2 + CAP_RIGHTS_VERSION_00))
+		return false;
 	CAP_SET_ALL(&allrights);
 	if (!cap_rights_contains(&allrights, rights))
-		return (false);
+		return false;
 	for (i = 0; i < CAPARSIZE(rights); i++) {
-		j = right_to_index(rights->cr_rights[i]);
-		if (i != j)
-			return (false);
-		if (i > 0) {
-			if (CAPRVER(rights->cr_rights[i]) != 0)
-				return (false);
-		}
+		if (CAPIDXBIT(rights->cr_rights[i]) != (1 << i))
+			return false;
+		if (i > 0 && CAPRVER(rights->cr_rights[i]) != 0)
+			return false;
 	}
-
-	return (true);
+	return true;
 }
 
 void
