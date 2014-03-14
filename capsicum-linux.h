@@ -26,6 +26,10 @@ typedef unsigned int cap_fcntl_t;
 // ioctl(2) and cap_rights_limit(2) take unsigned int for ioctl cmds.
 typedef unsigned int cap_ioctl_t;
 #define CAP_FROM_ACCEPT
+// TODO(drysdale): uncomment if/when Linux propagates rights on sctp_peeloff.
+// Linux does not generate a capability from sctp_peeloff(cap_fd,...).
+// #define CAP_FROM_PEELOFF
+
 #define AT_SYSCALLS_IN_CAPMODE
 
 #ifdef __cplusplus

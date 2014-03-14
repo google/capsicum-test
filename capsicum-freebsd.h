@@ -34,8 +34,11 @@ typedef unsigned long cap_ioctl_t;
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
 // TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on accept.
-// FreeBSD does not generate a capability from accept(cap_fd,...)
+// FreeBSD does not generate a capability from accept(cap_fd,...).
 // #define CAP_FROM_ACCEPT
+// TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on sctp_peeloff.
+// FreeBSD does not generate a capability from sctp_peeloff(cap_fd,...).
+// #define CAP_FROM_PEELOFF
 
 #endif  /* __FreeBSD__ */
 
