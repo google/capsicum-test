@@ -1,5 +1,5 @@
 all: capsicum-test smoketest mini-me mini-me.noexec
-OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o capability-fd-pair.o linux.o capsicum-linux.o
+OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o capsicum-linux.o
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
@@ -7,7 +7,7 @@ GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS)
 
 capsicum-test: $(OBJECTS) libgtest.a
-	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt
+	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP)
 
 # Small statically-linked program for fexecve tests
 # (needs to be statically linked so that execve()ing it
