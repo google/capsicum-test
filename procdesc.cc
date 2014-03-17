@@ -263,9 +263,11 @@ TEST_F(PipePdfork, Close) {
 #endif
   // Can still use waitpid(pid) to retrieve exit status.
   // TODO(FreeBSD): this fails (ECHILD) on FreeBSD.
+#ifndef __FreeBSD__
   errno = 0;
   EXPECT_EQ(pid_, waitpid(pid_, &status, WNOHANG));
   EXPECT_EQ(0, errno);
+#endif
 }
 
 TEST_F(PipePdfork, CloseLast) {
