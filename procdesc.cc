@@ -227,7 +227,7 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
     print_rusage(stderr, &ru);
   }
 #endif
-
+  close(pd_copy);
 }
 #endif
 
@@ -385,6 +385,7 @@ TEST(Pdfork, PdkillOtherSignal) {
     exit(123);
   }
   // Send an expected SIGUSR1 to the pdfork()ed child.
+  sleep(1);
   EXPECT_PID_ALIVE(pid);
   pdkill(pd, SIGUSR1);
   EXPECT_PID_DEAD(pid);
@@ -501,7 +502,7 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
     if (signaled) {
       EXPECT_TRUE(WIFSIGNALED(status));
     } else {
-      EXPECT_TRUE(WIFEXITED(status));
+      EXPECT_TRUE(WIFEXITED(status)) << std::hex << status;
       EXPECT_EQ(0, WEXITSTATUS(status));
     }
   }
