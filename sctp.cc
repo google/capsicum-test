@@ -159,9 +159,12 @@ TEST(Sctp, Socket) {
                                  (struct sockaddr*)&client_addr, &addr_len,
                                  &sri, &flags));
   while (true) {
+  retry:
+    memset(&sri, 0, sizeof(sri));
     int len = sctp_recvmsg(cap_sock_rw, buffer, sizeof(buffer),
                            (struct sockaddr*)&client_addr, &addr_len,
                            &sri, &flags);
+    if (len < 0 && errno == EAGAIN) goto retry;
     EXPECT_OK(len);
     if (len > 0) {
       if (verbose) fprintf(stderr, "[%d]sctp_recvmsg(%02x..)", getpid_(), (unsigned)buffer[0]);
