@@ -263,12 +263,11 @@ TEST_F(PipePdfork, Close) {
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EBADF, errno);
 #endif
-  // Can still use waitpid(pid) to retrieve exit status.
-  // TODO(FreeBSD): this fails (ECHILD) on FreeBSD.
-#ifndef __FreeBSD__
-  errno = 0;
-  EXPECT_EQ(pid_, waitpid(pid_, &status, WNOHANG));
-  EXPECT_EQ(0, errno);
+  // Closing all process descriptors reaps the child.
+  // TODO(drysdale): make it so
+#ifndef __linux__
+  EXPECT_EQ(-1, waitpid(pid_, &status, WNOHANG));
+  EXPECT_EQ(ECHILD, errno);
 #endif
 }
 
