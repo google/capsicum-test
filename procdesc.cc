@@ -322,13 +322,14 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   int rc = waitpid(pid_, &status, 0);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
-  // ...cannot subsequently pdwait4(pd).
-  // TODO(drysdale): confirm this is expected, and make it so.
 #ifdef OMIT
+  // TODO(drysdale): make it so
+  // ...can still pdwait4(pd).  More explicitly: as long as there's an
+  // open process descriptor, can still pdwait4(pd).
   errno = 0;
   rc = pdwait4(pd_, &status, 0, NULL);
-  EXPECT_EQ(-1, rc);
-  EXPECT_EQ(ECHILD, errno);
+  EXPECT_OK(rc);
+  EXPECT_EQ(pid_, rc);
 #endif
 }
 
