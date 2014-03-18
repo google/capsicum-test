@@ -7,6 +7,8 @@
 #include <vector>
 #include <string>
 
+bool verbose = false;
+
 char ProcessState(int pid) {
 #ifdef __linux__
   // Open the process status file.

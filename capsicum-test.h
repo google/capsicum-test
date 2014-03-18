@@ -12,6 +12,8 @@
 
 #include "gtest/gtest.h"
 
+extern bool verbose;
+
 // Run the given test function in a forked process, so that trapdoor
 // entry doesn't affect other tests, and watch out for hung processes.
 // Implemented as a macro to allow access to the test case instance's

@@ -557,7 +557,6 @@ FORK_TEST(Linux, Namespace) {
   EXPECT_OK(unshare(CLONE_NEWUTS));
 }
 
-static bool verbose = false;
 static int shared_pd = -1;
 static int shared_sock_fds[2];
 static int ChildFunc(void *arg) {

@@ -11,7 +11,6 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
-static bool verbose = false;
 static cap_rights_t r_ro;
 static cap_rights_t r_wo;
 static cap_rights_t r_rw;

@@ -18,8 +18,6 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
-static bool verbose = false;
-
 static void print_rusage(FILE *f, struct rusage *ru) {
   fprintf(f, "  User CPU time=%ld.%06ld\n", ru->ru_utime.tv_sec, ru->ru_utime.tv_usec);
   fprintf(f, "  System CPU time=%ld.%06ld\n", ru->ru_stime.tv_sec, ru->ru_stime.tv_usec);
@@ -406,7 +404,6 @@ pid_t PdforkParentDeath(int pdfork_flags) {
   //   pid A: main process, here
   //   +--pid B: fork()ed process, sleep(4)s then exits
   //      +--pid C: pdfork()ed process, looping forever
-  bool verbose = false;
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
   if (verbose) fprintf(stderr, "[%d] parent about to fork()...\n", getpid_());
