@@ -92,13 +92,16 @@ class PipePdfork : public ::testing::Test {
     EXPECT_OK(pipe(pipes));
     pipe_ = pipes[1];
     int parent = getpid_();
+    if (verbose) fprintf(stderr, "[%d] about to pdfork()\n", getpid_());
     int rc = pdfork(&pd_, 0);
     EXPECT_OK(rc);
     if (rc == 0) {
       // Child process: blocking-read an int from the pipe then exit with that value.
       EXPECT_NE(parent, getpid_());
       EXPECT_EQ(parent, getppid());
+      if (verbose) fprintf(stderr, "  [%d] child of %d waiting for value on pipe\n", getpid_(), getppid());
       read(pipes[0], &rc, sizeof(rc));
+      if (verbose) fprintf(stderr, "  [%d] got value %d on pipe, exiting\n", getpid_(), rc);
       exit(rc);
     } else {
       pid_ = rc;
@@ -116,6 +119,7 @@ class PipePdfork : public ::testing::Test {
   int TerminateChild() {
     // Tell the child to exit.
     int zero = 0;
+    if (verbose) fprintf(stderr, "[%d] write 0 to pipe\n", getpid_());
     return write(pipe_, &zero, sizeof(zero));
   }
  protected:
