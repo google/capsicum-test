@@ -368,11 +368,43 @@ TEST(Pdfork, CloseDaemon) {
 TEST_F(PipePdfork, Pdkill) {
   EXPECT_PID_ALIVE(pid_);
   // SIGCONT is ignored by default.
-  pdkill(pd_, SIGCONT);
+  EXPECT_OK(pdkill(pd_, SIGCONT));
   EXPECT_PID_ALIVE(pid_);
   // SIGINT isn't
-  pdkill(pd_, SIGINT);
+  EXPECT_OK(pdkill(pd_, SIGINT));
   EXPECT_PID_DEAD(pid_);
+#ifdef OMIT
+  // TODO(drysdale), TODO(FreeBSD): make it so
+  // Can't pdkill() an already-dead child.
+  errno = 0;
+  EXPECT_EQ(-1, pdkill(pd_, SIGINT));
+  EXPECT_EQ(ESRCH, errno);
+#endif
+}
+
+TEST(Pdfork, PdkillDaemon) {
+  int pd = -1;
+  int pid = pdfork(&pd, PD_DAEMON);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: loop forever.
+    while (true) sleep(1);
+  }
+  usleep(100);  // ensure the child has a chance to run
+  EXPECT_PID_ALIVE(pid);
+  // SIGCONT is ignored by default.
+  EXPECT_OK(pdkill(pd, SIGCONT));
+  EXPECT_PID_ALIVE(pid);
+  // SIGINT isn't
+  EXPECT_OK(pdkill(pd, SIGINT));
+  EXPECT_PID_DEAD(pid);
+#ifdef OMIT
+  // TODO(drysdale), TODO(FreeBSD): make it so
+  // Can't pdkill() an already-dead child.
+  errno = 0;
+  EXPECT_EQ(-1, pdkill(pd, SIGINT));
+  EXPECT_EQ(ESRCH, errno);
+#endif
 }
 
 static int had_signal = 0;
