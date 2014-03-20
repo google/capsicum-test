@@ -692,11 +692,11 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   EXPECT_OK(close(dfd_cap));
 }
 
-FORK_TEST(Capability, DirOperations) {
+void DirOperationsTest(int extra) {
   int rc = mkdir("/tmp/cap_dirops", 0755);
   EXPECT_OK(rc);
   if (rc < 0 && errno != EEXIST) return;
-  int dfd = open("/tmp/cap_dirops", O_RDONLY | O_DIRECTORY);
+  int dfd = open("/tmp/cap_dirops", O_RDONLY | O_DIRECTORY | extra);
   EXPECT_OK(dfd);
   int tmpfd = open("/tmp", O_RDONLY | O_DIRECTORY);
   EXPECT_OK(tmpfd);
@@ -733,7 +733,20 @@ FORK_TEST(Capability, DirOperations) {
 #endif
 
   EXPECT_OK(unlinkat(tmpfd, "cap_dirops", AT_REMOVEDIR));
+  EXPECT_OK(close(tmpfd));
+  EXPECT_OK(close(dfd));
 }
+
+FORK_TEST(Capability, DirOperations) {
+  DirOperationsTest(0);
+}
+
+#ifdef O_PATH
+FORK_TEST(Capability, PathDirOperations) {
+  // Make the dfd in the test a path-only file descriptor.
+  DirOperationsTest(O_PATH);
+}
+#endif
 
 static void TryReadWrite(int cap_fd) {
   char buffer[64];
