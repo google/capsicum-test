@@ -372,13 +372,10 @@ TEST_F(PipePdfork, Pdkill) {
   // SIGINT isn't
   EXPECT_OK(pdkill(pd_, SIGINT));
   EXPECT_PID_DEAD(pid_);
-#ifdef OMIT
-  // TODO(drysdale), TODO(FreeBSD): make it so
-  // Can't pdkill() an already-dead child.
+  // pdkill() on zombie is no-op.
   errno = 0;
-  EXPECT_EQ(-1, pdkill(pd_, SIGINT));
-  EXPECT_EQ(ESRCH, errno);
-#endif
+  EXPECT_EQ(0, pdkill(pd_, SIGINT));
+  EXPECT_EQ(0, errno);
 }
 
 TEST(Pdfork, PdkillDaemon) {
