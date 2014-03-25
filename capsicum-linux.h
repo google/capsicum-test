@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <limits.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -20,6 +21,7 @@
 #define HAVE_CAP_RIGHTS_LIMIT
 #define HAVE_CAP_RIGHTS_GET
 #define HAVE_CAP_FCNTLS_LIMIT
+typedef struct cap_rights cap_rights_t;
 // fcntl(2) and cap_rights_limit(2) take unsigned int for fcntl cmds.
 typedef unsigned int cap_fcntl_t;
 #define HAVE_CAP_IOCTLS_LIMIT
