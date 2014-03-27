@@ -360,8 +360,10 @@ TEST(Pdfork, CloseDaemon) {
   EXPECT_OK(close(pd));
   EXPECT_PID_ALIVE(pid);
   // Can still explicitly kill it.
-  EXPECT_OK(kill(pid, SIGKILL));
-  EXPECT_PID_DEAD(pid);
+  if (pid > 0) {
+    EXPECT_OK(kill(pid, SIGKILL));
+    EXPECT_PID_DEAD(pid);
+  }
 }
 
 TEST_F(PipePdfork, Pdkill) {
@@ -481,7 +483,9 @@ TEST(Pdfork, BagpussDaemon) {
   pid_t grandchild = PdforkParentDeath(PD_DAEMON);
   // With PD_DAEMON: child death => closed process descriptor => no effect on grandchild.
   EXPECT_PID_ALIVE(grandchild);
-  EXPECT_OK(kill(grandchild, SIGKILL));
+  if (grandchild > 0) {
+    EXPECT_OK(kill(grandchild, SIGKILL));
+  }
 }
 
 // The exit of a pdfork()ed process should not generate SIGCHLD.
