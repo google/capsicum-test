@@ -548,9 +548,13 @@ FORK_TEST(Pdfork, Pdkill) {
 
   if (pid == 0) {
     // Child: set a SIGINT handler and sleep.
+    had_signal = 0;
     signal(SIGINT, handle_signal);
+    if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
     int left = sleep(10);
-    // Expect this sleep to be interruped by the signal.
+    if (verbose) fprintf(stderr, "[%d] child slept, %d sec left, had_signal=%d\n",
+                         getpid_(), left, had_signal);
+    // Expect this sleep to be interrupted by the signal.
     exit(left == 0);
   }
 
@@ -560,7 +564,7 @@ FORK_TEST(Pdfork, Pdkill) {
   EXPECT_EQ(pid, pd_pid);
 
   // Kill the child.
-  usleep(100);
+  sleep(1);
   EXPECT_OK(pdkill(pd, SIGINT));
 
   // Make sure the child finished properly.
