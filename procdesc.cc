@@ -571,6 +571,28 @@ FORK_TEST(Pdfork, Pdkill) {
   CheckChildFinished(pid);
 }
 
+FORK_TEST(Pdfork, PdkillSignal) {
+  had_signal = 0;
+  int pd;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+
+  if (pid == 0) {
+    // Child: sleep.
+    if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
+    int left = sleep(10);
+    if (verbose) fprintf(stderr, "[%d] child slept, %d sec left\n", getpid_(), left);
+    exit(99);
+  }
+
+  // Kill the child.
+  sleep(1);
+  EXPECT_OK(pdkill(pd, SIGINT));
+
+  // Make sure the child finished properly.
+  CheckChildFinished(pid, true);
+}
+
 FORK_TEST(Pdfork, DaemonUnrestricted) {
   EXPECT_OK(cap_enter());
   int fd;
