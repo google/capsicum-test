@@ -851,6 +851,7 @@ TEST(Linux, Kcmp) {
   int rc = syscall(__NR_kcmp, parent, parent, KCMP_FILE, fd, fd);
   if (rc == -1 && errno == ENOSYS) {
     fprintf(stderr, "Skipping kcmp(2) test as -ENOSYS\n");
+    TEST_SKIPPED("kcmp(2) -> -ENOSYS");
     return;
   }
 
