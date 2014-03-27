@@ -153,7 +153,7 @@ TEST(Sctp, Socket) {
   unsigned char buffer[1024];
   struct sctp_sndrcvinfo sri;
   memset(&sri, 0, sizeof(sri));
-  int flags;
+  int flags = 0;
   EXPECT_NOTCAPABLE(sctp_recvmsg(cap_sock_wo, buffer, sizeof(buffer),
                                  (struct sockaddr*)&client_addr, &addr_len,
                                  &sri, &flags));
