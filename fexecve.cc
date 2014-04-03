@@ -88,3 +88,23 @@ FORK_TEST(Fexecve, ExecveFailure) {
   EXPECT_EQ(-1, execve(argv_fail[0], argv_fail, null_envp));
   EXPECT_EQ(ECAPMODE, errno);
 }
+
+FORK_TEST_ON(Fexecve, CapModeScriptFail, "/tmp/cap_sh_script") {
+  // First, build an executable shell script
+  int fd = open("/tmp/cap_sh_script", O_RDWR|O_CREAT, 0755);
+  EXPECT_OK(fd);
+  const char* contents = "#!/bin/sh\nexit 99\n";
+  EXPECT_OK(write(fd, contents, strlen(contents)));
+  close(fd);
+
+  // Open the script file, with CAP_FEXECVE rights.
+  fd = open("/tmp/cap_sh_script", O_RDONLY);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_FEXECVE, CAP_READ, CAP_SEEK);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+
+  EXPECT_OK(cap_enter());  // Enter capability mode
+
+  // Attempt fexecve; should fail, because "/bin/sh" is inaccessible.
+  EXPECT_NOTCAPABLE(fexecve_(fd, argv_pass, null_envp));
+}
