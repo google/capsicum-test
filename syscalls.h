@@ -178,6 +178,7 @@ inline pid_t getpid_() {
 #define HAVE_VMSPLICE
 #define HAVE_PSELECT
 #define HAVE_PPOLL
+#define HAVE_EXECVEAT
 
 /* Linux allows anyone to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 0

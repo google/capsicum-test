@@ -49,6 +49,7 @@ int cap_fcntls_limit(int fd, cap_fcntl_t fcntls);
 int cap_fcntls_get(int fd, cap_fcntl_t *fcntlsp);
 int cap_ioctls_limit(int fd, const cap_ioctl_t *cmds, size_t ncmds);
 ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds);
+  int execveat_(int fd, const char *path, char **argv, char **envp, int flags);
 int fexecve_(int fd, char **argv, char **envp);
 int pdfork(int *fd, int flags);
 int pdgetpid(int fd, pid_t *pid);

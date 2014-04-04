@@ -5,9 +5,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include <sstream>
 
+#include "syscalls.h"
 #include "capsicum.h"
 #include "capsicum-test.h"
 
@@ -108,3 +111,36 @@ FORK_TEST_ON(Fexecve, CapModeScriptFail, "/tmp/cap_sh_script") {
   // Attempt fexecve; should fail, because "/bin/sh" is inaccessible.
   EXPECT_NOTCAPABLE(fexecve_(fd, argv_pass, null_envp));
 }
+
+#ifdef HAVE_EXECVEAT
+TEST(Execveat, NoUpwardTraversal) {
+  char *abspath = realpath(EXEC_PROG, NULL);
+  char cwd[1024];
+  getcwd(cwd, sizeof(cwd));
+
+  int dfd = open(".", O_DIRECTORY|O_RDONLY);
+  pid_t child = fork();
+  if (child == 0) {
+    EXPECT_OK(cap_enter());  // Enter capability mode.
+    // Can't execveat() an absolute path, even relative to a dfd.
+    EXPECT_NOTCAPABLE(execveat_(AT_FDCWD, abspath, argv_pass, null_envp, 0));
+    EXPECT_NOTCAPABLE(execveat_(dfd, abspath, argv_pass, null_envp, 0));
+
+    // Can't execveat() a relative path ("../<dir>/./<exe>").
+    char *p = cwd + strlen(cwd);
+    while (*p != '/') p--;
+    char buffer[1024] = "../";
+    strcat(buffer, ++p);
+    strcat(buffer, "/");
+    strcat(buffer, EXEC_PROG);
+    EXPECT_NOTCAPABLE(execveat_(dfd, buffer, argv_pass, null_envp, 0));
+    exit(123);
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  EXPECT_TRUE(WIFEXITED(status)) << "0x" << std::hex << status;
+  EXPECT_EQ(123, WEXITSTATUS(status));
+  free(abspath);
+  close(dfd);
+}
+#endif
