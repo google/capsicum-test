@@ -43,7 +43,7 @@
 int cap_enter() {
   int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
   if (rc < 0) return rc;
-  return prctl(PR_SET_SECCOMP, SECCOMP_MODE_LSM);
+  return prctl(PR_SECCOMP_EXT, SECCOMP_EXT_ACT, SECCOMP_EXT_ACT_LSM, SECCOMP_LSM_TSYNC, 0);
 }
 
 int cap_getmode(unsigned int *mode) {
