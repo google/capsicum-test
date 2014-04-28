@@ -109,7 +109,7 @@ FORK_TEST_ON(Fexecve, CapModeScriptFail, "/tmp/cap_sh_script") {
   EXPECT_OK(cap_enter());  // Enter capability mode
 
   // Attempt fexecve; should fail, because "/bin/sh" is inaccessible.
-  EXPECT_NOTCAPABLE(fexecve_(fd, argv_pass, null_envp));
+  EXPECT_FAIL_TRAVERSAL(fexecve_(fd, argv_pass, null_envp));
 }
 
 #ifdef HAVE_EXECVEAT
@@ -123,8 +123,8 @@ TEST(Execveat, NoUpwardTraversal) {
   if (child == 0) {
     EXPECT_OK(cap_enter());  // Enter capability mode.
     // Can't execveat() an absolute path, even relative to a dfd.
-    EXPECT_NOTCAPABLE(execveat_(AT_FDCWD, abspath, argv_pass, null_envp, 0));
-    EXPECT_NOTCAPABLE(execveat_(dfd, abspath, argv_pass, null_envp, 0));
+    EXPECT_FAIL_TRAVERSAL(execveat_(AT_FDCWD, abspath, argv_pass, null_envp, 0));
+    EXPECT_FAIL_TRAVERSAL(execveat_(dfd, abspath, argv_pass, null_envp, 0));
 
     // Can't execveat() a relative path ("../<dir>/./<exe>").
     char *p = cwd + strlen(cwd);
@@ -133,7 +133,7 @@ TEST(Execveat, NoUpwardTraversal) {
     strcat(buffer, ++p);
     strcat(buffer, "/");
     strcat(buffer, EXEC_PROG);
-    EXPECT_NOTCAPABLE(execveat_(dfd, buffer, argv_pass, null_envp, 0));
+    EXPECT_FAIL_TRAVERSAL(execveat_(dfd, buffer, argv_pass, null_envp, 0));
     exit(HasFailure() ? 99 : 123);
   }
   int status;

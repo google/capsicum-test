@@ -34,6 +34,9 @@ typedef unsigned int cap_ioctl_t;
 
 #define AT_SYSCALLS_IN_CAPMODE
 
+// Failure to open file due to path traversal generates EACCES
+#define E_NO_TRAVERSE EACCES
+
 #ifdef __cplusplus
 extern "C" {
 #endif

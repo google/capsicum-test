@@ -33,6 +33,9 @@ typedef unsigned long cap_ioctl_t;
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
+// Failure to open file due to path traversal generates ENOTCAPABLE
+#define E_NO_TRAVERSE ENOTCAPABLE
+
 // TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on accept.
 // FreeBSD does not generate a capability from accept(cap_fd,...).
 // #define CAP_FROM_ACCEPT

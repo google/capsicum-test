@@ -104,6 +104,10 @@ extern bool verbose;
       EXPECT_NE(E, errno) << #C << " failed with ECAPMODE"; \
     } while (0)
 
+// Expect a system call to fail due to path traversal; exact error
+// code is OS-specific.
+#define EXPECT_FAIL_TRAVERSAL(C) EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE, C)
+
 // Expect a system call to fail with ECAPMODE.
 #define EXPECT_CAPMODE(C) EXPECT_SYSCALL_FAIL(ECAPMODE, C)
 

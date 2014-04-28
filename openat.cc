@@ -69,8 +69,8 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OPEN_OK(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
   EXPECT_OPEN_OK(openat(etc_cap_base, "/etc/passwd", O_RDONLY));
   // Relative lookups that go upward are not allowed.
-  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
 
   // A file opened relative to a capability should itself be a capability.
   int fd = openat(etc_cap_base, "passwd", O_RDONLY);
@@ -108,13 +108,13 @@ FORK_TEST(Openat, Relative) {
 
   // Absolute lookups should fail.
   EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc, "/etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc, "/etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
 
   // Lookups containing '..' should fail in capability mode.
-  EXPECT_NOTCAPABLE(openat(etc, "../etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
 
   fd = openat(etc, "passwd", O_RDONLY);
   EXPECT_OK(fd);
@@ -150,12 +150,12 @@ TEST(Openat, Subdir) {
 
   // Check that we can't escape the top directory by the cunning
   // ruse of going via a subdirectory.
-  EXPECT_NOTCAPABLE(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
 
   pid_t child = fork();
   if (child == 0) {
     EXPECT_OK(cap_enter());  // Enter capability mode
-    EXPECT_NOTCAPABLE(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
     exit(HasFailure());
   }
   int status;
@@ -206,12 +206,12 @@ TEST(Openat, RelativeSymlink) {
   EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_out", O_RDONLY));
 
   // Even when not in capability mode, should only be able to open symlinks that
-  // stay within the directory.
+  // stay within the directory (when relative to a capability dfd).
   EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_in", O_RDONLY));
-  EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_out", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
 
   int child = fork();
   if (child == 0) {
@@ -221,18 +221,18 @@ TEST(Openat, RelativeSymlink) {
     // Only symlink within the directory can be opened relative to an ordinary directory FD.
     EXPECT_OPEN_OK(openat(dir_fd, "normal", O_RDONLY));
     EXPECT_OPEN_OK(openat(dir_fd, "symlink.normal", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.relative_in", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(dir_fd, "symlink.relative_out", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.relative_in", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.relative_out", O_RDONLY));
 
     // Only symlink within the directory can be opened relative to an ordinary directory FD.
     EXPECT_OPEN_OK(openat(cap_dir, "normal", O_RDONLY));
     EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_in", O_RDONLY));
-    EXPECT_NOTCAPABLE(openat(cap_dir, "symlink.relative_out", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
+    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
     exit(HasFailure());
   }
   int status;
