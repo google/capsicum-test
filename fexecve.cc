@@ -134,7 +134,7 @@ TEST(Execveat, NoUpwardTraversal) {
     strcat(buffer, "/");
     strcat(buffer, EXEC_PROG);
     EXPECT_NOTCAPABLE(execveat_(dfd, buffer, argv_pass, null_envp, 0));
-    exit(123);
+    exit(HasFailure() ? 99 : 123);
   }
   int status;
   EXPECT_EQ(child, waitpid(child, &status, 0));
