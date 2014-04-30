@@ -744,7 +744,7 @@ FORK_TEST(Linux, NoNewPrivs) {
   struct sock_filter filter[] = {
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
   };
-  struct sock_fprog bpf; 
+  struct sock_fprog bpf;
   bpf.len = (sizeof(filter) / sizeof(filter[0]));
   bpf.filter = filter;
   rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf);
@@ -764,6 +764,66 @@ FORK_TEST(Linux, NoNewPrivs) {
 
   // Can now turn on capability mode
   EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_LSM));
+}
+
+/* Macros for BPF generation */
+#define BPF_RETURN_ERRNO(err) \
+  BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO | (err & 0xFFFF))
+#define BPF_KILL_PROCESS \
+  BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
+#define BPF_ALLOW \
+  BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
+#define EXAMINE_SYSCALL \
+  BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr))
+#define ALLOW_SYSCALL(name) \
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
+  BPF_ALLOW
+#define KILL_SYSCALL(name) \
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
+  BPF_KILL_PROCESS
+#define FAIL_SYSCALL(name, err) \
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
+  BPF_RETURN_ERRNO(err)
+
+TEST(Linux, CapModeWithBPF) {
+  pid_t child = fork();
+  EXPECT_OK(child);
+  if (child == 0) {
+    int fd = open("/tmp/cap_bpf_capmode", O_CREAT|O_RDWR, 0644);
+    cap_rights_t rights;
+    cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_FSYNC);
+    EXPECT_OK(cap_rights_limit(fd, &rights));
+
+    struct sock_filter filter[] = { EXAMINE_SYSCALL,
+                                    FAIL_SYSCALL(fchmod, ENOMEM),
+                                    FAIL_SYSCALL(fstat, ENOEXEC),
+                                    ALLOW_SYSCALL(close),
+                                    KILL_SYSCALL(fsync),
+                                    BPF_ALLOW };
+    struct sock_fprog bpf = {.len = (sizeof(filter) / sizeof(filter[0])),
+                             .filter = filter};
+    // Set up seccomp-bpf first.
+    EXPECT_OK(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+    EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf, 0, 0));
+
+    EXPECT_OK(cap_enter());  // Enter capability mode.
+
+    // fchmod is allowed by Capsicum, but failed by BPF.
+    EXPECT_SYSCALL_FAIL(ENOMEM, fchmod(fd, 0644));
+    // open is allowed by BPF, but failed by Capsicum
+    EXPECT_SYSCALL_FAIL(ECAPMODE, open("/tmp/cap_bpf_capmode", O_RDONLY));
+    // fstat is failed by both BPF and Capsicum; tie-break is on errno
+    struct stat buf;
+    EXPECT_SYSCALL_FAIL(ENOEXEC, fstat(fd, &buf));
+    // fsync is allowed by Capsicum, but BPF's SIGSYS generation take precedence
+    fsync(fd);  // terminate with unhandled SIGSYS
+    exit(0);
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  EXPECT_TRUE(WIFSIGNALED(status));
+  EXPECT_EQ(SIGSYS, WTERMSIG(status));
+  unlink("/tmp/cap_bpf_capmode");
 }
 
 TEST(Linux, AIO) {
