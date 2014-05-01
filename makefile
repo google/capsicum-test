@@ -1,5 +1,5 @@
 all: capsicum-test smoketest mini-me mini-me.noexec
-OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o capsicum-linux.o
+OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o capsicum-linux.o linux-bpf-capmode.o
 
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
@@ -18,7 +18,7 @@ mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
 
 # Simple C test of Capsicum syscalls
-SMOKETEST_OBJECTS=smoketest.o capsicum-linux.o
+SMOKETEST_OBJECTS=smoketest.o capsicum-linux.o linux-bpf-capmode.o
 smoketest: $(SMOKETEST_OBJECTS)
 	$(CC) -g -o $@ $(SMOKETEST_OBJECTS)
 

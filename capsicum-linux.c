@@ -40,13 +40,13 @@
 /************************************************************
  * Capsicum System Calls.
  ************************************************************/
-int cap_enter() {
+int cap_enter_lsm() {
   int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
   if (rc < 0) return rc;
   return prctl(PR_SECCOMP_EXT, SECCOMP_EXT_ACT, SECCOMP_EXT_ACT_LSM, SECCOMP_LSM_TSYNC, 0);
 }
 
-int cap_getmode(unsigned int *mode) {
+int cap_getmode_lsm(unsigned int *mode) {
   int rc = prctl(PR_GET_SECCOMP);
   if (rc < 0) return rc;
   *mode = (rc & SECCOMP_MODE_LSM) ? 1 : 0;
