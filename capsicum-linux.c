@@ -49,7 +49,7 @@ int cap_enter() {
 int cap_getmode(unsigned int *mode) {
   int rc = prctl(PR_GET_SECCOMP);
   if (rc < 0) return rc;
-  *mode = (rc == SECCOMP_MODE_LSM);
+  *mode = (rc & SECCOMP_MODE_LSM) ? 1 : 0;
   return 0;
 }
 
