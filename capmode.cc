@@ -433,6 +433,22 @@ TEST(Capmode, AllowedAtSyscalls) {
   rmdir("/tmp/cap_at_syscalls");
 }
 
+TEST(Capmode, Abort) {
+  // Check that abort(3) works even in capability mode.
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: enter capability mode and call abort(3).
+    // Triggers something like kill(getpid(), SIGABRT).
+    cap_enter();  // Enter capability mode.
+    abort();
+    exit(99);
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  EXPECT_TRUE(WIFSIGNALED(status)) << " status = " << std::hex << status;
+  EXPECT_EQ(SIGABRT, WTERMSIG(status)) << " status = " << std::hex << status;
+}
+
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   umask(022);
   mode_t um_before = umask(022);
