@@ -240,7 +240,7 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 
 	/* openat(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 8),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 7),
 	EXAMINE_ARG(0),  /* dfd */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),
 	FAIL_ECAPMODE,
