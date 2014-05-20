@@ -1,0 +1,3 @@
+usr/include/*
+usr/lib/*/libcapsicum.so
+usr/lib/*/libcapsicum.a

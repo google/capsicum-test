@@ -1,0 +1,10 @@
+files
+libcapsicum-dev.debhelper.log
+libcapsicum-dev.substvars
+libcapsicum-dev/
+libcapsicum?.debhelper.log
+libcapsicum?.postinst.debhelper
+libcapsicum?.postrm.debhelper
+libcapsicum?.substvars
+libcapsicum?/
+tmp/

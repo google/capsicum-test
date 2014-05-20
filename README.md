@@ -71,5 +71,6 @@ Linux libcapsicum
 -----------------
 
 The Capsicum userspace library is held in the libcapsicum/ subdirectory.  This library needs to
-be built (with "./configure; make") and installed (with "make install") to allow the tests to
+be built (with "./configure; make" or "dpkg-buildpackage -uc -us") and
+installed (with "make install" or "dpkg -i libcapsicum*.deb") to allow the tests to
 build.
