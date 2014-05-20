@@ -20,20 +20,10 @@ The original basis for these tests was:
  - [unit tests](http://git.chromium.org/gitweb/?p=chromiumos/third_party/kernel-capsicum.git;a=tree;f=tools/testing/capsicum_tests;hb=refs/heads/capsicum) written by Meredydd Luff for the original Capsicum-Linux port.
 
 These tests were coalesced and moved into an independent repository to enable
-comparative testing across multiple OSes.
+comparative testing across multiple OSes, and then substantially extended.
 
 OS Configuration
 ----------------
-
-### FreeBSD 9.x
-
-The following kernel configuration options are needed so that all tests can run:
-
-  - `options CAPABILITIES`: Enable capabilities
-  - `options CAPABILITY_MODE`: Enable capability mode
-  - `options PROCDESC`: Enable process descriptors
-  - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
-  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
 
 ### Linux
 
@@ -45,7 +35,32 @@ The following kernel configuration options are needed to run the tests:
  - `CONFIG_SECURITY_CAPSICUM`: enable the Capsicum LSM
  - `CONFIG_PROCDESC`: enable Capsicum process-descriptor functionality
  - `CONFIG_DEBUG_FS`: enable debug filesystem
+ - `CONFIG_IP_SCTP`: enable SCTP support
 
-Also, the headers for POSIX.1e capabilities are needed to build the Linux version
-of the tests.  On Debian systems this is typically provided by the libcap-dev
-package.
+### FreeBSD 9.x
+
+The following kernel configuration options are needed so that all tests can run:
+
+  - `options CAPABILITIES`: Enable capabilities
+  - `options CAPABILITY_MODE`: Enable capability mode
+  - `options PROCDESC`: Enable process descriptors
+  - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
+  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
+
+### FreeBSD 10.x
+
+The following kernel configuration options are needed so that all tests can run:
+
+  - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
+  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
+
+Other Dependencies
+------------------
+
+### Linux
+
+The following additional development packages are needed to build the full test suite on Linux.
+
+ - libcap-dev: Provides headers for POSIX.1e capabilities.
+ - libsctp1: Provides SCTP library functions.
+ - libsctp-dev: Provides headers for SCTP library functions.
