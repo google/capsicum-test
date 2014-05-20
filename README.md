@@ -61,6 +61,15 @@ Other Dependencies
 
 The following additional development packages are needed to build the full test suite on Linux.
 
+ - libcapsicum: See below
  - libcap-dev: Provides headers for POSIX.1e capabilities.
  - libsctp1: Provides SCTP library functions.
  - libsctp-dev: Provides headers for SCTP library functions.
+
+
+Linux libcapsicum
+-----------------
+
+The Capsicum userspace library is held in the libcapsicum/ subdirectory.  This library needs to
+be built (with "./configure; make") and installed (with "make install") to allow the tests to
+build.

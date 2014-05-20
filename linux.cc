@@ -12,6 +12,7 @@
 #include <sys/capability.h>  // Requires e.g. libcap-dev package for POSIX.1e capabilities headers
 #include <linux/aio_abi.h>
 #include <linux/filter.h>
+#include <linux/seccomp.h>
 #include <poll.h>
 #include <sched.h>
 #include <signal.h>
