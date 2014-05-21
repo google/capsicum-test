@@ -1,0 +1,112 @@
+.\"
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" Copyright (c) 2014 Google, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" the FreeBSD Foundation.
+.\"
+.\" %%%LICENSE_START(BSD_2_CLAUSE)
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" %%%LICENSE_END
+.\"
+.TH CAP_FCNTLS_LIMIT 3 2014-05-07 "Linux" "Linux Programmer's Manual"
+.SH NAME
+cap_fcntls_limit, cap_fcntls_get \- manage allowed
+.BR fcntl (2)
+commands
+.SH SYNOPSIS
+.nf
+.B #include <sys/capsicum.h>
+.sp
+.BI "int cap_fcntls_limit(int " fd ", unsigned int " fcntls ");"
+.br
+.BI "int cap_fcntls_get(int " fd ", unsigned int *" fcntlsp ");"
+.SH DESCRIPTION
+If a file descriptor is granted the
+.B CAP_FCNTL
+Capsicum capability right, the list of allowed
+.BR fcntl (2)
+commands can be selectively reduced (but never expanded) with the
+.BR cap_fcntls_limit ()
+function.
+.PP
+A bitmask of allowed
+.BR fcntl (2)
+commands for a given file descriptor can be obtained
+with the
+.BR cap_fcntls_get ()
+function.
+.PP
+The following flags may be specified in the
+.I fcntls
+argument:
+.TP
+.B CAP_FCNTL_GETFL
+Permit
+.B F_GETFL
+command.
+.TP
+.B CAP_FCNTL_SETFL
+Permit
+.B F_SETFL
+command.
+.TP
+.B CAP_FCNTL_GETOWN
+Permit
+.B F_GETOWN
+command.
+.TP
+.B CAP_FCNTL_SETOWN
+Permit
+.B F_SETOWN
+command.
+.SH RETURN VALUE
+Both
+.BR cap_fcntls_limit ()
+and
+.BR cap_fcntls_get ()
+return zero on success. On error, -1 is returned and
+.I errno
+is set appropriately.
+.SH ERRORS
+.TP
+.B EBADF
+.I fd
+isn't a valid open file descriptor.
+.TP
+.B EINVAL
+An invalid set of commands has been requested in
+.IR fcntls .
+.TP
+.B ENOTCAPABLE
+The arguments contain capability rights not present for the given file descriptor (Capsicum
+capability rights can only be reduced, never expanded).
+.TP
+.B EFAULT
+The
+.I fcntlsp
+argument points to an invalid address.
+.SH SEE ALSO
+.BR cap_ioctls_limit (3),
+.BR cap_rights_limit (3),
+.br fcntl (2)

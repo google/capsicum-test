@@ -1,0 +1,102 @@
+.\"
+.\" Copyright (c) 2008-2009 Robert N. M. Watson
+.\" Copyright (c) 2014 Google, Inc.
+.\" All rights reserved.
+.\"
+.\" %%%LICENSE_START(BSD_2_CLAUSE)
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" %%%LICENSE_END
+.\"
+.TH CAP_ENTER 3 2014-05-21 "Linux" "Linux Programmer's Manual"
+.SH NAME
+cap_enter, cap_getmode \- Capsicum capability mode system calls
+.SH SYNOPSIS
+.nf
+.B #include <sys/capsicum.h>
+.sp
+.B "int cap_enter(void);"
+.br
+.BI "int cap_getmode(unsigned int * " mode ");"
+.SH DESCRIPTION
+.BR cap_enter ()
+places the current process into Capsicum capability mode, a mode of execution in which
+processes may only issue system calls operating on file descriptors or
+reading limited global system state.
+Access to global name spaces, such as file system or IPC name spaces, is
+prevented.
+If the process is already in a capability mode sandbox, the system call is a
+no-op.
+Future process descendants created with
+.BR fork (2)
+or
+.BR pdfork (2)
+will be placed in capability mode from inception.
+.PP
+When combined with
+.BR cap_rights_limit (2),
+.BR cap_ioctls_limit (2),
+.BR cap_fcntls_limit (2),
+.BR cap_enter ()
+may be used to create kernel-enforced sandboxes in which
+appropriately-crafted applications or application components may be run.
+.PP
+.BR cap_getmode ()
+returns a flag indicating whether or not the process is in a capability mode
+sandbox.
+.SH RETURN VALUES
+Both
+.BR cap_enter ()
+and
+.BR cap_getmode ()
+return zero on success. On error, -1 is returned and
+.I errno
+is set appropriately.
+.SH ERRORS
+.TP
+.B ENOSYS
+The kernel is compiled without support for the Capsicum capability framework.
+.TP
+.B EFAULT
+Invalid pointer argument to
+.BR cap_getmode ().
+.SH NOTES
+Creating effective process sandboxes is a tricky process that involves
+identifying the least possible rights required by the process and then
+passing those rights into the process in a safe manner.
+Consumers of
+.BR cap_enter ()
+should also be aware of other inherited rights, such as access to VM
+resources, memory contents, and other process properties that should be
+considered.
+It is advisable to use
+.BR fexecve (3)
+to create a runtime environment inside the sandbox that has as few implicitly
+acquired rights as possible.
+.SH SEE ALSO
+.BR cap_fcntls_limit (3),
+.BR cap_ioctls_limit (3),
+.BR cap_rights_limit (3),
+.BR fexecve (3),
+.BR capsicum (7)

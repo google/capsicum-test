@@ -1,0 +1,139 @@
+.\"
+.\" Copyright (c) 2008-2010 Robert N. M. Watson
+.\" Copyright (c) 2012-2013 The FreeBSD Foundation
+.\" Copyright (c) 2014 Google, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Portions of this documentation were written by Pawel Jakub Dawidek
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" %%%LICENSE_START(BSD_2_CLAUSE)
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" %%%LICENSE_END
+.\"
+.TH CAP_RIGHTS_LIMIT 3 2014-05-21 "Linux" "Linux Programmer's Manual"
+.SH NAME
+cap_rights_limit \- limit Capsicum capability rights
+.SH SYNOPSIS
+.nf
+.B #include <sys/capsicum.h>
+.sp
+.BI "int cap_rights_limit(int " fd ", const cap_rights_t * " rights ");"
+.SH DESCRIPTION
+When a file descriptor is created by a function such as
+.BR accept (2),
+.BR accept4 (2),
+.BR creat (2),
+.BR epoll_create (2),
+.BR eventfd (2),
+.BR mq_open (2),
+.BR open (2),
+.BR openat (2),
+.BR pdfork (2),
+.BR pipe (2),
+.BR pipe2 (2),
+.BR signalfd (2),
+.BR socket (2),
+.BR socketpair (2)
+or
+.BR timerfd_create (2),
+it implicitly has all Capsicum capability rights.
+Those rights can be reduced (but never expanded) by using the
+.BR cap_rights_limit ()
+function.
+Once Capsicum capability rights are reduced, operations on the file descriptor
+.I fd
+will be limited to those permitted by the
+.I rights
+argument.
+.PP
+The
+.I rights
+argument should be prepared using
+.I cap_rights_init (3)
+family of functions.
+.PP
+Capability rights assigned to a file descriptor can be obtained with the
+.BR cap_rights_get (3)
+function.
+.PP
+The complete list of the capability rights can be found in the
+.BR rights (7)
+manual page.
+.Sh RETURN VALUES
+.BR cap_rights_limit ()
+returns zero on success. On error, -1 is returned and
+.I errno
+is set appropriately.
+.SH ERRORS
+.TP
+.B EBADF
+.I fd
+isn't a valid open file descriptor.
+.TP
+.B EINVAL
+An invalid set of rights has been requested in
+.IR rights .
+.TP
+.B ENOMEM
+Out of memory.
+.TP
+.B ENOTCAPABLE
+The arguments contain capability rights not present for the given file descriptor (Capsicum
+capability rights list can only be reduced, never expanded).
+.SH EXAMPLE
+The following example demonstrates how to limit file descriptor capability
+rights to allow reading only.
+.PP
+.in +4n
+.nf
+cap_rights_t rights;
+char buf[1];
+int fd;
+
+fd = open("/tmp/foo", O_RDWR);
+if (fd < 0)
+    err(1, "open() failed");
+
+if (cap_enter() < 0)
+    err(1, "cap_enter() failed");
+
+cap_rights_init(&setrights, CAP_READ);
+if (cap_rights_limit(fd, &setrights) < 0)
+    err(1, "cap_rights_limit() failed");
+
+buf[0] = 'X';
+
+if (write(fd, buf, sizeof(buf)) > 0)
+    errx(1, "write() succeeded!");
+
+if (read(fd, buf, sizeof(buf)) < 0)
+    err(1, "read() failed");
+.fi
+.SH SEE ALSO
+.BR cap_rights_get(3),
+.BR cap_rights_init(3),
+.BR capsicum (7),
+.BR rights (7)

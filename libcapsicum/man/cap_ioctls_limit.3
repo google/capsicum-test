@@ -1,0 +1,133 @@
+.\"
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" Copyright (c) 2014 Google, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" the FreeBSD Foundation.
+.\"
+.\" %%%LICENSE_START(BSD_2_CLAUSE)
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" %%%LICENSE_END
+.\"
+.TH CAP_IOCTLS_LIMIT 3 2014-05-07 "Linux" "Linux Programmer's Manual"
+.SH NAME
+cap_ioctls_limit, cap_ioctls_get \- manage allowed ioctl commands
+.SH SYNOPSIS
+.nf
+.B #include <sys/capsicum.h>
+.sp
+.BI "int cap_ioctls_limit(int " fd ", const unsigned int *" cmds ", size_t " ncmds ");"
+.br
+.BI "int cap_ioctls_get(int " fd ", unsigned int *" cmds ", size_t " maxcmds  ");"
+.SH DESCRIPTION
+If a file descriptor is granted the
+.I CAP_IOCTL
+Capsicum capability right, the list of allowed
+.BR ioctl (2)
+commands can be selectively reduced (but never expanded) with the
+.BR cap_ioctls_limit ()
+function.
+The
+.I cmds
+argument is an array of
+.BR ioctl (2)
+commands and the
+.I ncmds
+argument specifies the number of elements in the array.
+.PP
+The list of allowed ioctl commands for a given file descriptor can be obtained
+with the
+.BR cap_ioctls_get ()
+function.
+The
+.I cmds
+argument points at memory that can hold up to
+.I maxcmds
+values.
+The function populates the provided buffer with up to
+.I maxcmds
+elements, but always returns the total number of
+.BR ioctl (2)
+commands allowed for the
+given file descriptor.
+The total number of allowed
+.BR ioctl (2)
+commands for the given file descriptor can be
+obtained by passing
+.B NULL
+as the
+.I cmds
+argument and 0 as the
+.I maxcmds
+argument.
+If all
+.BR ioctl (2)
+commands are allowed (the
+.B CAP_IOCTL
+primary capability right is assigned to the file descriptor and the
+set of allowed
+.BR ioctl (2)
+commands was never limited for this file descriptor), the
+function will not modify the buffer pointed to by the
+.I ioctls
+argument.
+.SH RETURN VALUES
+.BR cap_rights_get ()
+returns zero on success. On error, -1 is returned and
+.I errno
+is set appropriately.
+.PP
+The
+.BR cap_ioctls_get ()
+function, if successful, returns the total number of allowed
+.BR ioctl (2)
+commands or the value
+.B CAP_IOCTLS_ALL
+if all
+.BR ioctl (2)
+commands are allowed.
+On failure the value -1
+is returned and
+.I errno
+is set appropriately.
+.SH ERRORS
+.TP
+.B EBADF
+.I fd
+isn't a valid open file descriptor.
+.TP
+.B ENOMEM
+Out of memory.
+.TP
+.B EFAULT
+Invalid pointer argument.
+.TP
+.B ENOTCAPABLE
+The arguments contain
+.BR ioctl (2)
+commands that have previously been restricted for the given file descriptor (Capsicum
+capability rights can only be reduced, never expanded).
+.SH SEE ALSO
+.BR cap_fcntls_limit (3),
+.BR cap_rights_limit (3),
+.BR ioctl (2)
