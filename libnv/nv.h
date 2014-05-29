@@ -39,8 +39,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifndef __printflike
 #define __printflike(A, B)	__attribute__ ((__format__ (__printf__, A, B)))
-
+#endif
 
 #ifndef	_NVLIST_T_DECLARED
 #define	_NVLIST_T_DECLARED
