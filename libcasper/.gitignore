@@ -1,0 +1,19 @@
+# automake
+/Makefile.in
+/Makefile
+# autoconf
+/autom4te.cache/
+/aclocal.m4
+/compile
+/configure
+/depcomp
+/install-sh
+/missing
+/stamp-h?
+/config.*
+/libtool
+/ltmain.sh
+/m4
+.deps/
+.libs/
+*.l[ao]
