@@ -1,0 +1,23 @@
+Source: libnv
+Priority: optional
+Maintainer: David Drysdale <drysdale@google.com>
+Build-Depends: debhelper (>= 9.0.0), autotools-dev
+Standards-Version: 3.9.5
+Section: libs
+Homepage: https://gihub.com/google/capsicum-test
+
+Package: libnv-dev
+Section: libdevel
+Architecture: any
+Depends: libnv0 (= ${binary:Version}), ${misc:Depends}
+Description: Development files for libnv
+ This package provides the <nv.h> header file that holds
+ declarations for the name/value pair library, plus
+ development libraries.
+
+Package: libnv0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Name/value pair library
+ This package holds the libnv library, which allows the manipulation
+ of name/value pairs, and their transmission over sockets.

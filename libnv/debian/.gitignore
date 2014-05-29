@@ -1,0 +1,10 @@
+files
+libnv-dev.debhelper.log
+libnv-dev.substvars
+libnv-dev/
+libnv?.debhelper.log
+libnv?.postinst.debhelper
+libnv?.postrm.debhelper
+libnv?.substvars
+libnv?/
+tmp/
