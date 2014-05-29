@@ -1,0 +1,28 @@
+Source: libcapsicum
+Priority: optional
+Maintainer: David Drysdale <drysdale@google.com>
+Build-Depends: debhelper (>= 9.0.0), autotools-dev
+Standards-Version: 3.9.5
+Section: libs
+Homepage: https://gihub.com/google/capsicum-test
+
+Package: libcapsicum-dev
+Section: libdevel
+Architecture: any
+Depends: libcapsicum0 (= ${binary:Version}), ${misc:Depends}
+Description: Development files for libcapsicum
+ This package provides the <libcapsicum.h> header file that holds
+ declarations for the library, plus development libraries.
+
+Package: libcapsicum0
+Architecture: any
+Depends: libcaprights0, libnv0, ${shlibs:Depends}, ${misc:Depends}
+Description: Capsicum convenience wrapper library.
+ The libcapsicum library allows to manage application capabilities through
+ the casperd(8) daemon.
+ .
+ The application capability (represented by the cap_channel_t type) is a
+ communication channel between the caller and the casperd(8) daemon or an
+ instance of one of its services.  A capability to the casperd(8) daemon
+ obtained with the cap_init() function allows to create capabilities to
+ casper's services via the cap_service_open() function.
