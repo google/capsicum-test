@@ -1,10 +1,10 @@
 dnl -*-autoconf-*-
-dnl libcapsicum: Autoconf script
+dnl libcaprights: Autoconf script
 dnl (c) 2014 Google, Inc.
 
 
 AC_PREREQ([2.69])
-AC_INIT([libcapsicum],[0.1.0])
+AC_INIT([libcaprights],[0.1.0])
 AC_CONFIG_SRCDIR([capsicum.c])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])

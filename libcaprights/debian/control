@@ -1,4 +1,4 @@
-Source: libcapsicum
+Source: libcaprights
 Priority: optional
 Maintainer: David Drysdale <drysdale@google.com>
 Build-Depends: debhelper (>= 9.0.0), autotools-dev
@@ -6,20 +6,20 @@ Standards-Version: 3.9.5
 Section: libs
 Homepage: https://gihub.com/google/capsicum-test
 
-Package: libcapsicum-dev
+Package: libcaprights-dev
 Section: libdevel
 Architecture: any
-Depends: libcapsicum0 (= ${binary:Version}), ${misc:Depends}
+Depends: libcaprights0 (= ${binary:Version}), ${misc:Depends}
 Description: Development files for Capsicum security framework
  This package provides the <sys/capsicum.h> header file that holds
  declarations for the Capsicum functionality provided by the
- libcapsicum0 package, plus development libraries.
+ libcaprights0 package, plus development libraries.
 
-Package: libcapsicum0
+Package: libcaprights0
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Userspace support library for Capsicum security framework
- This package holds the libcapsicum userspace library, which allows
+ This package holds the libcaprights userspace library, which allows
  userspace programs to use the Capsicum security features provided
  by modern Linux kernels.  In particular this library provides
  cap_enter(3), cap_getmode(3), cap_rights_init(3), cap_rights_set(3),

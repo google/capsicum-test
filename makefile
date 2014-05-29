@@ -7,7 +7,7 @@ GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS)
 
 capsicum-test: $(OBJECTS) libgtest.a
-	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP) $(LIBCAPSICUM)
+	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP) $(LIBCAPRIGHTS)
 
 # Small statically-linked program for fexecve tests
 # (needs to be statically linked so that execve()ing it
@@ -20,7 +20,7 @@ mini-me.noexec: mini-me
 # Simple C test of Capsicum syscalls
 SMOKETEST_OBJECTS=smoketest.o linux-bpf-capmode.o
 smoketest: $(SMOKETEST_OBJECTS)
-	$(CC) -g -o $@ $(SMOKETEST_OBJECTS) $(LIBCAPSICUM)
+	$(CC) -g -o $@ $(SMOKETEST_OBJECTS) $(LIBCAPRIGHTS)
 
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test

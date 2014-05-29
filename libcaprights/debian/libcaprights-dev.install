@@ -1,0 +1,4 @@
+usr/include/*
+usr/lib/*/libcaprights.so
+usr/lib/*/libcaprights.a
+usr/share/man/man3/*

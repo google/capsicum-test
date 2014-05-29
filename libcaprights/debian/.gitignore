@@ -1,0 +1,10 @@
+files
+libcaprights-dev.debhelper.log
+libcaprights-dev.substvars
+libcaprights-dev/
+libcaprights?.debhelper.log
+libcaprights?.postinst.debhelper
+libcaprights?.postrm.debhelper
+libcaprights?.substvars
+libcaprights?/
+tmp/

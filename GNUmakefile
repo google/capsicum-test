@@ -1,10 +1,10 @@
 OS:=$(shell uname)
 ifeq ($(OS),Linux)
 LIBSCTP=-lsctp
-ifeq ($(wildcard /usr/lib/libcapsicum.a),)
-LIBCAPSICUM=/usr/lib/x86_64-linux-gnu/libcapsicum.a
+ifeq ($(wildcard /usr/lib/libcaprights.a),)
+LIBCAPRIGHTS=/usr/lib/x86_64-linux-gnu/libcaprights.a
 else
-LIBCAPSICUM=/usr/lib/libcapsicum.a
+LIBCAPRIGHTS=/usr/lib/libcaprights.a
 endif
 endif
 include makefile
