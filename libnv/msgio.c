@@ -29,7 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -158,6 +157,7 @@ msg_send(int sock, const struct msghdr *msg)
 	return (0);
 }
 
+#ifdef HAVE_CMSGCRED
 int
 cred_send(int sock)
 {
@@ -233,6 +233,7 @@ cred_recv(int sock, struct cmsgcred *cred)
 
 	return (0);
 }
+#endif
 
 int
 fd_send(int sock, const int *fds, size_t nfds)

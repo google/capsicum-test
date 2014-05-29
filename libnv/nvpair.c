@@ -26,12 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+#define _GNU_SOURCE
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/endian.h>
 #include <sys/queue.h>
 
 #include <errno.h>
@@ -39,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,11 +46,14 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 #endif
 
+#include "sys_endian.h"
 #include "common_impl.h"
 #include "nv.h"
 #include "nv_impl.h"
 #include "nvlist_impl.h"
 #include "nvpair_impl.h"
+
+#define __unused __attribute__((unused))
 
 #ifndef	HAVE_PJDLOG
 #include <assert.h>
@@ -779,7 +781,7 @@ nvpair_allocv(int type, uint64_t data, size_t datasize, const char *namefmt,
 	free(name);
 
 	return (nvp);
-};
+}
 
 nvpair_t *
 nvpair_create_null(const char *name)

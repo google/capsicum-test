@@ -34,12 +34,14 @@
 #ifndef	_MSGIO_H_
 #define	_MSGIO_H_
 
-struct cmsgcred;
 struct iovec;
 struct msghdr;
 
+#ifdef HAVE_CMSGCRED
+struct cmsgcred;
 int cred_send(int sock);
 int cred_recv(int sock, struct cmsgcred *cred);
+#endif
 
 int fd_send(int sock, const int *fds, size_t nfds);
 int fd_recv(int sock, int *fds, size_t nfds);

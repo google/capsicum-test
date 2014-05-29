@@ -1,0 +1,18 @@
+From a bare repo run:
+ % autoreconf -iv
+
+(This runs:
+ % libtoolize              # generates m4/*, ltmain.sh
+ % aclocal                 # generates aclocal.m4
+ % autoconf                # generates configure
+ % autoheader              # generates config.h.in
+ % automake --add-missing  # generates Makefile.in, scripts
+in preparation for a build.)
+
+From a tarball run:
+ % ./configure
+ % make
+ % make install
+
+To create a tarball run:
+ % make dist-gzip

@@ -4,7 +4,7 @@ mini-me.noexec
 libgtest.a
 smoketest
 *.o
-libcapsicum*.deb
-libcapsicum*.dsc
-libcapsicum*.tar.gz
-libcapsicum*.changes
+lib*.deb
+lib*.dsc
+lib*.tar.gz
+lib*.changes

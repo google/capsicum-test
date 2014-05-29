@@ -27,11 +27,10 @@
  * SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/lib/libnv/nvlist.c 264021 2014-04-01 21:30:54Z jilles $");
 
 #include <sys/param.h>
-#include <sys/endian.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 
@@ -162,9 +161,9 @@ nvlist_report_missing(int type, const char *namefmt, va_list nameap)
 {
 	char *name;
 
-	vasprintf(&name, namefmt, nameap);
+	int len = vasprintf(&name, namefmt, nameap);
 	PJDLOG_ABORT("Element '%s' of type %s doesn't exist.",
-	    name != NULL ? name : "N/A", nvpair_type_string(type));
+	    (len > 0 && name != NULL) ? name : "N/A", nvpair_type_string(type));
 }
 
 static nvpair_t *
