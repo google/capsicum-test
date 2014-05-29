@@ -4,7 +4,7 @@ Maintainer: David Drysdale <drysdale@google.com>
 Build-Depends: debhelper (>= 9.0.0), autotools-dev
 Standards-Version: 3.9.5
 Section: libs
-Homepage: https://gihub.com/google/capsicum-test
+Homepage: https://github.com/google/capsicum-test
 
 Package: libnv-dev
 Section: libdevel
