@@ -1,0 +1,3 @@
+usr/include/*
+usr/lib/*/libcasper.so
+usr/lib/*/libcasper.a

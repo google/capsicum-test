@@ -1,0 +1,10 @@
+files
+libcasper-dev.debhelper.log
+libcasper-dev.substvars
+libcasper-dev/
+libcasper?.debhelper.log
+libcasper?.postinst.debhelper
+libcasper?.postrm.debhelper
+libcasper?.substvars
+libcasper?/
+tmp/

@@ -1,0 +1,22 @@
+Source: libcasper
+Priority: optional
+Maintainer: David Drysdale <drysdale@google.com>
+Build-Depends: debhelper (>= 9.0.0), autotools-dev
+Standards-Version: 3.9.5
+Section: libs
+Homepage: https://github.com/google/capsicum-test
+
+Package: libcasper-dev
+Section: libdevel
+Architecture: any
+Depends: libcasper0 (= ${binary:Version}), ${misc:Depends}
+Description: Development files for libcasper
+ This package provides the <libcasper.h> header file that holds
+ declarations for the library, plus development libraries.
+
+Package: libcasper0
+Architecture: any
+Depends: libcapsicum0, libcaprights0, libnv0, ${shlibs:Depends}, ${misc:Depends}
+Description: Casper utility library.
+ The libcasper library provides common functionality for use with
+ the casperd(8) daemon.
