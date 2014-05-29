@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dnv.h>
 #include <nv.h>
 
+#include "local.h"
 #include "libcapsicum.h"
 #include "libcapsicum_grp.h"
 

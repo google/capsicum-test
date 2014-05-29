@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -41,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <nv.h>
 
+#include "local.h"
 #include "libcapsicum.h"
 #include "libcapsicum_pwd.h"
 
@@ -105,15 +105,19 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 		return (error);
 	pwd->pw_uid = (uid_t)nvlist_get_number(nvl, "pw_uid");
 	pwd->pw_gid = (gid_t)nvlist_get_number(nvl, "pw_gid");
+#ifdef HAVE_PASSWD_PW_CHANGE
 	pwd->pw_change = (time_t)nvlist_get_number(nvl, "pw_change");
+#endif
 	error = passwd_unpack_string(nvl, "pw_passwd", &pwd->pw_passwd, &buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
+#ifdef HAVE_PASSWD_PW_CLASS
 	error = passwd_unpack_string(nvl, "pw_class", &pwd->pw_class, &buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
+#endif
 	error = passwd_unpack_string(nvl, "pw_gecos", &pwd->pw_gecos, &buffer,
 	    &bufsize);
 	if (error != 0)
@@ -126,8 +130,12 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
+#ifdef HAVE_PASSWD_PW_EXPIRE
 	pwd->pw_expire = (time_t)nvlist_get_number(nvl, "pw_expire");
+#endif
+#ifdef HAVE_PASSWD_PW_FIELDS
 	pwd->pw_fields = (int)nvlist_get_number(nvl, "pw_fields");
+#endif
 
 	return (0);
 }

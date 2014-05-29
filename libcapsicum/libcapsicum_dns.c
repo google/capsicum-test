@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/lib/libcapsicum/libcapsicum_dns.c 265145 2014-04-30 09:58:28Z pjd $");
 
 #include <netdb.h>
 #include <stdlib.h>

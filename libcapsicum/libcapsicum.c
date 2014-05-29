@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "local.h"
 #include "libcapsicum.h"
 #include "libcapsicum_impl.h"
 #include "nv.h"
@@ -77,7 +77,9 @@ cap_init(void)
 	bzero(&sun, sizeof(sun));
 	sun.sun_family = AF_UNIX;
 	strlcpy(sun.sun_path, CASPER_SOCKPATH, sizeof(sun.sun_path));
+#ifdef HAVE_SOCKADDR_SUN_LEN
 	sun.sun_len = SUN_LEN(&sun);
+#endif
 
 	sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock == -1)
