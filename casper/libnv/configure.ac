@@ -38,6 +38,8 @@ AC_TYPE_UINT64_T
 AC_TYPE_INT64_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT8_T
+AC_CHECK_TYPES([struct cmsgcred],[],[],[#include <sys/socket.h>])
+AC_CHECK_TYPES([struct ucred],[],[],[#include <sys/socket.h>])
 
 # Checks for library functions.
 AC_FUNC_MALLOC

@@ -34,14 +34,13 @@
 #ifndef	_MSGIO_H_
 #define	_MSGIO_H_
 
+#include <sys/types.h>
+
 struct iovec;
 struct msghdr;
 
-#ifdef HAVE_CMSGCRED
-struct cmsgcred;
 int cred_send(int sock);
-int cred_recv(int sock, struct cmsgcred *cred);
-#endif
+int cred_recv(int sock, uid_t *uid, gid_t *gid, int *ngroups, gid_t *groups);
 
 int fd_send(int sock, const int *fds, size_t nfds);
 int fd_recv(int sock, int *fds, size_t nfds);

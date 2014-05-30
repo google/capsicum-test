@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+#define _GNU_SOURCE
 #include <sys/cdefs.h>
 
 #include <sys/types.h>
@@ -45,6 +45,7 @@
 #include <pjdlog.h>
 #endif
 
+#include "config.h"
 #include "common_impl.h"
 #include "msgio.h"
 
@@ -157,17 +158,14 @@ msg_send(int sock, const struct msghdr *msg)
 	return (0);
 }
 
-#ifdef HAVE_CMSGCRED
 int
 cred_send(int sock)
 {
-	unsigned char credbuf[CMSG_SPACE(sizeof(struct cmsgcred))];
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
 	struct iovec iov;
 	uint8_t dummy;
 
-	bzero(credbuf, sizeof(credbuf));
 	bzero(&msg, sizeof(msg));
 	bzero(&iov, sizeof(iov));
 
@@ -184,6 +182,10 @@ cred_send(int sock)
 
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
+
+#if defined(HAVE_STRUCT_CMSGCRED)
+	unsigned char credbuf[CMSG_SPACE(sizeof(struct cmsgcred))];
+	bzero(credbuf, sizeof(credbuf));
 	msg.msg_control = credbuf;
 	msg.msg_controllen = sizeof(credbuf);
 
@@ -191,6 +193,15 @@ cred_send(int sock)
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_CREDS;
+#elif defined(HAVE_STRUCT_UCRED)
+        msg.msg_control = NULL;
+        msg.msg_controllen = 0;
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_len = CMSG_LEN(sizeof(struct ucred));
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_CREDENTIALS;
+#endif
 
 	if (msg_send(sock, &msg) == -1)
 		return (-1);
@@ -199,15 +210,14 @@ cred_send(int sock)
 }
 
 int
-cred_recv(int sock, struct cmsgcred *cred)
+cred_recv(int sock, uid_t *uid, gid_t *gid, int *ngroups, gid_t *groups)
 {
-	unsigned char credbuf[CMSG_SPACE(sizeof(struct cmsgcred))];
+	int cred_type, cred_len;
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
 	struct iovec iov;
 	uint8_t dummy;
 
-	bzero(credbuf, sizeof(credbuf));
 	bzero(&msg, sizeof(msg));
 	bzero(&iov, sizeof(iov));
 
@@ -216,24 +226,64 @@ cred_recv(int sock, struct cmsgcred *cred)
 
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
+
+#if defined(HAVE_STRUCT_CMSGCRED)
+	unsigned char credbuf[CMSG_SPACE(sizeof(struct cmsgcred))];
+	bzero(credbuf, sizeof(credbuf));
 	msg.msg_control = credbuf;
 	msg.msg_controllen = sizeof(credbuf);
+	cred_type = SCM_CREDS;
+	cred_len = CMSG_LEN(sizeof(struct cmsgcred));
+#elif defined(HAVE_STRUCT_UCRED)
+	union {
+		struct cmsghdr cmh;
+		char control[CMSG_SPACE(sizeof(struct ucred))];
+	} control_un;
+	control_un.cmh.cmsg_len = CMSG_LEN(sizeof(struct ucred));
+	control_un.cmh.cmsg_level = SOL_SOCKET;
+	control_un.cmh.cmsg_type = SCM_CREDENTIALS;
+	msg.msg_control = control_un.control;
+	msg.msg_controllen = sizeof(control_un.control);
+	cred_type = SCM_CREDENTIALS;
+	cred_len = CMSG_LEN(sizeof(struct ucred));
+	int optval = 1;
+	if (setsockopt(sock, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1) {
+		errno = EINVAL;
+		return (-1);
+	}
+#endif
 
 	if (msg_recv(sock, &msg) == -1)
 		return (-1);
 
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if (cmsg == NULL ||
-	    cmsg->cmsg_len != CMSG_LEN(sizeof(struct cmsgcred)) ||
-	    cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_CREDS) {
+	    cmsg->cmsg_len != cred_len ||
+	    cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != cred_type) {
 		errno = EINVAL;
 		return (-1);
 	}
-	bcopy(CMSG_DATA(cmsg), cred, sizeof(*cred));
+#if defined(HAVE_STRUCT_CMSGCRED)
+	struct cmsgcred *cred = CMSG_DATA(cmsg);
+	*uid = cred->cmcred_euid;
+	*gid = cred->cmcred_groups[0];
+	if (ngroups && *ngroups > 0 && groups) {
+		int count = cred->cmcred_ngroups;
+		if (*ngroups < count)
+			count = *ngroups;
+		bcopy(groups, cred->cmcred_groups, count*sizeof(gid_t));
+		*ngroups = cred->cmred_ngroups;
+	}
+#elif defined(HAVE_STRUCT_UCRED)
+	struct ucred *ucred = (struct ucred *) CMSG_DATA(cmsg);
+	*uid = ucred->uid;
+	*gid = ucred->gid;
+	if (ngroups)
+		*ngroups = -1;
+#endif
 
 	return (0);
 }
-#endif
 
 int
 fd_send(int sock, const int *fds, size_t nfds)
