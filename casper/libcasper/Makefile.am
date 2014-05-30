@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
-CFLAGS = --pedantic -Wall -O2
+CFLAGS = --pedantic -Wall -O2 -I ../libpjdlog -I ../libcapsicum -I ../libnv
 lib_LTLIBRARIES = libcasper.la
-libcapsicum_la_SOURCES = libcasper.c libcasper_impl.h
-libcapsicum_la_HEADERS = libcasper.h
-libcapsicum_ladir = ${includedir}
+libcasper_la_SOURCES = libcasper.c libcasper_impl.h
+libcasper_la_HEADERS = libcasper.h
+libcasper_ladir = ${includedir}

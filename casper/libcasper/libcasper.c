@@ -52,20 +52,7 @@
 #include <libcasper.h>
 #include <libcasper_impl.h>
 #include <nv.h>
-#ifdef HAVE_PJDLOG
 #include <pjdlog.h>
-#else
-#include <assert.h>
-#define	PJDLOG_ASSERT(...)		assert(__VA_ARGS__)
-#define	PJDLOG_ABORT(...)		abort()
-#define	pjdlog_error(...)		fprintf(stderr, __VA_ARGS__)
-#define	pjdlog_debug(...)
-#define	pjdlog_errno(level, ...)
-#define	pjdlog_init(mode)
-static int loglevel = 0;
-static void pjdlog_debug_set(int level) { loglevel = level; }
-int pjdlog_debug_get(void) { return loglevel; }
-#endif
 
 /*
  * Currently there is only one service_connection per service.
