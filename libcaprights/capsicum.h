@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <linux/capsicum.h>
 
-struct rusage;
 typedef struct cap_rights cap_rights_t;
 /* fcntl(2) and cap_rights_limit(2) take unsigned int for fcntl cmds. */
 typedef unsigned int cap_fcntl_t;
@@ -38,10 +37,6 @@ int cap_ioctls_limit(int fd, const cap_ioctl_t *cmds, size_t ncmds);
 ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds);
 int execveat(int fd, const char *path, char *const argv[], char *const envp[], int flags);
 int fexecve_(int fd, char *const argv[], char *const envp[]);
-int pdfork(int *fd, int flags);
-int pdgetpid(int fd, pid_t *pid);
-int pdkill(int fd, int signum);
-int pdwait4(int fd, int *status, int options, struct rusage *rusage);
 
 /************************************************************
  * Capsicum Rights Manipulation Functions.

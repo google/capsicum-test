@@ -5,7 +5,7 @@
 /************************************************************
  * Linux Capsicum Functionality.
  ************************************************************/
-#include <linux/procdesc.h>
+#include <sys/procdesc.h>
 #include <sys/capsicum.h>
 
 #define HAVE_PDWAIT4
