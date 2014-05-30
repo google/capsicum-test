@@ -39,7 +39,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
-#include <printf.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -72,7 +71,8 @@ static int pjdlog_mode, pjdlog_debug_level, pjdlog_sock;
 static int pjdlog_prefix_current;
 static char pjdlog_prefix[PJDLOG_PREFIX_STACK][PJDLOG_PREFIX_MAXSIZE];
 
-#ifdef HAVE_XPRINTF
+#if defined(HAVE_PRINTF_H) && defined(HAVE_LIBUTIL_H)
+#include <printf.h>
 #include <libutil.h>
 static int
 pjdlog_printf_arginfo_humanized_number(const struct printf_info *pi __unused,

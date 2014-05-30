@@ -20,10 +20,10 @@ AC_PROG_LN_S
 dnl Checks for libraries.
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
-AC_SEARCH_LIBS([strlcat], [libbsd])
+AC_SEARCH_LIBS([strlcat], [bsd])
 
 dnl Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h limits.h netinet/in.h stdint.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h libutil.h limits.h netinet/in.h printf.h stdint.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_INT64_T
