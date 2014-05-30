@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sbin/casperd/casperd.c 263234 2014-03-16 11:04:44Z rwatson $");
 
 #include <sys/types.h>
 #include <sys/capsicum.h>
@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD: head/sbin/casperd/casperd.c 263234 2014-03-16 11:04:44Z rwat
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -59,6 +58,8 @@ __FBSDID("$FreeBSD: head/sbin/casperd/casperd.c 263234 2014-03-16 11:04:44Z rwat
 #include <nv.h>
 #include <pjdlog.h>
 
+#include "local.h"
+#include "pidfile.h"
 #include "msgio.h"
 
 #include "zygote.h"
@@ -170,8 +171,8 @@ service_register(nvlist_t *attrs)
 		casserv->cs_execpath = NULL;
 
 		casserv->cs_service = service_alloc(name,
-		    (void *)(uintptr_t)nvlist_get_number(attrs, "limitfunc"),
-		    (void *)(uintptr_t)nvlist_get_number(attrs, "commandfunc"));
+		    (service_limit_func_t *)(uintptr_t)nvlist_get_number(attrs, "limitfunc"),
+		    (service_command_func_t *)(uintptr_t)nvlist_get_number(attrs, "commandfunc"));
 		if (casserv->cs_service == NULL) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to register service \"%s\"", name);
@@ -333,6 +334,7 @@ service_register_core(void)
 static int
 setup_creds(int sock)
 {
+#ifdef HAVE_CMSGCRED
 	struct cmsgcred cred;
 
 	if (cred_recv(sock, &cred) == -1)
@@ -346,7 +348,7 @@ setup_creds(int sock)
 
 	if (setuid(cred.cmcred_euid) == -1)
 		return (-1);
-
+#endif
 	return (0);
 }
 
@@ -553,7 +555,9 @@ main_loop(const char *sockpath, struct pidfh *pfh)
 	sun.sun_family = AF_UNIX;
 	PJDLOG_VERIFY(strlcpy(sun.sun_path, sockpath, sizeof(sun.sun_path)) <
 	    sizeof(sun.sun_path));
+#ifdef HAVE_SOCKADDR_SUN_LEN
 	sun.sun_len = SUN_LEN(&sun);
+#endif
 
 	oldumask = umask(S_IXUSR | S_IXGRP | S_IXOTH);
 	if (bind(lsock, (struct sockaddr *)&sun, sizeof(sun)) == -1)

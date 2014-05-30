@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sbin/casperd/zygote.c 264089 2014-04-03 22:14:18Z delphij $");
 
 #include <sys/types.h>
 #include <sys/capsicum.h>
@@ -38,6 +37,7 @@ __FBSDID("$FreeBSD: head/sbin/casperd/zygote.c 264089 2014-04-03 22:14:18Z delph
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD: head/sbin/casperd/zygote.c 264089 2014-04-03 22:14:18Z delph
 #include <nv.h>
 #include <pjdlog.h>
 
+#include "local.h"
 #include "zygote.h"
 
 /* Zygote info. */
@@ -125,7 +126,9 @@ zygote_main(int sock)
 
 	assert(sock > STDERR_FILENO);
 
+#ifdef HAVE_SETPROCTITLE
 	setproctitle("zygote");
+#endif
 
 	if (pjdlog_mode_get() != PJDLOG_MODE_STD)
 		stdnull();
