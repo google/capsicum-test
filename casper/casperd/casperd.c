@@ -334,21 +334,24 @@ service_register_core(void)
 static int
 setup_creds(int sock)
 {
-#ifdef HAVE_CMSGCRED
-	struct cmsgcred cred;
+	uid_t uid;
+	gid_t gid;
+	int ngroups = 16;
+	gid_t groups[16];
 
-	if (cred_recv(sock, &cred) == -1)
+	if (cred_recv(sock, &uid, &gid, &ngroups, groups) == -1)
 		return (-1);
 
-	if (setgroups((int)cred.cmcred_ngroups, cred.cmcred_groups) == -1)
+	if (ngroups > 0)
+		if (setgroups(ngroups, groups) == -1)
+			return (-1);
+
+	if (setgid(gid) == -1)
 		return (-1);
 
-	if (setgid(cred.cmcred_groups[0]) == -1)
+	if (setuid(uid) == -1)
 		return (-1);
 
-	if (setuid(cred.cmcred_euid) == -1)
-		return (-1);
-#endif
 	return (0);
 }
 
