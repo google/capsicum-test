@@ -1,0 +1,11 @@
+#ifndef LOCAL_H
+#define LOCAL_H
+
+#include <string.h>
+#include <stdint.h>
+
+#ifndef HAVE_strlcat
+size_t strlcat(char * __restrict dst, const char * __restrict src, size_t siz);
+#endif
+
+#endif

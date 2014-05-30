@@ -29,7 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -39,7 +38,6 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <errno.h>
-#include <libutil.h>
 #include <limits.h>
 #include <printf.h>
 #include <stdarg.h>
@@ -53,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #ifdef notyet
 #include <robustio.h>
 #endif
-
+#include "local.h"
 #include "pjdlog.h"
 
 #ifndef	MAX
@@ -74,6 +72,8 @@ static int pjdlog_mode, pjdlog_debug_level, pjdlog_sock;
 static int pjdlog_prefix_current;
 static char pjdlog_prefix[PJDLOG_PREFIX_STACK][PJDLOG_PREFIX_MAXSIZE];
 
+#ifdef HAVE_XPRINTF
+#include <libutil.h>
 static int
 pjdlog_printf_arginfo_humanized_number(const struct printf_info *pi __unused,
     size_t n, int *argt)
@@ -216,6 +216,7 @@ pjdlog_printf_render_sockaddr(struct __printf_io *io,
 	__printf_flush(io);
 	return (ret);
 }
+#endif
 
 void
 pjdlog_init(int mode)
@@ -234,6 +235,7 @@ pjdlog_init(int mode)
 	saved_errno = errno;
 
 	if (pjdlog_initialized == PJDLOG_NEVER_INITIALIZED) {
+#ifdef HAVE_XPRINTF
 		__use_xprintf = 1;
 		register_printf_render_std("T");
 		register_printf_render('N',
@@ -245,6 +247,7 @@ pjdlog_init(int mode)
 		register_printf_render('S',
 		    pjdlog_printf_render_sockaddr,
 		    pjdlog_printf_arginfo_sockaddr);
+#endif
 	}
 
 	if (mode == PJDLOG_MODE_SYSLOG)

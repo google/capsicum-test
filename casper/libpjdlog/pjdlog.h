@@ -40,6 +40,16 @@
 #include <sysexits.h>
 #include <syslog.h>
 
+#ifndef __printflike
+#define __printflike(A, B)	__attribute__ ((__format__ (__printf__, A, B)))
+#endif
+#ifndef __dead2
+#define __dead2	 __attribute__ ((noreturn))
+#endif
+#ifndef __unused
+#define __unused	__attribute__ ((unused))
+#endif
+
 #define	PJDLOG_MODE_STD		0
 #define	PJDLOG_MODE_SYSLOG	1
 #define	PJDLOG_MODE_SOCK	2
