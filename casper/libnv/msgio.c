@@ -290,6 +290,8 @@ fd_send(int sock, const int *fds, size_t nfds)
 {
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
+	struct iovec iov;
+	uint8_t dummy;
 	unsigned int i;
 	int serrno, ret;
 
@@ -299,8 +301,17 @@ fd_send(int sock, const int *fds, size_t nfds)
 	}
 
 	bzero(&msg, sizeof(msg));
-	msg.msg_iov = NULL;
-	msg.msg_iovlen = 0;
+	bzero(&iov, sizeof(iov));
+
+	/*
+	 * XXX: Send one byte along with the control message.
+	 */
+	dummy = 0;
+	iov.iov_base = &dummy;
+	iov.iov_len = sizeof(dummy);
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
 	msg.msg_controllen = nfds * CMSG_SPACE(sizeof(int));
 	msg.msg_control = calloc(1, msg.msg_controllen);
 	if (msg.msg_control == NULL)
