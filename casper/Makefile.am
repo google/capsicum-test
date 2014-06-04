@@ -16,6 +16,7 @@ libpjdlog_a_CFLAGS = -I src/libpjdlog
 
 libcapsicum_la_SOURCES = src/libcapsicum/libcapsicum.c src/libcapsicum/libcapsicum_dns.c src/libcapsicum/libcapsicum_dns.h src/libcapsicum/libcapsicum_grp.c src/libcapsicum/libcapsicum_grp.h src/libcapsicum/libcapsicum_impl.h src/libcapsicum/libcapsicum_pwd.c src/libcapsicum/libcapsicum_pwd.h src/libcapsicum/libcapsicum_random.c src/libcapsicum/libcapsicum_random.h src/libcapsicum/libcapsicum_service.c src/libcapsicum/libcapsicum_service.h src/libcapsicum/libcapsicum_sysctl.c src/libcapsicum/libcapsicum_sysctl.h
 libcapsicum_la_HEADERS = src/libcapsicum/libcapsicum.h
+libcapsicum_la_LIBADD = $(LTLIBOBJS)
 libcapsicum_la_CFLAGS = -I src/libnv -I src/libcapsicum
 libcapsicum_ladir = ${includedir}
 
@@ -23,7 +24,7 @@ libcasper_a_SOURCES = src/libcasper/libcasper.c src/libcasper/libcasper_impl.h s
 libcasper_a_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libcasper
 
 casperd_SOURCES = src/casperd/casperd.c src/casperd/zygote.c src/casperd/zygote.h
-casperd_LDADD = libpjdlog.a libcasper.a libcapsicum.la libnv.la
+casperd_LDADD = libpjdlog.a libcasper.a libcapsicum.la libnv.la $(LIBOBJS)
 casperd_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libcasper -I src/casperd
 
 dist_man_MANS = src/libnv/libnv.3 src/libcapsicum/libcapsicum.3

@@ -6,6 +6,7 @@ dnl (c) 2014 Google, Inc.
 AC_PREREQ([2.69])
 AC_INIT([casper],[0.1.0])
 AC_CONFIG_SRCDIR([src/casperd/casperd.c])
+AC_CONFIG_LIBOBJ_DIR([src])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE()
@@ -84,9 +85,6 @@ AC_CHECK_MEMBER([struct passwd.pw_fields],
 		])
 
 # Checks for library functions.
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
-AC_FUNC_STRNLEN
 AC_CHECK_FUNCS([bzero])
 AC_CHECK_FUNCS([memset])
 AC_CHECK_FUNCS([select])
@@ -95,12 +93,9 @@ AC_CHECK_FUNCS([strcasecmp])
 AC_CHECK_FUNCS([strdup])
 AC_CHECK_FUNCS([strerror])
 AC_CHECK_FUNCS([vasprintf])
-AC_CHECK_FUNCS([getprogname],[],[AC_LIBOBJ(src/progname)])
-AC_CHECK_FUNCS([pidfile_open pidfile_remove pidfile_write],[],[AC_LIBOBJ(src/pidfile)])
-AC_CHECK_FUNC([closefrom],[],[AC_LIBOBJ(src/closefrom)])
-AC_CHECK_FUNC([flopen],[],[AC_LIBOBJ(src/flopen)])
-AC_CHECK_FUNC([strlcat],[],[AC_LIBOBJ(src/strlcat)])
-AC_CHECK_FUNC([strlcpy],[],[AC_LIBOBJ(src/strlcpy)])
+AC_CHECK_FUNCS([getprogname],[],[AC_LIBOBJ(progname)])
+AC_CHECK_FUNCS([pidfile_open pidfile_remove pidfile_write],[],[AC_LIBOBJ(pidfile)])
+AC_REPLACE_FUNCS([closefrom flopen strlcat strlcpy])
 
 AC_OUTPUT(Makefile)
 
