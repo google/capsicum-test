@@ -35,7 +35,7 @@ void closefrom(int lowfd);
 #endif
 
 #ifndef HAVE_FLOPEN
-int flopen(const char *path, int flags, mode_t mode);
+int flopen(const char *path, int flags, ...);
 #endif
 
 #ifndef HAVE_GETPROGNAME
