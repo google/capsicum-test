@@ -162,7 +162,6 @@ int
 cred_send(int sock)
 {
 	struct msghdr msg;
-	struct cmsghdr *cmsg;
 	struct iovec iov;
 	uint8_t dummy;
 
@@ -189,18 +188,13 @@ cred_send(int sock)
 	msg.msg_control = credbuf;
 	msg.msg_controllen = sizeof(credbuf);
 
-	cmsg = CMSG_FIRSTHDR(&msg);
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_CREDS;
 #elif defined(HAVE_STRUCT_UCRED)
-        msg.msg_control = NULL;
-        msg.msg_controllen = 0;
-
-	cmsg = CMSG_FIRSTHDR(&msg);
-	cmsg->cmsg_len = CMSG_LEN(sizeof(struct ucred));
-	cmsg->cmsg_level = SOL_SOCKET;
-	cmsg->cmsg_type = SCM_CREDENTIALS;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
 #endif
 
 	if (msg_send(sock, &msg) == -1)
@@ -232,20 +226,22 @@ cred_recv(int sock, uid_t *uid, gid_t *gid, int *ngroups, gid_t *groups)
 	bzero(credbuf, sizeof(credbuf));
 	msg.msg_control = credbuf;
 	msg.msg_controllen = sizeof(credbuf);
+
 	cred_type = SCM_CREDS;
 	cred_len = CMSG_LEN(sizeof(struct cmsgcred));
 #elif defined(HAVE_STRUCT_UCRED)
-	union {
-		struct cmsghdr cmh;
-		char control[CMSG_SPACE(sizeof(struct ucred))];
-	} control_un;
-	control_un.cmh.cmsg_len = CMSG_LEN(sizeof(struct ucred));
-	control_un.cmh.cmsg_level = SOL_SOCKET;
-	control_un.cmh.cmsg_type = SCM_CREDENTIALS;
-	msg.msg_control = control_un.control;
-	msg.msg_controllen = sizeof(control_un.control);
+        unsigned char credbuf[CMSG_SPACE(sizeof(struct ucred))];
+	msg.msg_control = credbuf;
+	msg.msg_controllen = sizeof(credbuf);
+
+        cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_len = CMSG_LEN(sizeof(struct ucred));
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_CREDENTIALS;
+
 	cred_type = SCM_CREDENTIALS;
 	cred_len = CMSG_LEN(sizeof(struct ucred));
+
 	int optval = 1;
 	if (setsockopt(sock, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1) {
 		errno = EINVAL;
@@ -263,6 +259,7 @@ cred_recv(int sock, uid_t *uid, gid_t *gid, int *ngroups, gid_t *groups)
 		errno = EINVAL;
 		return (-1);
 	}
+
 #if defined(HAVE_STRUCT_CMSGCRED)
 	struct cmsgcred *cred = CMSG_DATA(cmsg);
 	*uid = cred->cmcred_euid;
