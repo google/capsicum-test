@@ -1,4 +1,0 @@
-usr/include/*
-usr/lib/*/libnv.so
-usr/lib/*/libnv.a
-usr/share/man/man3/*

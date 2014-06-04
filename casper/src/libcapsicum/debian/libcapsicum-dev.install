@@ -1,4 +1,0 @@
-usr/include/*
-usr/lib/*/libcapsicum.so
-usr/lib/*/libcapsicum.a
-usr/share/man/man3/*
