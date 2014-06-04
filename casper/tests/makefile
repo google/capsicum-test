@@ -1,13 +1,13 @@
 all: casper-test
-OBJECTS=testnv.o casper-test-main.o
+OBJECTS=testnv.o testpjdlog.o casper-test-main.o
 
 GTEST_DIR=../../gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
 GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
-CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS) -I../libnv
+CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS) -I../libnv -I ../libpjdlog
 
 casper-test: $(OBJECTS) libgtest.a
-	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread ../libnv/.libs/libnv.a
+	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread ../libnv/.libs/libnv.a ../libpjdlog/.libs/libpjdlog.a -lbsd
 
 test: casper-test
 	./casper-test
