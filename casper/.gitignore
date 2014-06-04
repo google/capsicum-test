@@ -17,3 +17,5 @@
 .deps/
 .libs/
 *.l[ao]
+.dirstamp
+lib*.a

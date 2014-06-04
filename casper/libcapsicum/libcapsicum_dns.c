@@ -39,6 +39,8 @@
 #include "libcapsicum.h"
 #include "libcapsicum_dns.h"
 
+#include "local.h"
+
 static struct hostent hent;
 
 static void

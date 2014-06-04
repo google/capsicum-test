@@ -1,11 +1,11 @@
 dnl -*-autoconf-*-
-dnl libcapsicum: Autoconf script
+dnl Casper: Autoconf script
 dnl (c) 2014 Google, Inc.
 
 
 AC_PREREQ([2.69])
-AC_INIT([libcapsicum],[0.1.0])
-AC_CONFIG_SRCDIR([libcapsicum.c])
+AC_INIT([casper],[0.1.0])
+AC_CONFIG_SRCDIR([libnv/nvlist.c])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE()
@@ -18,9 +18,16 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 
 dnl Checks for libraries.
-AC_CHECK_LIB([caprights], [cap_rights_init])
-AC_CHECK_LIB([nv], [nvlist_create])
-AC_SEARCH_LIBS([strlcpy], [libbsd])
+AC_CHECK_LIB([caprights], [cap_rights_limit])
+AC_SEARCH_LIBS([closefrom], [bsd])
+AC_SEARCH_LIBS([flopen], [bsd])
+AC_SEARCH_LIBS([getprogname], [bsd])
+AC_SEARCH_LIBS([pidfile_open], [bsd])
+AC_SEARCH_LIBS([pidfile_remove], [bsd])
+AC_SEARCH_LIBS([pidfile_write], [bsd])
+AC_SEARCH_LIBS([strlcat], [bsd])
+AC_SEARCH_LIBS([strlcpy], [bsd])
+
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
 
@@ -28,12 +35,15 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([fcntl.h])
-AC_CHECK_HEADERS([nv.h])
-AC_CHECK_HEADERS([netdb.h])
-AC_CHECK_HEADERS([unistd.h])
-AC_CHECK_HEADERS([sys/param.h])
-AC_CHECK_HEADERS([sys/socket.h])
+AC_CHECK_HEADERS([bsd/stdlib.h bsd/string.h bsd/libutil.h bsd/unistd.h])
+dnl libnv/
+AC_CHECK_HEADERS([fcntl.h unistd.h sys/param.h sys/socket.h])
+dnl libjdlog/
+AC_CHECK_HEADERS([arpa/inet.h libutil.h limits.h netinet/in.h printf.h stdint.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
+dnl libcapsicum/
+AC_CHECK_HEADERS([fcntl.h netdb.h unistd.h sys/param.h sys/socket.h])
+dnl libcasper/
+AC_CHECK_HEADERS([fcntl.h unistd.h sys/capsicum.h sys/socket.h])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -44,6 +54,8 @@ AC_TYPE_UINT64_T
 AC_TYPE_INT64_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT8_T
+AC_CHECK_TYPES([struct cmsgcred],[],[],[#include <sys/socket.h>])
+AC_CHECK_TYPES([struct ucred],[],[],[#include <sys/socket.h>])
 AC_CHECK_MEMBER([struct sockaddr_un.sun_len],
 		[AC_DEFINE(HAVE_SOCKADDR_SUN_LEN,1,[Have the sockaddr_un.sun_len member.])],
 		[],
@@ -81,6 +93,10 @@ AC_CHECK_FUNCS([select])
 AC_CHECK_FUNCS([socket])
 AC_CHECK_FUNCS([strcasecmp])
 AC_CHECK_FUNCS([strdup])
-AC_REPLACE_FUNCS([strlcpy])
+AC_CHECK_FUNCS([strerror])
+AC_CHECK_FUNCS([vasprintf])
+AC_CHECK_FUNCS([pidfile_open pidfile_remove pidfile_write],[],[AC_LIBOBJ(pidfile)])
+AC_REPLACE_FUNCS([closefrom flopen getprogname strlcat strlcpy])
 
 AC_OUTPUT(Makefile)
+
