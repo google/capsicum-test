@@ -46,7 +46,7 @@
 #include <pjdlog.h>
 #endif
 
-#include "sys_endian.h"
+#include "local.h"
 #include "common_impl.h"
 #include "nv.h"
 #include "nv_impl.h"

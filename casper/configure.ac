@@ -36,7 +36,7 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([bsd/stdlib.h bsd/string.h bsd/libutil.h bsd/unistd.h])
+AC_CHECK_HEADERS([bsd/stdlib.h bsd/string.h bsd/libutil.h bsd/unistd.h bsd/sys/endian.h])
 dnl libnv/
 AC_CHECK_HEADERS([fcntl.h unistd.h sys/param.h sys/socket.h])
 dnl libjdlog/

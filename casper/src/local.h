@@ -29,6 +29,12 @@ void closefrom(int lowfd);
 #include <bsd/unistd.h>
 #endif
 
+#ifdef HAVE_BSD_SYS_ENDIAN_H
+#include <bsd/sys/endian.h>
+#else
+#include "sys_endian.h"
+#endif
+
 /* Declarations for local replacements */
 #ifndef HAVE_CLOSEFROM
 void closefrom(int lowfd);
