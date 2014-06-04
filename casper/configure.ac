@@ -95,8 +95,9 @@ AC_CHECK_FUNCS([strcasecmp])
 AC_CHECK_FUNCS([strdup])
 AC_CHECK_FUNCS([strerror])
 AC_CHECK_FUNCS([vasprintf])
+AC_CHECK_FUNCS([getprogname],[],[AC_LIBOBJ(progname)])
 AC_CHECK_FUNCS([pidfile_open pidfile_remove pidfile_write],[],[AC_LIBOBJ(pidfile)])
-AC_REPLACE_FUNCS([closefrom flopen getprogname strlcat strlcpy])
+AC_REPLACE_FUNCS([closefrom flopen strlcat strlcpy])
 
 AC_OUTPUT(Makefile)
 

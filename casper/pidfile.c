@@ -38,6 +38,7 @@
 #include <time.h>
 #include <err.h>
 #include <errno.h>
+#include "local.h"
 #include "pidfile.h"
 
 struct pidfh {
