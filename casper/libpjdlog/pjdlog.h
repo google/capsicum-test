@@ -54,6 +54,10 @@
 #define	PJDLOG_MODE_SYSLOG	1
 #define	PJDLOG_MODE_SOCK	2
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void pjdlog_init(int mode);
 void pjdlog_fini(void);
 
@@ -90,6 +94,10 @@ void _pjdlog_abort(const char *func, const char *file, int line, int error,
 
 #ifdef notyet
 int pjdlog_receive(int sock);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #define	pjdlogv_common(loglevel, debuglevel, error, fmt, ap)		\
