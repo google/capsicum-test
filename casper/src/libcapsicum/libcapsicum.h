@@ -46,8 +46,19 @@ struct cap_channel;
 typedef struct cap_channel cap_channel_t;
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
- * The function opens unrestricted communication channel to Casper.
+ * The function opens unrestricted communication channel to Casper,
+ * using the specified UNIX socket path (use NULL for default).
+ */
+cap_channel_t *cap_init_sock(const char *sockpath);
+
+/*
+ * The function opens unrestricted communication channel to Casper,
+ * using the default socket path.
  */
 cap_channel_t *cap_init(void);
 
@@ -111,5 +122,9 @@ nvlist_t *cap_recv_nvlist(const cap_channel_t *chan);
  * response over the given capability.
  */
 nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCAPSICUM_H_ */

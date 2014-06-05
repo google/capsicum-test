@@ -68,15 +68,17 @@ fd_is_valid(int fd)
 }
 
 cap_channel_t *
-cap_init(void)
+cap_init_sock(const char *sockpath)
 {
 	cap_channel_t *chan;
 	struct sockaddr_un sun;
 	int serrno, sock;
 
+	if (sockpath == NULL)
+		sockpath = CASPER_SOCKPATH;
 	bzero(&sun, sizeof(sun));
 	sun.sun_family = AF_UNIX;
-	strlcpy(sun.sun_path, CASPER_SOCKPATH, sizeof(sun.sun_path));
+	strlcpy(sun.sun_path, sockpath, sizeof(sun.sun_path));
 #ifdef HAVE_SOCKADDR_SUN_LEN
 	sun.sun_len = SUN_LEN(&sun);
 #endif
@@ -98,6 +100,12 @@ cap_init(void)
 		return (NULL);
 	}
 	return (chan);
+}
+
+cap_channel_t *
+cap_init(void)
+{
+	return cap_init_sock(NULL);
 }
 
 cap_channel_t *
