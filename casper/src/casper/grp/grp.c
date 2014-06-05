@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <grp.h>
@@ -278,6 +277,7 @@ grp_getgrgid(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
+#ifdef HAVE_SETGROUPENT
 static int
 grp_setgroupent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 {
@@ -290,7 +290,9 @@ grp_setgroupent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	return (setgroupent(stayopen) == 0 ? EFAULT : 0);
 }
+#endif
 
+#ifdef HAVE_SETGRENT
 static int
 grp_setgrent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 {
@@ -306,6 +308,7 @@ grp_endgrent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	return (0);
 }
+#endif
 
 static int
 grp_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
@@ -363,12 +366,16 @@ grp_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		error = grp_getgrnam(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "getgrgid") == 0 || strcmp(cmd, "getgrgid_r") == 0)
 		error = grp_getgrgid(limits, nvlin, nvlout);
+#ifdef HAVE_SETGROUPENT
 	else if (strcmp(cmd, "setgroupent") == 0)
 		error = grp_setgroupent(limits, nvlin, nvlout);
+#endif
+#ifdef HAVE_SETGRENT
 	else if (strcmp(cmd, "setgrent") == 0)
 		error = grp_setgrent(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "endgrent") == 0)
 		error = grp_endgrent(limits, nvlin, nvlout);
+#endif
 	else
 		error = EINVAL;
 

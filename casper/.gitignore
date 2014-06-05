@@ -20,3 +20,8 @@
 .dirstamp
 lib*.a
 casperd
+casper.dns
+casper.grp
+casper.pwd
+casper.random
+casper.sysctl

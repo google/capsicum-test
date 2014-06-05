@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <pwd.h>
@@ -181,10 +180,16 @@ pwd_allowed_fields(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	return (0);
 }
 
+#ifdef HAVE_PASSWD_PW_FIELDS
+#define PW_FIELD_CLEAR(fields, f)	(fields) &= ~(f);
+#else
+#define PW_FIELD_CLEAR(fields, f)
+#endif
+
 static bool
 pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 {
-	int fields;
+	int fields = 0;
 
 	if (pwd == NULL)
 		return (true);
@@ -195,69 +200,79 @@ pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 	if (!pwd_allowed_user(limits, pwd->pw_name, pwd->pw_uid))
 		return (false);
 
+#ifdef HAVE_PASSWD_PW_FIELDS
 	fields = pwd->pw_fields;
+#endif
 
 	if (pwd_allowed_field(limits, "pw_name")) {
 		nvlist_add_string(nvl, "pw_name", pwd->pw_name);
 	} else {
 		nvlist_add_string(nvl, "pw_name", "");
-		fields &= ~_PWF_NAME;
+		PW_FIELD_CLEAR(fields, _PWF_NAME);
 	}
 	if (pwd_allowed_field(limits, "pw_uid")) {
 		nvlist_add_number(nvl, "pw_uid", (uint64_t)pwd->pw_uid);
 	} else {
 		nvlist_add_number(nvl, "pw_uid", (uint64_t)-1);
-		fields &= ~_PWF_UID;
+		PW_FIELD_CLEAR(fields, _PWF_UID);
 	}
 	if (pwd_allowed_field(limits, "pw_gid")) {
 		nvlist_add_number(nvl, "pw_gid", (uint64_t)pwd->pw_gid);
 	} else {
 		nvlist_add_number(nvl, "pw_gid", (uint64_t)-1);
-		fields &= ~_PWF_GID;
+		PW_FIELD_CLEAR(fields, _PWF_GID);
 	}
+#ifdef HAVE_PASSWD_PW_CHANGE
 	if (pwd_allowed_field(limits, "pw_change")) {
 		nvlist_add_number(nvl, "pw_change", (uint64_t)pwd->pw_change);
 	} else {
 		nvlist_add_number(nvl, "pw_change", (uint64_t)0);
-		fields &= ~_PWF_CHANGE;
+		PW_FIELD_CLEAR(fields, _PWF_CHANGE);
 	}
+#endif
 	if (pwd_allowed_field(limits, "pw_passwd")) {
 		nvlist_add_string(nvl, "pw_passwd", pwd->pw_passwd);
 	} else {
 		nvlist_add_string(nvl, "pw_passwd", "");
-		fields &= ~_PWF_PASSWD;
+		PW_FIELD_CLEAR(fields, _PWF_PASSWD);
 	}
+#ifdef HAVE_PASSWD_PW_CLASS
 	if (pwd_allowed_field(limits, "pw_class")) {
 		nvlist_add_string(nvl, "pw_class", pwd->pw_class);
 	} else {
 		nvlist_add_string(nvl, "pw_class", "");
-		fields &= ~_PWF_CLASS;
+		PW_FIELD_CLEAR(fields, _PWF_CLASS);
 	}
+#endif
 	if (pwd_allowed_field(limits, "pw_gecos")) {
 		nvlist_add_string(nvl, "pw_gecos", pwd->pw_gecos);
 	} else {
 		nvlist_add_string(nvl, "pw_gecos", "");
-		fields &= ~_PWF_GECOS;
+		PW_FIELD_CLEAR(fields, _PWF_GECOS);
 	}
 	if (pwd_allowed_field(limits, "pw_dir")) {
 		nvlist_add_string(nvl, "pw_dir", pwd->pw_dir);
 	} else {
 		nvlist_add_string(nvl, "pw_dir", "");
-		fields &= ~_PWF_DIR;
+		PW_FIELD_CLEAR(fields, _PWF_DIR);
 	}
 	if (pwd_allowed_field(limits, "pw_shell")) {
 		nvlist_add_string(nvl, "pw_shell", pwd->pw_shell);
 	} else {
 		nvlist_add_string(nvl, "pw_shell", "");
-		fields &= ~_PWF_SHELL;
+		PW_FIELD_CLEAR(fields, _PWF_SHELL);
 	}
+#ifdef HAVE_PASSWD_PW_EXPIRE
 	if (pwd_allowed_field(limits, "pw_expire")) {
 		nvlist_add_number(nvl, "pw_expire", (uint64_t)pwd->pw_expire);
 	} else {
 		nvlist_add_number(nvl, "pw_expire", (uint64_t)0);
-		fields &= ~_PWF_EXPIRE;
+		PW_FIELD_CLEAR(fields, _PWF_EXPIRE);
 	}
+#endif
+#ifdef HAVE_PASSWD_PW_FIELDS
 	nvlist_add_number(nvl, "pw_fields", (uint64_t)fields);
+#endif
 
 	return (true);
 }
@@ -321,6 +336,7 @@ pwd_getpwuid(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
+#ifdef HAVE_SETPASSENT
 static int
 pwd_setpassent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 {
@@ -333,6 +349,7 @@ pwd_setpassent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	return (setpassent(stayopen) == 0 ? EFAULT : 0);
 }
+#endif
 
 static int
 pwd_setpwent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
@@ -408,8 +425,10 @@ pwd_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		error = pwd_getpwnam(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "getpwuid") == 0 || strcmp(cmd, "getpwuid_r") == 0)
 		error = pwd_getpwuid(limits, nvlin, nvlout);
+#ifdef HAVE_SETPASSENT
 	else if (strcmp(cmd, "setpassent") == 0)
 		error = pwd_setpassent(limits, nvlin, nvlout);
+#endif
 	else if (strcmp(cmd, "setpwent") == 0)
 		error = pwd_setpwent(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "endpwent") == 0)

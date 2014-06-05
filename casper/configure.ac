@@ -37,22 +37,29 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_ASSERT
 AC_CHECK_HEADERS([bsd/stdlib.h bsd/string.h bsd/libutil.h bsd/unistd.h bsd/sys/endian.h])
-dnl libnv/
+dnl src/libnv/
 AC_CHECK_HEADERS([fcntl.h unistd.h sys/param.h sys/socket.h])
-dnl libjdlog/
+dnl src/libjdlog/
 AC_CHECK_HEADERS([arpa/inet.h libutil.h limits.h netinet/in.h printf.h stdint.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
-dnl libcapsicum/
+dnl src/libcapsicum/
 AC_CHECK_HEADERS([fcntl.h netdb.h unistd.h sys/param.h sys/socket.h])
-dnl libcasper/
+dnl src/libcasper/
 AC_CHECK_HEADERS([fcntl.h unistd.h sys/capsicum.h sys/socket.h])
+dnl src/casper/
+AC_CHECK_HEADERS([paths.h])
+dnl src/
+AC_CHECK_HEADERS([stddef.h sys/file.h])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_TYPE_UID_T
+AC_TYPE_PID_T
+AC_TYPE_MODE_T
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 AC_TYPE_UINT64_T
 AC_TYPE_INT64_T
+AC_TYPE_UINT32_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT8_T
 AC_CHECK_TYPES([struct cmsgcred],[],[],[#include <sys/socket.h>])
@@ -86,8 +93,18 @@ AC_CHECK_MEMBER([struct passwd.pw_fields],
 
 # Checks for library functions.
 AC_CHECK_FUNCS([bzero])
+AC_CHECK_FUNCS([dup2])
+AC_CHECK_FUNCS([endgrent])
+AC_CHECK_FUNCS([endpwent])
+AC_CHECK_FUNCS([ftruncate])
+AC_CHECK_FUNCS([gethostbyaddr])
+AC_CHECK_FUNCS([strrchr])
+AC_CHECK_FUNCS([strtol])
 AC_CHECK_FUNCS([memset])
 AC_CHECK_FUNCS([select])
+AC_CHECK_FUNCS([setgrent])
+AC_CHECK_FUNCS([setgroupent])
+AC_CHECK_FUNCS([setpassent])
 AC_CHECK_FUNCS([socket])
 AC_CHECK_FUNCS([strcasecmp])
 AC_CHECK_FUNCS([strdup])
