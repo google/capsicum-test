@@ -37,6 +37,10 @@
 struct addrinfo;
 struct hostent;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct hostent *cap_gethostbyname(cap_channel_t *chan, const char *name);
 struct hostent *cap_gethostbyname2(cap_channel_t *chan, const char *name,
     int type);
@@ -53,5 +57,9 @@ int cap_dns_type_limit(cap_channel_t *chan, const char * const *types,
     size_t ntypes);
 int cap_dns_family_limit(cap_channel_t *chan, const int *families,
     size_t nfamilies);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCAPSICUM_DNS_H_ */

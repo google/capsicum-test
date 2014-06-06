@@ -32,9 +32,17 @@
 #ifndef	_LIBCAPSICUM_SERVICE_H_
 #define	_LIBCAPSICUM_SERVICE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 cap_channel_t *cap_service_open(const cap_channel_t *chan, const char *name);
 
 int cap_service_limit(const cap_channel_t *chan, const char * const *names,
     size_t nnames);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCAPSICUM_SERVICE_H_ */

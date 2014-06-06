@@ -32,6 +32,14 @@
 #ifndef	_LIBCAPSICUM_RANDOM_H_
 #define	_LIBCAPSICUM_RANDOM_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int cap_random_buf(cap_channel_t *chan, void *buf, size_t nbytes);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCAPSICUM_RANDOM_H_ */

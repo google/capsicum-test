@@ -32,6 +32,10 @@
 #ifndef	_LIBCAPSICUM_GRP_H_
 #define	_LIBCAPSICUM_GRP_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct group *cap_getgrent(cap_channel_t *chan);
 struct group *cap_getgrnam(cap_channel_t *chan, const char *name);
 struct group *cap_getgrgid(cap_channel_t *chan, gid_t gid);
@@ -53,5 +57,9 @@ int cap_grp_limit_fields(cap_channel_t *chan, const char * const *fields,
     size_t nfields);
 int cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
     size_t nnames, gid_t *gids, size_t ngids);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCAPSICUM_GRP_H_ */
