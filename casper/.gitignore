@@ -25,6 +25,8 @@ casper.grp
 casper.pwd
 casper.random
 casper.sysctl
+casperd.pid
+casperd.sock
 casper-test
 casper-test.*
 test-driver
