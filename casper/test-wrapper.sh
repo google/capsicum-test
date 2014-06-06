@@ -8,7 +8,7 @@ VERBOSE="-v -v -v"
 ./casperd -F -D $ETCDIR -P $PIDFILE -S $SOCKFILE $VERBOSE &
 
 # Run the unit tests while the daemon is running
-./casper-test -S $SOCKFILE
+./casper-test -S $SOCKFILE $*
 
 # Terminate the daemon
 kill `cat $PIDFILE`

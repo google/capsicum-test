@@ -31,3 +31,4 @@ casper-test
 casper-test.*
 test-driver
 test-suite.log
+test-wrapper.sh.*

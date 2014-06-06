@@ -6,7 +6,7 @@ lib_LTLIBRARIES = libnv.la libcapsicum.la
 noinst_LIBRARIES = libpjdlog.a libcasper.a
 bin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
 noinst_PROGRAMS = casper-test
-TESTS = casper-test
+TESTS = test-wrapper.sh 
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/config.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/libnv/sys_endian.h
 libnv_la_HEADERS = src/libnv/dnv.h src/libnv/nv.h
