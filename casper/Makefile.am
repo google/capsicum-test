@@ -6,7 +6,7 @@ lib_LTLIBRARIES = libnv.la libcapsicum.la
 noinst_LIBRARIES = libpjdlog.a libcasper.a
 bin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
 noinst_PROGRAMS = casper-test
-TESTS = test-wrapper.sh 
+TESTS = test-wrapper.sh
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/config.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/libnv/sys_endian.h
 libnv_la_HEADERS = src/libnv/dnv.h src/libnv/nv.h
@@ -16,8 +16,8 @@ libnv_ladir = ${includedir}
 libpjdlog_a_SOURCES = src/libpjdlog/pjdlog.c src/libpjdlog/pjdlog.h
 libpjdlog_a_CFLAGS = -I src/libpjdlog
 
-libcapsicum_la_SOURCES = src/libcapsicum/libcapsicum.c src/libcapsicum/libcapsicum_dns.c src/libcapsicum/libcapsicum_dns.h src/libcapsicum/libcapsicum_grp.c src/libcapsicum/libcapsicum_grp.h src/libcapsicum/libcapsicum_impl.h src/libcapsicum/libcapsicum_pwd.c src/libcapsicum/libcapsicum_pwd.h src/libcapsicum/libcapsicum_random.c src/libcapsicum/libcapsicum_random.h src/libcapsicum/libcapsicum_service.c src/libcapsicum/libcapsicum_service.h src/libcapsicum/libcapsicum_sysctl.c src/libcapsicum/libcapsicum_sysctl.h
-libcapsicum_la_HEADERS = src/libcapsicum/libcapsicum.h
+libcapsicum_la_SOURCES = src/libcapsicum/libcapsicum.c src/libcapsicum/libcapsicum_dns.c src/libcapsicum/libcapsicum_grp.c src/libcapsicum/libcapsicum_impl.h src/libcapsicum/libcapsicum_pwd.c src/libcapsicum/libcapsicum_random.c src/libcapsicum/libcapsicum_service.c src/libcapsicum/libcapsicum_sysctl.c
+libcapsicum_la_HEADERS = src/libcapsicum/libcapsicum.h src/libcapsicum/libcapsicum_dns.h src/libcapsicum/libcapsicum_grp.h src/libcapsicum/libcapsicum_pwd.h src/libcapsicum/libcapsicum_random.h src/libcapsicum/libcapsicum_service.h src/libcapsicum/libcapsicum_sysctl.h
 libcapsicum_la_LIBADD = $(LTLIBOBJS)
 libcapsicum_la_CFLAGS = -I src/libnv -I src/libcapsicum
 libcapsicum_ladir = ${includedir}
