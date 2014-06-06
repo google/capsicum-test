@@ -47,6 +47,6 @@ casper_random_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/l
 
 casper_test_SOURCES = tests/testnv.cc tests/testpjdlog.cc tests/testcasper.cc tests/casper-test-main.cc
 casper_test_LDADD  = ../libgtest.a -lpthread libcapsicum.la libnv.la libpjdlog.a
-casper_test_CXXFLAGS = -Wall -g -ansi -I ../gtest-1.6.0/include -I ../gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
+casper_test_CXXFLAGS = -std=c++11 -Wall -g -I ../gtest-1.6.0/include -I ../gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
 dist_man_MANS = src/libnv/libnv.3 src/libcapsicum/libcapsicum.3
