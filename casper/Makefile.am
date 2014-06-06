@@ -5,6 +5,8 @@ CFLAGS = --pedantic -Wall -O2 -g -I . -I src
 lib_LTLIBRARIES = libnv.la libcapsicum.la
 noinst_LIBRARIES = libpjdlog.a libcasper.a
 bin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
+noinst_PROGRAMS = casper-test
+TESTS = casper-test
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/config.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/libnv/sys_endian.h
 libnv_la_HEADERS = src/libnv/dnv.h src/libnv/nv.h
@@ -42,5 +44,9 @@ casper_pwd_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libc
 casper_random_SOURCES = src/casper/random/random.c
 casper_random_LDADD = libcasper.a libcapsicum.la libnv.la libpjdlog.a $(LIBOBJS)
 casper_random_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libcasper -I src/casperd
+
+casper_test_SOURCES = tests/testnv.cc tests/testpjdlog.cc tests/testcasper.cc tests/casper-test-main.cc
+casper_test_LDADD  = ../libgtest.a -lpthread libcapsicum.la libnv.la libpjdlog.a
+casper_test_CXXFLAGS = -Wall -g -ansi -I ../gtest-1.6.0/include -I ../gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
 dist_man_MANS = src/libnv/libnv.3 src/libcapsicum/libcapsicum.3

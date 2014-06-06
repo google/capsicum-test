@@ -25,3 +25,7 @@ casper.grp
 casper.pwd
 casper.random
 casper.sysctl
+casper-test
+casper-test.*
+test-driver
+test-suite.log
