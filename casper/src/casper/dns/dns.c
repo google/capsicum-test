@@ -238,8 +238,10 @@ dns_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (error != 0)
 		goto out;
 
-	nvlist_move_string(nvlout, "host", host);
-	nvlist_move_string(nvlout, "serv", serv);
+	if (host != NULL)
+		nvlist_move_string(nvlout, "host", host);
+	if (serv != NULL)
+		nvlist_move_string(nvlout, "serv", serv);
 out:
 	if (error != 0) {
 		free(host);

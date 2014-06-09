@@ -285,9 +285,9 @@ cap_getnameinfo(cap_channel_t *chan, const struct sockaddr *sa, socklen_t salen,
 		return (error);
 	}
 
-	if (host != NULL)
+	if (host != NULL && nvlist_exists_string(nvl, "host"))
 		strlcpy(host, nvlist_get_string(nvl, "host"), hostlen + 1);
-	if (serv != NULL)
+	if (serv != NULL && nvlist_exists_string(nvl, "serv"))
 		strlcpy(serv, nvlist_get_string(nvl, "serv"), servlen + 1);
 	nvlist_destroy(nvl);
 	return (0);
