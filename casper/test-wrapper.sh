@@ -5,7 +5,7 @@ ETCDIR=./etc
 for arg in "$@"
 do
     case "$arg" in
-        -v) VERBOSE="-v -v -v"
+        -d) VERBOSE="-v -v -v"
             ;;
     esac
 done
