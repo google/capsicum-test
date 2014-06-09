@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -125,3 +126,34 @@ TEST_F(CasperDNSTest, GetHostByAddr) {
   if (verbose) print_hostent("8.8.8.8", info);
  }
 
+TEST_F(CasperDNSTest, GetAddrInfo) {
+  if (CheckSkip()) return;
+
+  const char *name = "google.com.";
+  struct addrinfo *info = nullptr;
+  int rc = cap_getaddrinfo(dns_chan_, name, NULL, NULL, &info);
+  //  int rc = getaddrinfo(           name, NULL, NULL, &info);
+  EXPECT_EQ(0, rc) << " error " << gai_strerror(rc);
+  EXPECT_NE(nullptr, info);
+  if (verbose) {
+    fprintf(stderr, "'%s' -> ", name);
+    for (struct addrinfo *p = info; p != nullptr; p = p->ai_next) {
+      if (p->ai_canonname) fprintf(stderr, "(%s) ", p->ai_canonname);
+      if (p->ai_addr) {
+        char buf[1024];
+        memset(buf, 0, sizeof(buf));
+        const char *result = nullptr;
+        if (p->ai_family == AF_INET) {
+          struct sockaddr_in *s = (struct sockaddr_in *)p->ai_addr;
+          result = inet_ntop(AF_INET, &s->sin_addr, buf, sizeof(buf));
+        } else if (p->ai_family == AF_INET6) {
+          struct sockaddr_in6 *s = (struct sockaddr_in6 *)p->ai_addr;
+          result = inet_ntop(AF_INET6, &s->sin6_addr, buf, sizeof(buf));
+        }
+        if (result) fprintf(stderr, "%s, ", result);
+      }
+    }
+    fprintf(stderr, "\n");
+  }
+  freeaddrinfo(info);
+}
