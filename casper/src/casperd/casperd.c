@@ -358,7 +358,7 @@ setup_creds(int sock)
 static void
 service_external_execute(int chanfd)
 {
-	char *service, *argv[3];
+	char *service, *argv[3], *envp[1];
 	int stderrfd, execfd, procfd;
 	nvlist_t *nvl;
 
@@ -421,8 +421,9 @@ service_external_execute(int chanfd)
 	argv[0] = service;
 	asprintf(&argv[1], "%d", pjdlog_debug_get());
 	argv[2] = NULL;
+	envp[0] = NULL;
 
-	fexecve(execfd, argv, NULL);
+	fexecve(execfd, argv, envp);
 	pjdlog_exit(1, "Unable to execute service %s", service);
 }
 
