@@ -6,6 +6,7 @@ VERBOSE="-v -v -v"
 
 # Run the daemon but not daemonized (-F)
 ./casperd -F -D $ETCDIR -P $PIDFILE -S $SOCKFILE $VERBOSE &
+sleep 1
 
 # Run the unit tests while the daemon is running
 ./casper-test -S $SOCKFILE $*
