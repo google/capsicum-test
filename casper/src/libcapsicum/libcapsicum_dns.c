@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include <nv.h>
+#include <dnv.h>
 
 #include "libcapsicum.h"
 #include "libcapsicum_dns.h"
@@ -185,7 +186,7 @@ addrinfo_unpack(const nvlist_t *nvl)
 	ai->ai_socktype = (int)nvlist_get_number(nvl, "ai_socktype");
 	ai->ai_protocol = (int)nvlist_get_number(nvl, "ai_protocol");
 	ai->ai_addrlen = (socklen_t)addrlen;
-	canonname = nvlist_get_string(nvl, "ai_canonname");
+	canonname = dnvlist_get_string(nvl, "ai_canonname", NULL);
 	if (canonname != NULL) {
 		ai->ai_canonname = strdup(canonname);
 		if (ai->ai_canonname == NULL) {
@@ -215,7 +216,8 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "getaddrinfo");
 	nvlist_add_string(nvl, "hostname", hostname);
-	nvlist_add_string(nvl, "servname", servname);
+	if (servname != NULL)
+		nvlist_add_string(nvl, "servname", servname);
 	if (hints != NULL) {
 		nvlist_add_number(nvl, "hints.ai_flags",
 		    (uint64_t)hints->ai_flags);

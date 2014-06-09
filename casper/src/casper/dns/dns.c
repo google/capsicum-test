@@ -40,6 +40,7 @@
 #include <libcapsicum_dns.h>
 #include <libcasper.h>
 #include <nv.h>
+#include <dnv.h>
 #include <pjdlog.h>
 
 static bool
@@ -258,7 +259,8 @@ addrinfo_pack(const struct addrinfo *ai)
 	nvlist_add_number(nvl, "ai_socktype", (uint64_t)ai->ai_socktype);
 	nvlist_add_number(nvl, "ai_protocol", (uint64_t)ai->ai_protocol);
 	nvlist_add_binary(nvl, "ai_addr", ai->ai_addr, (size_t)ai->ai_addrlen);
-	nvlist_add_string(nvl, "ai_canonname", ai->ai_canonname);
+	if (ai->ai_canonname != NULL)
+		nvlist_add_string(nvl, "ai_canonname", ai->ai_canonname);
 
 	return (nvl);
 }
@@ -276,7 +278,7 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 		return (NO_RECOVERY);
 
 	hostname = nvlist_get_string(nvlin, "hostname");
-	servname = nvlist_get_string(nvlin, "servname");
+	servname = dnvlist_get_string(nvlin, "servname", NULL);
 	if (nvlist_exists_number(nvlin, "hints.ai_flags")) {
 		size_t addrlen;
 
