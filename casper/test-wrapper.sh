@@ -2,7 +2,13 @@
 SOCKFILE=./casperd.sock
 PIDFILE=./casperd.pid
 ETCDIR=./etc
-VERBOSE="-v -v -v"
+for arg in "$@"
+do
+    case "$arg" in
+        -v) VERBOSE="-v -v -v"
+            ;;
+    esac
+done
 
 # Run the daemon but not daemonized (-F)
 ./casperd -F -D $ETCDIR -P $PIDFILE -S $SOCKFILE $VERBOSE &
