@@ -184,6 +184,63 @@ TEST(NVList, SocketSend) {
   unlink("/tmp/nvtest_xfer");
 }
 
+TEST(NVList, SocketXfer) {
+  int fds[2];
+  EXPECT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: open a couple of files then wait to receive an nvlist.
+    int fd = open("/etc/passwd", O_RDONLY);
+    int fd2 = open("/etc/passwd", O_RDONLY);
+    EXPECT_LE(0, fd);
+    nvlist_t *list2 = nvlist_recv(fds[0]);
+    if (verbose) {
+      fprintf(stderr, "child: received nvlist:\n");
+      nvlist_dump(list2, fileno(stderr));
+    }
+
+    // Respond with the fd.
+    nvlist_t *rsp = nvlist_create(0);
+    nvlist_move_descriptor(rsp, "rspfd", fd);
+    nvlist_move_descriptor(rsp, "rspfd2", fd2);
+    nvlist_add_number(rsp, "rc", 0);
+    (void)nvlist_send(fds[0], rsp);
+    nvlist_destroy(rsp);
+    exit(HasFailure());
+  }
+
+  // Build an nvlist.
+  nvlist_t *list = nvlist_create(0);
+  nvlist_add_number(list, "field1", 123);
+  nvlist_add_number(list, "field2", 42);
+
+  // Send/recv it via the socket.
+  list = nvlist_xfer(fds[1], list);
+  EXPECT_NE(nullptr, list);
+  if (list) {
+    EXPECT_TRUE(nvlist_exists_number(list, "rc"));
+    EXPECT_EQ(0, nvlist_get_number(list, "rc"));
+    EXPECT_TRUE(nvlist_exists_descriptor(list, "rspfd"));
+    int fd = nvlist_take_descriptor(list, "rspfd");
+    EXPECT_LT(0, fd);
+    EXPECT_TRUE(nvlist_exists_descriptor(list, "rspfd2"));
+    int fd2 = nvlist_take_descriptor(list, "rspfd2");
+    EXPECT_LT(0, fd2);
+    close(fd);
+  }
+
+  // Wait for the child to terminate.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  EXPECT_TRUE(WIFEXITED(status)) << " status " << status;
+  EXPECT_EQ(0, WEXITSTATUS(status));
+
+  nvlist_destroy(list);
+  close(fds[1]);
+  close(fds[0]);
+}
+
 TEST(NVList, CredSend) {
   int fds[2];
   EXPECT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
