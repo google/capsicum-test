@@ -157,3 +157,32 @@ TEST_F(CasperDNSTest, GetAddrInfo) {
   }
   freeaddrinfo(info);
 }
+
+TEST_F(CasperDNSTest, GetNameInfo) {
+  if (CheckSkip()) return;
+
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = 53;
+  addr.sin_addr.s_addr = 0x08080808;
+  char name[1024] = {0};
+  char service[1024] = {0};
+  int rc = cap_getnameinfo(dns_chan_, (sockaddr*)&addr, sizeof(addr), name, sizeof(name),
+                           service, sizeof(service), 0);
+  EXPECT_EQ(0, rc);
+  if (verbose) fprintf(stderr, "8.8.8.8:53 => '%s':'%s'\n", name, service);
+
+  // Should also cope with various missing parameters
+  addr.sin_port = 0;
+  memset(name, 0, sizeof(name));
+  memset(service, 0, sizeof(service));
+  rc = cap_getnameinfo(dns_chan_, (sockaddr*)&addr, sizeof(addr), NULL, 0,
+                       service, sizeof(service), 0);
+  EXPECT_EQ(0, rc);
+  if (verbose) fprintf(stderr, "8.8.8.8:53 => service='%s'\n", service);
+
+  addr.sin_port = 53;
+  rc = cap_getnameinfo(dns_chan_, (sockaddr*)&addr, sizeof(addr), name, sizeof(name), NULL, 0, 0);
+  EXPECT_EQ(0, rc);
+  if (verbose) fprintf(stderr, "8.8.8.8:53 => '%s'\n", name);
+}
