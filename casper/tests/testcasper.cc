@@ -48,30 +48,80 @@ TEST(Casper, SocketWrap) {
   cap_close(chan);
 }
 
-TEST(Casper, GetHostByName) {
-  cap_channel_t *chan = cap_init_sock(casper_sock);
-  if (!chan) return;
+class CasperDNSTest : public ::testing::Test {
+ public:
+  CasperDNSTest() : dns_chan_(nullptr) {
+    cap_channel_t *chan = cap_init_sock(casper_sock);
+    EXPECT_NE(nullptr, chan) << "Failed to open socket " << casper_sock;
+    if (!chan) return;
+    dns_chan_ = cap_service_open(chan, "system.dns");
+    EXPECT_NE(nullptr, dns_chan_) << "Failed to open system.dns service";
+    cap_close(chan);
+  }
+  bool CheckSkip() {
+    if (dns_chan_ == nullptr) {
+      fprintf(stderr, "Skipping test as system.dns service unavailable\n");
+      return true;
+    } else {
+      return false;
+    }
+  }
+  ~CasperDNSTest() {
+    if (dns_chan_) cap_close(dns_chan_);
+  }
+ protected:
+  cap_channel_t *dns_chan_;
+};
 
-  cap_channel_t *dns_chan = cap_service_open(chan, "system.dns");
-  EXPECT_NE(nullptr, dns_chan) << "Failed to open system.dns service";
-  if (!dns_chan) return;
-  cap_close(chan);
+static void print_hostent(const char *name, const struct hostent *info) {
+  if (!info) {
+    fprintf(stderr, "'%s' -> <null>\n", name);
+    return;
+  }
+  fprintf(stderr, "'%s' -> '%s'", name, info->h_name);
+  int ii = 0;
+  while (info->h_addr_list && info->h_addr_list[ii]) {
+    for (int jj = 0; jj < info->h_length; jj++) {
+      fprintf(stderr, "%s%d", (jj>0) ? "." : ", ", (unsigned char)info->h_addr_list[ii][jj]);
+    }
+    ii++;
+  }
+  fprintf(stderr, "\n");
+}
+
+TEST_F(CasperDNSTest, GetHostByName) {
+  if (CheckSkip()) return;
 
   const char *name = "google.com.";
-  struct hostent *info = cap_gethostbyname(dns_chan, name);
+  struct hostent *info = cap_gethostbyname(dns_chan_, name);
   EXPECT_NE(nullptr, info);
-
-  if (verbose && info) {
-    fprintf(stderr, "'%s' -> '%s'", name, info->h_name);
-    int ii = 0;
-    while (info->h_addr_list && info->h_addr_list[ii]) {
-      for (int jj = 0; jj < info->h_length; jj++) {
-        fprintf(stderr, "%s%d", (jj>0) ? "." : ", ", (unsigned char)info->h_addr_list[ii][jj]);
-      }
-      ii++;
-    }
-    fprintf(stderr, "\n");
-  }
-
-  cap_close(dns_chan);
+  if (verbose) print_hostent(name, info);
 }
+
+TEST_F(CasperDNSTest, GetHostByName2) {
+  if (CheckSkip()) return;
+
+  const char *name = "google.com.";
+  struct hostent *info = cap_gethostbyname2(dns_chan_, name, AF_INET);
+  EXPECT_NE(nullptr, info);
+  if (verbose) print_hostent(name, info);
+}
+
+TEST_F(CasperDNSTest, GetHostByNameFail) {
+  if (CheckSkip()) return;
+
+  const char *name = "google.cxxxxx.";
+  struct hostent *info = cap_gethostbyname(dns_chan_, name);
+  EXPECT_EQ(nullptr, info);
+  if (verbose) print_hostent(name, info);
+}
+
+TEST_F(CasperDNSTest, GetHostByAddr) {
+  if (CheckSkip()) return;
+
+  unsigned char addr[4] = {8,8,8,8};
+  struct hostent *info = cap_gethostbyaddr(dns_chan_, addr, 4, AF_INET);
+  EXPECT_NE(nullptr, info);
+  if (verbose) print_hostent("8.8.8.8", info);
+ }
+
