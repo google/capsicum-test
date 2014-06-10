@@ -32,3 +32,4 @@ casper-test.*
 test-driver
 test-suite.log
 test-wrapper.sh.*
+casper-*.tar.gz
