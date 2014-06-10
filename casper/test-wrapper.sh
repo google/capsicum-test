@@ -16,6 +16,9 @@ sleep 1
 
 # Run the unit tests while the daemon is running
 ./casper-test -S $SOCKFILE $*
+RC=$?
 
 # Terminate the daemon
 kill `cat $PIDFILE`
+
+exit $RC
