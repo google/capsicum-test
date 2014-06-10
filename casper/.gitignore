@@ -34,3 +34,7 @@ test-suite.log
 test-wrapper.sh.*
 casper-*.tar.gz
 README.html
+system.dns
+system.grp
+system.pwd
+system.random

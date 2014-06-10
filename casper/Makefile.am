@@ -30,6 +30,18 @@ casperd_SOURCES = src/casperd/casperd.c src/casperd/zygote.c src/casperd/zygote.
 casperd_LDADD = libcasper.a libcapsicum.la libnv.la libpjdlog.a $(LIBOBJS)
 casperd_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libcasper -I src/casperd
 
+casperdconfdir = ${sysconfdir}/casper
+casperdconf_DATA = system.dns system.grp system.pwd system.random
+DISTCLEANFILES = system.dns system.grp system.pwd system.random
+system.dns:
+	echo ${bindir}/casper.dns > $@
+system.grp:
+	echo ${bindir}/casper.grp > $@
+system.pwd:
+	echo ${bindir}/casper.pwd > $@
+system.random:
+	echo ${bindir}/casper.random > $@
+
 casper_dns_SOURCES = src/casper/dns/dns.c
 casper_dns_LDADD = libcasper.a libcapsicum.la libnv.la libpjdlog.a $(LIBOBJS)
 casper_dns_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libcasper -I src/casperd
