@@ -7,7 +7,7 @@ noinst_LIBRARIES = libpjdlog.a libcasper.a libgtest.a
 bin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
 noinst_PROGRAMS = casper-test
 TESTS = test-wrapper.sh
-EXTRA_DIST = test-wrapper.sh etc
+EXTRA_DIST = test-wrapper.sh etc debian
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/local.h src/sys_endian.h
 libnv_la_HEADERS = src/libnv/dnv.h src/libnv/nv.h

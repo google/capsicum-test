@@ -1,0 +1,6 @@
+usr/include/*
+usr/lib/*/libcapsicum.so
+usr/lib/*/libcapsicum.a
+usr/lib/*/libnv.so
+usr/lib/*/libnv.a
+usr/share/man/man3/*

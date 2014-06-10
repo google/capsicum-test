@@ -1,0 +1,3 @@
+usr/lib/*/libcapsicum.so.*
+usr/lib/*/libnv.so.*
+usr/bin/casper*

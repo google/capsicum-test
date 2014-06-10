@@ -4,7 +4,11 @@ mini-me.noexec
 libgtest.a
 smoketest
 *.o
-lib*.deb
-lib*.dsc
-lib*.tar.gz
-lib*.changes
+libcap*.deb
+libcap*.dsc
+libcap*.tar.gz
+libcap*.changes
+casper*.deb
+casper*.dsc
+casper*.tar.gz
+casper*.changes

@@ -33,7 +33,9 @@ From a tarball (created from `make dist-gzip`) run:
     % make
     % make install
 
-TODO debian
+To generate Debian packages use:
+
+    % dpkg-buildpackage  -us -uc
 
 
 Process Structure
