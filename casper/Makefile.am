@@ -3,10 +3,11 @@ ACLOCAL_AMFLAGS = -I m4
 CFLAGS = --pedantic -Wall -O2 -g -I . -I src
 
 lib_LTLIBRARIES = libnv.la libcapsicum.la
-noinst_LIBRARIES = libpjdlog.a libcasper.a
+noinst_LIBRARIES = libpjdlog.a libcasper.a libgtest.a
 bin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
 noinst_PROGRAMS = casper-test
 TESTS = test-wrapper.sh
+EXTRA_DIST = test-wrapper.sh etc
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/local.h src/sys_endian.h
 libnv_la_HEADERS = src/libnv/dnv.h src/libnv/nv.h
@@ -45,8 +46,39 @@ casper_random_SOURCES = src/casper/random/random.c
 casper_random_LDADD = libcasper.a libcapsicum.la libnv.la libpjdlog.a $(LIBOBJS)
 casper_random_CFLAGS = -I src/libnv -I src/libpjdlog -I src/libcapsicum -I src/libcasper -I src/casperd
 
+libgtest_a_SOURCES = gtest-1.6.0/src/gtest-all.cc \
+  gtest-1.6.0/src/gtest-death-test.cc \
+  gtest-1.6.0/src/gtest-filepath.cc \
+  gtest-1.6.0/src/gtest-internal-inl.h \
+  gtest-1.6.0/src/gtest-port.cc \
+  gtest-1.6.0/src/gtest-printers.cc \
+  gtest-1.6.0/src/gtest-test-part.cc \
+  gtest-1.6.0/src/gtest-typed-test.cc \
+  gtest-1.6.0/src/gtest.cc \
+  gtest-1.6.0/include/gtest/gtest-death-test.h \
+  gtest-1.6.0/include/gtest/gtest-message.h \
+  gtest-1.6.0/include/gtest/gtest-param-test.h \
+  gtest-1.6.0/include/gtest/gtest-printers.h \
+  gtest-1.6.0/include/gtest/gtest-spi.h \
+  gtest-1.6.0/include/gtest/gtest-test-part.h \
+  gtest-1.6.0/include/gtest/gtest-typed-test.h \
+  gtest-1.6.0/include/gtest/gtest.h \
+  gtest-1.6.0/include/gtest/gtest_pred_impl.h \
+  gtest-1.6.0/include/gtest/gtest_prod.h \
+  gtest-1.6.0/include/gtest/internal/gtest-death-test-internal.h \
+  gtest-1.6.0/include/gtest/internal/gtest-filepath.h \
+  gtest-1.6.0/include/gtest/internal/gtest-internal.h \
+  gtest-1.6.0/include/gtest/internal/gtest-linked_ptr.h \
+  gtest-1.6.0/include/gtest/internal/gtest-param-util-generated.h \
+  gtest-1.6.0/include/gtest/internal/gtest-param-util.h \
+  gtest-1.6.0/include/gtest/internal/gtest-port.h \
+  gtest-1.6.0/include/gtest/internal/gtest-string.h \
+  gtest-1.6.0/include/gtest/internal/gtest-tuple.h \
+  gtest-1.6.0/include/gtest/internal/gtest-type-util.h
+libgtest_a_CXXFLAGS = -I gtest-1.6.0/include -I gtest-1.6.0 -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
+
 casper_test_SOURCES = tests/testnv.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc
-casper_test_LDADD  = ../libgtest.a -lpthread libcapsicum.la libnv.la libpjdlog.a
-casper_test_CXXFLAGS = -std=c++11 -Wall -g -I ../gtest-1.6.0/include -I ../gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
+casper_test_LDADD  = libcapsicum.la libnv.la libpjdlog.a libgtest.a -lpthread
+casper_test_CXXFLAGS = -std=c++11 -Wall -g -I gtest-1.6.0/include -I gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
 dist_man_MANS = src/libnv/libnv.3 src/libcapsicum/libcapsicum.3
