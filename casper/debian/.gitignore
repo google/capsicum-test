@@ -3,8 +3,7 @@ casper-dev.debhelper.log
 casper-dev.substvars
 casper-dev/
 casper?.debhelper.log
-casper?.postinst.debhelper
-casper?.postrm.debhelper
+casper?.*.debhelper
 casper?.substvars
 casper?/
 tmp/
