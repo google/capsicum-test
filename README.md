@@ -32,7 +32,7 @@ The following kernel configuration options are needed to run the tests:
  - `CONFIG_64BIT`: Capsicum support is currently only implemented for 64 bit mode
  - `CONFIG_SECURITY`: enable Linux Security Module (LSM) support
  - `CONFIG_SECURITY_PATH`: enable LSM hooks for path operations
- - `CONFIG_SECURITY_CAPSICUM`: enable the Capsicum LSM
+ - `CONFIG_SECURITY_CAPSICUM`: enable the Capsicum framework
  - `CONFIG_PROCDESC`: enable Capsicum process-descriptor functionality
  - `CONFIG_DEBUG_FS`: enable debug filesystem
  - `CONFIG_IP_SCTP`: enable SCTP support
@@ -61,16 +61,16 @@ Other Dependencies
 
 The following additional development packages are needed to build the full test suite on Linux.
 
- - libcapsicum: See below
+ - libcaprights: See below
  - libcap-dev: Provides headers for POSIX.1e capabilities.
  - libsctp1: Provides SCTP library functions.
  - libsctp-dev: Provides headers for SCTP library functions.
 
 
-Linux libcapsicum
------------------
+Linux libcaprights
+------------------
 
-The Capsicum userspace library is held in the libcapsicum/ subdirectory.  This library needs to
+The Capsicum userspace library is held in the libcaprights/ subdirectory.  This library needs to
 be built (with "./configure; make" or "dpkg-buildpackage -uc -us") and
-installed (with "make install" or "dpkg -i libcapsicum*.deb") to allow the tests to
+installed (with "make install" or "dpkg -i libcaprights*.deb") to allow the tests to
 build.
