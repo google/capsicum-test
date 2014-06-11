@@ -20,7 +20,7 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 NAME=casperd
 DESC="Casper daemon"
-DAEMON=/usr/bin/casperd
+DAEMON=/usr/sbin/casperd
 DAEMON_ARGS=""
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME

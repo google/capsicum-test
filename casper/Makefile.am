@@ -4,7 +4,7 @@ CFLAGS = --pedantic -Wall -O2 -g -I . -I src
 
 lib_LTLIBRARIES = libnv.la libcapsicum.la
 noinst_LIBRARIES = libpjdlog.a libcasper.a libgtest.a
-bin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
+sbin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
 noinst_PROGRAMS = casper-test
 TESTS = test-wrapper.sh
 EXTRA_DIST = test-wrapper.sh etc debian
@@ -34,13 +34,13 @@ casperdconfdir = ${sysconfdir}/casper
 casperdconf_DATA = system.dns system.grp system.pwd system.random
 DISTCLEANFILES = system.dns system.grp system.pwd system.random
 system.dns:
-	echo ${bindir}/casper.dns > $@
+	echo ${sbindir}/casper.dns > $@
 system.grp:
-	echo ${bindir}/casper.grp > $@
+	echo ${sbindir}/casper.grp > $@
 system.pwd:
-	echo ${bindir}/casper.pwd > $@
+	echo ${sbindir}/casper.pwd > $@
 system.random:
-	echo ${bindir}/casper.random > $@
+	echo ${sbindir}/casper.random > $@
 
 casper_dns_SOURCES = src/casper/dns/dns.c
 casper_dns_LDADD = libcasper.a libcapsicum.la libnv.la libpjdlog.a $(LIBOBJS)
