@@ -42,6 +42,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -419,7 +420,9 @@ service_external_execute(int chanfd)
 	setup_creds(chanfd);
 
 	argv[0] = service;
-	asprintf(&argv[1], "%d", pjdlog_debug_get());
+	if (asprintf(&argv[1], "%d", pjdlog_debug_get()) < 0) {
+		pjdlog_error("Failed to allocate debug level string");
+	}
 	argv[2] = NULL;
 	envp[0] = NULL;
 

@@ -189,8 +189,6 @@ pwd_allowed_fields(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 static bool
 pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 {
-	int fields = 0;
-
 	if (pwd == NULL)
 		return (true);
 
@@ -201,7 +199,7 @@ pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 		return (false);
 
 #ifdef HAVE_PASSWD_PW_FIELDS
-	fields = pwd->pw_fields;
+	int fields = pwd->pw_fields;
 #endif
 
 	if (pwd_allowed_field(limits, "pw_name")) {

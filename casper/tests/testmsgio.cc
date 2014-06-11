@@ -13,7 +13,6 @@
 #include "gtest/gtest.h"
 
 extern bool verbose;
-static nvlist_t *nvnull = NULL;
 
 TEST(NVList, CredSend) {
   int fds[2];

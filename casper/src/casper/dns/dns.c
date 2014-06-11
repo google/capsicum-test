@@ -282,8 +282,6 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	hostname = nvlist_get_string(nvlin, "hostname");
 	servname = dnvlist_get_string(nvlin, "servname", NULL);
 	if (nvlist_exists_number(nvlin, "hints.ai_flags")) {
-		size_t addrlen;
-
 		hints.ai_flags = (int)nvlist_get_number(nvlin,
 		    "hints.ai_flags");
 		hints.ai_family = (int)nvlist_get_number(nvlin,
