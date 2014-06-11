@@ -19,7 +19,7 @@ libpjdlog_a_CFLAGS = -I src/libpjdlog
 
 libcapsicum_la_SOURCES = src/libcapsicum/libcapsicum.c src/libcapsicum/libcapsicum_dns.c src/libcapsicum/libcapsicum_grp.c src/libcapsicum/libcapsicum_impl.h src/libcapsicum/libcapsicum_pwd.c src/libcapsicum/libcapsicum_random.c src/libcapsicum/libcapsicum_service.c src/libcapsicum/libcapsicum_sysctl.c src/local.h src/sys_endian.h
 libcapsicum_la_HEADERS = src/libcapsicum/libcapsicum.h src/libcapsicum/libcapsicum_dns.h src/libcapsicum/libcapsicum_grp.h src/libcapsicum/libcapsicum_pwd.h src/libcapsicum/libcapsicum_random.h src/libcapsicum/libcapsicum_service.h src/libcapsicum/libcapsicum_sysctl.h
-libcapsicum_la_LIBADD = $(LTLIBOBJS)
+libcapsicum_la_LIBADD = $(LTLIBOBJS) -lnv
 libcapsicum_la_CFLAGS = -I src/libnv -I src/libcapsicum
 libcapsicum_ladir = ${includedir}
 
