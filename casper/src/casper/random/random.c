@@ -38,6 +38,8 @@
 #include <nv.h>
 #include <pjdlog.h>
 
+#include "local.h"
+
 #define	MAXSIZE	(1024 * 1024)
 
 static int

@@ -21,6 +21,7 @@ AC_PROG_LN_S
 
 dnl Checks for libraries.
 AC_CHECK_LIB([caprights], [cap_rights_limit])
+AC_SEARCH_LIBS([arc4random_buf], [bsd])
 AC_SEARCH_LIBS([closefrom], [bsd])
 AC_SEARCH_LIBS([flopen], [bsd])
 AC_SEARCH_LIBS([getprogname], [bsd])
@@ -111,6 +112,7 @@ AC_CHECK_FUNCS([strcasecmp])
 AC_CHECK_FUNCS([strdup])
 AC_CHECK_FUNCS([strerror])
 AC_CHECK_FUNCS([vasprintf])
+AC_CHECK_FUNCS([arc4random_buf],[],[AC_LIBOBJ(arc4random)])
 AC_CHECK_FUNCS([getprogname],[],[AC_LIBOBJ(progname)])
 AC_CHECK_FUNCS([pidfile_open pidfile_remove pidfile_write],[],[AC_LIBOBJ(pidfile)])
 AC_REPLACE_FUNCS([closefrom flopen strlcat strlcpy])

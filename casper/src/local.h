@@ -36,6 +36,10 @@ void closefrom(int lowfd);
 #endif
 
 /* Declarations for local replacements */
+#ifndef HAVE_ARC4RANDOM_BUF
+void arc4random_buf(void *buf, size_t nbytes);
+#endif
+
 #ifndef HAVE_CLOSEFROM
 void closefrom(int lowfd);
 #endif
