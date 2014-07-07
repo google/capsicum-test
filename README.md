@@ -3,7 +3,7 @@ Capsicum User Space Tests
 
 This directory holds unit tests for [Capsicum](http://www.cl.cam.ac.uk/research/security/capsicum/)
 object-capabilities. The tests exercise the syscall interface to a Capsicum-enabled operating system,
-currently either [FreeBSD 9.x](http://www.freebsd.org) or a modified Linux kernel (the
+currently either [FreeBSD 10.x](http://www.freebsd.org) or a modified Linux kernel (the
 [capsicum-linux](http://github.com/google/capsicum-linux) project).
 
 The tests are written in C++98, and use the [Google Test](https://code.google.com/p/googletest/)
@@ -37,6 +37,13 @@ The following kernel configuration options are needed to run the tests:
  - `CONFIG_DEBUG_FS`: enable debug filesystem
  - `CONFIG_IP_SCTP`: enable SCTP support
 
+### FreeBSD 10.x
+
+The following kernel configuration options are needed so that all tests can run:
+
+  - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
+  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
+
 ### FreeBSD 9.x
 
 The following kernel configuration options are needed so that all tests can run:
@@ -44,13 +51,6 @@ The following kernel configuration options are needed so that all tests can run:
   - `options CAPABILITIES`: Enable capabilities
   - `options CAPABILITY_MODE`: Enable capability mode
   - `options PROCDESC`: Enable process descriptors
-  - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
-  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
-
-### FreeBSD 10.x
-
-The following kernel configuration options are needed so that all tests can run:
-
   - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
   - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
 
