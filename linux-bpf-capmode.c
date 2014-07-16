@@ -31,8 +31,17 @@
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
 #define EXAMINE_SYSCALL	\
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr))
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define EXAMINE_ARG(n)							\
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64))
+#define EXAMINE_ARGHI(n)							\
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64) + sizeof(__u32))
+#else
+#define EXAMINE_ARG(n)							\
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64) + sizeof(_u32))
+#define EXAMINE_ARGHI(n)							\
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64)))
+#endif
 #define ALLOW	\
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
 #define ALLOW_SYSCALL(name)	\
@@ -43,6 +52,13 @@
 #define FAIL_SYSCALL(name)	\
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1),	\
 	FAIL_ECAPMODE
+#ifdef SECCOMP_DATA_TID_PRESENT
+/* Build environment includes .tgid and .tid fields in seccomp_data */
+#define EXAMINE_TGID	\
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, tgid))
+#define EXAMINE_TID	\
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, tid))
+#endif
 
 static struct sock_filter capmode_filter[] = {
 	VALIDATE_ARCHITECTURE,
@@ -228,7 +244,28 @@ static struct sock_filter capmode_filter[] = {
 	FAIL_ECAPMODE,
 #endif
 
-	/* kill(2): want to check for current tid, but can't */
+#ifdef SECCOMP_DATA_TID_PRESENT
+	/* tgkill(2)/kill(2): check arg[0] vs current tgid. */
+	/* First check info is available */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_tgkill, 1, 0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_kill, 0, 10),
+	BPF_STMT(BPF_LD+BPF_W+BPF_LEN, 0),  /* A <- data len */
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
+		offsetof(struct seccomp_data, tgid) + sizeof(pid_t),
+		0, 1),
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
+		offsetof(struct seccomp_data, tid) + sizeof(pid_t),
+		1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(0),  /* A <- specified pid */
+	BPF_STMT(BPF_MISC+BPF_TAX, 0),  /* X <- A */
+	EXAMINE_TGID,  /* A <- actual tgid */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
+	ALLOW,
+	FAIL_ECAPMODE,
+#else
+	/* kill(2): want to check for current tid, but can't. */
+#endif
 
 	/* mmap(2) */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_mmap, 0, 6),
@@ -282,14 +319,14 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_GET_UNALIGN, 0, 1),
 	ALLOW,
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_MCE_KILL_GET, 0, 1),
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_MCE_KILL_GET, 0, 1),
 	ALLOW,
 	FAIL_ECAPMODE,
 
 	/* Fail everything else */
 	FAIL_ECAPMODE,
 };
-struct sock_fprog capmode_fprog = {
+static struct sock_fprog capmode_fprog = {
 	.len = (sizeof(capmode_filter) / sizeof(capmode_filter[0])),
 	.filter = capmode_filter
 };
@@ -304,6 +341,7 @@ static void print_filter(struct sock_fprog *bpf) {
 }
 
 int cap_enter_bpf() {
+
 	int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	if (rc < 0) return rc;
 	return prctl(PR_SECCOMP_EXT, SECCOMP_EXT_ACT, SECCOMP_EXT_ACT_FILTER,
