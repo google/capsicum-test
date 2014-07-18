@@ -345,17 +345,25 @@ static void print_filter(struct sock_fprog *bpf) {
 }
 
 int cap_enter_bpf() {
-
 	int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	if (rc < 0) return rc;
+#ifdef PR_SET_OPENAT_BENEATH
+	rc = prctl(PR_SET_OPENAT_BENEATH, 1 , PR_SET_OPENAT_BENEATH_TSYNC, 0, 0);
+	if (rc < 0) return rc;
+#endif
 	return prctl(PR_SECCOMP_EXT, SECCOMP_EXT_ACT, SECCOMP_EXT_ACT_FILTER,
 		SECCOMP_FILTER_TSYNC, &capmode_fprog);
 }
 
 int cap_getmode_bpf(unsigned int *mode) {
-	int rc = prctl(PR_GET_SECCOMP);
-	if (rc < 0) return rc;
-	*mode = (rc & SECCOMP_MODE_FILTER) ? 1 : 0;
+	int beneath = 1;
+	int seccomp = prctl(PR_GET_SECCOMP, 0, 0, 0, 0);
+	if (seccomp < 0) return seccomp;
+#ifdef PR_GET_OPENAT_BENEATH
+	beneath = prctl(PR_GET_OPENAT_BENEATH, 0, 0, 0, 0);
+	if (beneath < 0) return beneath;
+#endif
+	*mode = (seccomp == SECCOMP_MODE_FILTER && beneath == 1);
 	return 0;
 }
 
