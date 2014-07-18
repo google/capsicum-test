@@ -18,7 +18,7 @@ mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
 
 # Simple C test of Capsicum syscalls
-SMOKETEST_OBJECTS=smoketest.o linux-bpf-capmode.o
+SMOKETEST_OBJECTS=smoketest.o
 smoketest: $(SMOKETEST_OBJECTS)
 	$(CC) -g -o $@ $(SMOKETEST_OBJECTS) $(LIBCAPRIGHTS)
 
