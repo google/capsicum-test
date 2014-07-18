@@ -48,6 +48,13 @@
 /************************************************************
  * Capsicum System Calls.
  ************************************************************/
+int cap_enter(void) {
+  return cap_enter_bpf();
+}
+int cap_getmode(unsigned int *mode) {
+  return cap_getmode_bpf(mode);
+}
+
 int cap_enter_lsm(void) {
   int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
   if (rc < 0)
