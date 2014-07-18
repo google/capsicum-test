@@ -291,7 +291,11 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 
 	/* prctl(2) */
+#ifdef PR_GET_OPENAT_BENEATH
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_prctl, 0, 36),
+#else
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_prctl, 0, 34),
+#endif
 	EXAMINE_ARG(0),  /* option */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_CAPBSET_READ, 0, 1),
 	ALLOW,
@@ -311,6 +315,10 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_GET_PDEATHSIG, 0, 1),
 	ALLOW,
+#ifdef PR_GET_OPENAT_BENEATH
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_GET_OPENAT_BENEATH, 0, 1),
+	ALLOW,
+#endif
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_GET_SECCOMP, 0, 1),
 	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_GET_SECUREBITS, 0, 1),
@@ -323,7 +331,7 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_GET_UNALIGN, 0, 1),
 	ALLOW,
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_MCE_KILL_GET, 0, 1),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_MCE_KILL_GET, 0, 1),
 	ALLOW,
 	FAIL_ECAPMODE,
 
