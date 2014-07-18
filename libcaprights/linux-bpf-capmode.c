@@ -232,14 +232,18 @@ static struct sock_filter capmode_filter[] = {
 	/* Special syscalls */
 
 	/* arch_prctl(2) */
-#if defined(__NR_arch_prctl) && (defined(CONFIG_X86) || defined(CONFIG_UML_X86))
+#if defined(__NR_arch_prctl)
 	/* TODO(drysdale): sort out other architectures */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_arch_prctl, 0, 7),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_arch_prctl, 0, 11),
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
 	EXAMINE_ARG(0),  /* code */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_GET_FS, 0, 1),
-	ALLOW
+	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_GET_GS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_SET_FS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_SET_GS, 0, 1),
 	ALLOW,
 	FAIL_ECAPMODE,
 #endif
