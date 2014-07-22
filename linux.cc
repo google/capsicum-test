@@ -752,19 +752,14 @@ FORK_TEST(Linux, NoNewPrivs) {
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EACCES, errno);
 
-  // Can't enter capability mode (directly) with no_new_privs == 0
-  rc = prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM, 0, 0, 0);
-  EXPECT_EQ(-1, rc);
-  EXPECT_EQ(EACCES, errno);
-
   // Set no_new_privs = 1
   EXPECT_OK(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
   rc = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
   EXPECT_OK(rc);
   EXPECT_EQ(1, rc);  // no_new_privs = 1
 
-  // Can now turn on capability mode
-  EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_CAPSICUM, 0, 0, 0));
+  // Can now turn on seccomp mode
+  EXPECT_OK(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf, 0, 0));
 }
 
 /* Macros for BPF generation */

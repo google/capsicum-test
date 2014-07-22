@@ -37,17 +37,3 @@ FORK_TEST(Overhead, Seek) {
   EXPECT_GT(25, CompareSyscall(&cap_enter, 10000, __NR_lseek, fd, 0, SEEK_SET));
   close(fd);
 }
-
-#ifdef __linux__
-FORK_TEST(Overhead, GetTidBPF) {
-  EXPECT_GT(2.5, CompareSyscall(&cap_enter_bpf, 10000, __NR_gettid, 0, 0, 0));
-}
-FORK_TEST(Overhead, GetTidLsm) {
-  EXPECT_GT(1.05, CompareSyscall(&cap_enter_lsm, 10000, __NR_gettid, 0, 0, 0));
-}
-FORK_TEST(Overhead, SeekLsm) {
-  int fd = open("/etc/passwd", O_RDONLY);
-  EXPECT_GT(2.5, CompareSyscall(&cap_enter_lsm, 10000, __NR_lseek, fd, 0, SEEK_SET));
-  close(fd);
-}
-#endif

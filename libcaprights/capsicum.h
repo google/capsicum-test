@@ -23,10 +23,6 @@ extern "C" {
 /************************************************************
  * Capsicum System Calls.
  ************************************************************/
-int cap_enter_lsm(void);
-int cap_getmode_lsm(unsigned int *mode);
-int cap_enter_bpf(void);
-int cap_getmode_bpf(unsigned int *mode);
 int cap_enter(void);
 int cap_getmode(unsigned int *mode);
 int cap_rights_limit(int fd, const cap_rights_t *rights);

@@ -48,29 +48,6 @@
 /************************************************************
  * Capsicum System Calls.
  ************************************************************/
-int cap_enter(void) {
-  return cap_enter_bpf();
-}
-int cap_getmode(unsigned int *mode) {
-  return cap_getmode_bpf(mode);
-}
-
-int cap_enter_lsm(void) {
-  int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-  if (rc < 0)
-    return rc;
-  return prctl(PR_SECCOMP_EXT, SECCOMP_EXT_ACT,
-               SECCOMP_EXT_ACT_CAPSICUM, SECCOMP_CAPSICUM_TSYNC, 0);
-}
-
-int cap_getmode_lsm(unsigned int *mode) {
-  int rc = prctl(PR_GET_SECCOMP);
-  if (rc < 0)
-    return rc;
-  *mode = (rc & SECCOMP_MODE_CAPSICUM) ? 1 : 0;
-  return 0;
-}
-
 static inline unsigned int right_to_index(uint64_t right) {
   static const int bit2idx[] = {
     -1, 0, 1, -1, 2, -1, -1, -1, 3, -1, -1, -1, -1, -1, -1, -1,

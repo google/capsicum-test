@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <syscall.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -352,18 +353,24 @@ static void print_filter(struct sock_fprog *bpf) {
 	}
 }
 
-int cap_enter_bpf() {
+int seccomp_(unsigned int op, unsigned int flags, struct sock_fprog *filter) {
+	errno = 0;
+	return syscall(__NR_seccomp, op, flags, filter);
+}
+
+int cap_enter() {
 	int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	if (rc < 0) return rc;
 #ifdef PR_SET_OPENAT_BENEATH
 	rc = prctl(PR_SET_OPENAT_BENEATH, 1 , PR_SET_OPENAT_BENEATH_TSYNC, 0, 0);
 	if (rc < 0) return rc;
 #endif
-	return prctl(PR_SECCOMP_EXT, SECCOMP_EXT_ACT, SECCOMP_EXT_ACT_FILTER,
-		SECCOMP_FILTER_TSYNC, &capmode_fprog);
+	return seccomp_(SECCOMP_SET_MODE_FILTER,
+			SECCOMP_FILTER_FLAG_TSYNC,
+			&capmode_fprog);
 }
 
-int cap_getmode_bpf(unsigned int *mode) {
+int cap_getmode(unsigned int *mode) {
 	int beneath = 1;
 	int seccomp = prctl(PR_GET_SECCOMP, 0, 0, 0, 0);
 	if (seccomp < 0) return seccomp;
