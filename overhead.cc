@@ -34,6 +34,6 @@ FORK_TEST(Overhead, GetTid) {
 }
 FORK_TEST(Overhead, Seek) {
   int fd = open("/etc/passwd", O_RDONLY);
-  EXPECT_GT(25, CompareSyscall(&cap_enter, 10000, __NR_lseek, fd, 0, SEEK_SET));
+  EXPECT_GT(35, CompareSyscall(&cap_enter, 10000, __NR_lseek, fd, 0, SEEK_SET));
   close(fd);
 }
