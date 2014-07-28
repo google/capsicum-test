@@ -964,6 +964,41 @@ TEST(Linux, ProcFS) {
   close(fd);
 }
 
+FORK_TEST(Linux, ProcessClocks) {
+  pid_t self = getpid_();
+  pid_t child = fork();
+  EXPECT_OK(child);
+  if (child == 0) {
+    child = getpid_();
+    usleep(100000);
+    exit(0);
+  }
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // Nefariously build a clock ID for the child's CPU time.
+  // This relies on knowledge of the internal layout of clock IDs.
+  clockid_t child_clock;
+  child_clock = ((~child) << 3) | 0x0;
+  struct timespec ts;
+  memset(&ts, 0, sizeof(ts));
+
+  // TODO(drysdale): Should not be possible to retrieve info about a
+  // different process, as the PID global namespace should be locked
+  // down.
+  EXPECT_OK(clock_gettime(child_clock, &ts));
+  if (verbose) fprintf(stderr, "[parent: %d] clock_gettime(child=%d->0x%08x) is %ld.%09ld \n",
+                       self, child, child_clock, ts.tv_sec, ts.tv_nsec);
+
+  child_clock = ((~1) << 3) | 0x0;
+  memset(&ts, 0, sizeof(ts));
+  EXPECT_OK(clock_gettime(child_clock, &ts));
+  if (verbose) fprintf(stderr, "[parent: %d] clock_gettime(init=1->0x%08x) is %ld.%09ld \n",
+                       self, child_clock, ts.tv_sec, ts.tv_nsec);
+
+  // Orphan the child.
+}
+
 #else
 void noop() {}
 #endif
