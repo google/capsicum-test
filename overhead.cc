@@ -26,6 +26,10 @@ double CompareSyscall(EntryFn entry_fn, int count, int nr,
   double capmode = RepeatSyscall(count, nr, arg1, arg2, arg3);
   if (verbose) fprintf(stderr, "%d iterations bare=%fs capmode=%fs ratio=%.2f%%\n",
                        count, bare, capmode, 100.0*capmode/bare);
+  if (bare==0.0) {
+    if (capmode==0.0) return 1.0;
+    return 999.0;
+  }
   return capmode/bare;
 }
 
