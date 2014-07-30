@@ -537,7 +537,7 @@ TEST_F(PipePdfork, ModeBits) {
   EXPECT_EQ(S_IRWXU, stat.st_mode & S_IRWXU);
 
   TerminateChild();
-  usleep(100);
+  usleep(100000);
 
   memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd_, &stat));
