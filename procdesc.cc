@@ -24,6 +24,22 @@ static void print_rusage(FILE *f, struct rusage *ru) {
   fprintf(f, "  Max RSS=%ld\n", ru->ru_maxrss);
 }
 
+static void print_stat(FILE *f, const struct stat *stat) {
+  fprintf(f,
+          "{ .st_dev=%ld, st_ino=%ld, st_mode=%04o, st_nlink=%ld, st_uid=%d, st_gid=%d,\n"
+          "  .st_rdev=%ld, .st_size=%ld, st_blksize=%ld, .st_block=%ld,\n  "
+#ifdef HAVE_STAT_BIRTHTIME
+          ".st_birthtime=%ld, "
+#endif
+          ".st_atime=%ld, .st_mtime=%ld, .st_ctime=%ld}\n",
+          stat->st_dev, stat->st_ino, stat->st_mode, stat->st_nlink, stat->st_uid, stat->st_gid,
+          stat->st_rdev, stat->st_size, stat->st_blksize, stat->st_blocks,
+#ifdef HAVE_STAT_BIRTHTIME
+          stat->st_birthtime,
+#endif
+          stat->st_atime, stat->st_mtime, stat->st_ctime);
+}
+
 TEST(Pdfork, Simple) {
   int pd = -1;
   pid_t parent = getpid_();
@@ -347,6 +363,17 @@ TEST_F(PipePdfork, WaitPdThenPid) {
 }
 #endif
 
+TEST(Pdfork, InvalidFlag) {
+  int pd = -1;
+  int pid = pdfork(&pd, PD_DAEMON<<1);
+  if (pid == 0) {
+    exit(1);
+  }
+  EXPECT_EQ(-1, pid);
+  EXPECT_EQ(EINVAL, errno);
+  if (pid > 0) waitpid(pid, NULL, 0);
+}
+
 // Setting PD_DAEMON prevents close() from killing the child.
 TEST(Pdfork, CloseDaemon) {
   int pd = -1;
@@ -501,6 +528,23 @@ TEST_F(PipePdfork, NoSigchld) {
   signal(SIGCHLD, original);
 }
 
+TEST_F(PipePdfork, ModeBits) {
+  // Owner rwx bits indicate liveness of child
+  struct stat stat;
+  memset(&stat, 0, sizeof(stat));
+  EXPECT_OK(fstat(pd_, &stat));
+  if (verbose) print_stat(stderr, &stat);
+  EXPECT_EQ(S_IRWXU, stat.st_mode & S_IRWXU);
+
+  TerminateChild();
+  usleep(100);
+
+  memset(&stat, 0, sizeof(stat));
+  EXPECT_OK(fstat(pd_, &stat));
+  if (verbose) print_stat(stderr, &stat);
+  EXPECT_EQ(0, stat.st_mode & S_IRWXU);
+}
+
 #ifdef OMIT
 // TODO(FreeBSD): make wildcard wait ignore pdfork()ed children
 // TODO(drysdale): make wildcard wait ignore pdfork()ed children
@@ -619,6 +663,10 @@ FORK_TEST(Pdfork, DaemonUnrestricted) {
 }
 
 TEST(Pdfork, TimeCheck) {
+  time_t now = time(NULL);  // seconds since epoch
+  EXPECT_NE(-1, now);
+  if (verbose) fprintf(stderr, "Calling pdfork around %ld\n", now);
+
   int pd = -1;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
@@ -631,16 +679,16 @@ TEST(Pdfork, TimeCheck) {
 
   // Parent process. Ensure that [acm]times have been set correctly.
   struct stat stat;
+  memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd, &stat));
+  if (verbose) print_stat(stderr, &stat);
 
-  time_t now = time(NULL);
-  EXPECT_NE(-1, now);
 
 #ifdef HAVE_STAT_BIRTHTIME
   EXPECT_GE(now, stat.st_birthtime);
-  EXPECT_LT((now - stat.st_birthtime), 2);
   EXPECT_EQ(stat.st_birthtime, stat.st_atime);
 #endif
+  EXPECT_LT((now - stat.st_atime), 2);
   EXPECT_EQ(stat.st_atime, stat.st_ctime);
   EXPECT_EQ(stat.st_ctime, stat.st_mtime);
 
