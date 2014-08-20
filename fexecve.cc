@@ -109,7 +109,7 @@ FORK_TEST_ON(Fexecve, CapModeScriptFail, "/tmp/cap_sh_script") {
   EXPECT_OK(cap_enter());  // Enter capability mode
 
   // Attempt fexecve; should fail, because "/bin/sh" is inaccessible.
-  EXPECT_FAIL_TRAVERSAL(fexecve_(fd, argv_pass, null_envp));
+  EXPECT_EQ(-1, fexecve_(fd, argv_pass, null_envp));
 }
 
 #ifdef HAVE_EXECVEAT

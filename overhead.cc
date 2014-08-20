@@ -1,13 +1,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <syscall.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "capsicum.h"
+#include "syscalls.h"
 #include "capsicum-test.h"
 
+#ifdef HAVE_SYSCALL
 double RepeatSyscall(int count, int nr, long arg1, long arg2, long arg3) {
   const clock_t t0 = clock(); // or gettimeofday or whatever
   for (int ii = 0; ii < count; ii++) {
@@ -41,3 +42,4 @@ FORK_TEST(Overhead, Seek) {
   EXPECT_GT(35, CompareSyscall(&cap_enter, 10000, __NR_lseek, fd, 0, SEEK_SET));
   close(fd);
 }
+#endif
