@@ -17,7 +17,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 
 dnl Checks for libraries.
-AC_PROG_LIBTOOL
+LT_INIT
 AC_SUBST(LIBTOOL_DEPS)
 
 dnl Checks for header files.
@@ -38,4 +38,5 @@ AC_TYPE_UINT64_T
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset])
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
