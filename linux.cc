@@ -9,14 +9,17 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #include <sys/fanotify.h>
+#include <sys/mman.h>
 #include <sys/capability.h>  // Requires e.g. libcap-dev package for POSIX.1e capabilities headers
 #include <linux/aio_abi.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <linux/memfd.h>  // Requires 3.17 kernel
 #include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <string>
 
@@ -997,6 +1000,84 @@ FORK_TEST(Linux, ProcessClocks) {
                        self, child_clock, ts.tv_sec, ts.tv_nsec);
 
   // Orphan the child.
+}
+
+int memfd_create_(const char *name, unsigned int flags) {
+#ifdef __NR_memfd_create
+  return syscall(__NR_memfd_create, name, flags);
+#else
+  errno = ENOSYS;
+  return -1;
+#endif
+}
+
+TEST(Linux, MemFDDeathTest) {
+  int memfd = memfd_create_("capsicum-test", MFD_ALLOW_SEALING);
+  if (memfd == -1 && errno == ENOSYS) {
+    fprintf(stderr, "Skipping memfd_create(2) test as -ENOSYS\n");
+    TEST_SKIPPED("memfd_create(2) -> -ENOSYS");
+    return;
+  }
+  const int LEN = 16;
+  EXPECT_OK(ftruncate(memfd, LEN));
+  int memfd_ro = dup(memfd);
+  int memfd_rw = dup(memfd);
+  EXPECT_OK(memfd_ro);
+  EXPECT_OK(memfd_rw);
+  cap_rights_t rights;
+  EXPECT_OK(cap_rights_limit(memfd_ro, cap_rights_init(&rights, CAP_MMAP_R, CAP_FSTAT)));
+  EXPECT_OK(cap_rights_limit(memfd_rw, cap_rights_init(&rights, CAP_MMAP_RW, CAP_FCHMOD)));
+
+  unsigned char *p_ro = (unsigned char *)mmap(NULL, LEN, PROT_READ, MAP_SHARED, memfd_ro, 0);
+  EXPECT_NE((unsigned char *)MAP_FAILED, p_ro);
+  unsigned char *p_rw = (unsigned char *)mmap(NULL, LEN, PROT_READ|PROT_WRITE, MAP_SHARED, memfd_rw, 0);
+  EXPECT_NE((unsigned char *)MAP_FAILED, p_rw);
+  EXPECT_EQ(MAP_FAILED,
+            mmap(NULL, LEN, PROT_READ|PROT_WRITE, MAP_SHARED, memfd_ro, 0));
+
+  *p_rw = 42;
+  EXPECT_EQ(42, *p_ro);
+  EXPECT_DEATH(*p_ro = 42, "");
+
+#ifndef F_ADD_SEALS
+  // Hack for when libc6 does not yet include the updated linux/fcntl.h from kernel 3.17
+#define _F_LINUX_SPECIFIC_BASE F_SETLEASE
+#define F_ADD_SEALS	(_F_LINUX_SPECIFIC_BASE + 9)
+#define F_GET_SEALS	(_F_LINUX_SPECIFIC_BASE + 10)
+#define F_SEAL_SEAL	0x0001	/* prevent further seals from being set */
+#define F_SEAL_SHRINK	0x0002	/* prevent file from shrinking */
+#define F_SEAL_GROW	0x0004	/* prevent file from growing */
+#define F_SEAL_WRITE	0x0008	/* prevent writes */
+#endif
+
+  // Reading the seal information requires CAP_FSTAT.
+  int seals = fcntl(memfd, F_GET_SEALS);
+  EXPECT_OK(seals);
+  if (verbose) fprintf(stderr, "seals are %08x on base fd\n", seals);
+  int seals_ro = fcntl(memfd_ro, F_GET_SEALS);
+  EXPECT_EQ(seals, seals_ro);
+  if (verbose) fprintf(stderr, "seals are %08x on read-only fd\n", seals_ro);
+  int seals_rw = fcntl(memfd_rw, F_GET_SEALS);
+  EXPECT_NOTCAPABLE(seals_rw);
+  if (verbose) fprintf(stderr, "seals are %08x on read-write fd, no CAP_FSTAT\n", seals_rw);
+
+  // Fail to seal as a writable mapping exists.
+  EXPECT_EQ(-1, fcntl(memfd_rw, F_ADD_SEALS, F_SEAL_WRITE));
+  EXPECT_EQ(EBUSY, errno);
+  *p_rw = 42;
+
+  // Seal the rw version; need to unmap first.
+  munmap(p_rw, LEN);
+  munmap(p_ro, LEN);
+  EXPECT_OK(fcntl(memfd_rw, F_ADD_SEALS, F_SEAL_WRITE));
+
+  // Remove the CAP_FCHMOD right, can no longer add seals.
+  EXPECT_OK(cap_rights_limit(memfd_rw, cap_rights_init(&rights, CAP_MMAP_RW)));
+  EXPECT_NOTCAPABLE(fcntl(memfd_rw, F_ADD_SEALS, F_SEAL_WRITE));
+
+  close(memfd);
+  close(memfd_ro);
+  close(memfd_rw);
 }
 
 #else
