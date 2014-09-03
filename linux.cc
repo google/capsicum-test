@@ -14,7 +14,7 @@
 #include <linux/aio_abi.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
-#include <linux/memfd.h>  // Requires 3.17 kernel
+#include <linux/version.h>
 #include <poll.h>
 #include <sched.h>
 #include <signal.h>
@@ -1011,6 +1011,8 @@ int memfd_create_(const char *name, unsigned int flags) {
 #endif
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#include <linux/memfd.h>  // Requires 3.17 kernel
 TEST(Linux, MemFDDeathTest) {
   int memfd = memfd_create_("capsicum-test", MFD_ALLOW_SEALING);
   if (memfd == -1 && errno == ENOSYS) {
@@ -1079,6 +1081,7 @@ TEST(Linux, MemFDDeathTest) {
   close(memfd_ro);
   close(memfd_rw);
 }
+#endif
 
 #else
 void noop() {}
