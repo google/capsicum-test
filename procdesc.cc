@@ -216,15 +216,15 @@ TEST(Pdfork, NonProcessDescriptor) {
 
 // Test fixture that pdfork()s off a child process, which terminates
 // when it receives anything on a pipe.
-class PipePdfork : public ::testing::Test {
+class PipePdforkBase : public ::testing::Test {
  public:
-  PipePdfork() : pd_(-1), pid_(-1) {
+  PipePdforkBase(int pdfork_flags) : pd_(-1), pid_(-1) {
     int pipes[2];
     EXPECT_OK(pipe(pipes));
     pipe_ = pipes[1];
     int parent = getpid_();
     if (verbose) fprintf(stderr, "[%d] about to pdfork()\n", getpid_());
-    int rc = pdfork(&pd_, 0);
+    int rc = pdfork(&pd_, pdfork_flags);
     EXPECT_OK(rc);
     if (rc == 0) {
       // Child process: blocking-read an int from the pipe then exit with that value.
@@ -239,7 +239,7 @@ class PipePdfork : public ::testing::Test {
       usleep(100);  // ensure the child has a chance to run
     }
   }
-  ~PipePdfork() {
+  ~PipePdforkBase() {
     if (pid_ > 0) {
       kill(pid_, SIGKILL);
     }
@@ -257,6 +257,16 @@ class PipePdfork : public ::testing::Test {
   int pd_;
   int pipe_;
   pid_t pid_;
+};
+
+class PipePdfork : public PipePdforkBase {
+ public:
+  PipePdfork() : PipePdforkBase(0) {}
+};
+
+class PipePdforkDaemon : public PipePdforkBase {
+ public:
+  PipePdforkDaemon() : PipePdforkBase(PD_DAEMON) {}
 };
 
 // Can we poll a process descriptor?
@@ -453,61 +463,40 @@ TEST_F(PipePdfork, WaitPdThenPid) {
 }
 
 // Setting PD_DAEMON prevents close() from killing the child.
-TEST(Pdfork, CloseDaemon) {
-  int pd = -1;
-  int pid = pdfork(&pd, PD_DAEMON);
-  EXPECT_OK(pid);
-  if (pid == 0) {
-    // Child: loop forever.
-    while (true) sleep(1);
-  }
-  usleep(100);  // ensure the child has a chance to run
-  EXPECT_OK(close(pd));
-  EXPECT_PID_ALIVE(pid);
-  // Can still explicitly kill it.
-  if (pid > 0) {
-    EXPECT_OK(kill(pid, SIGKILL));
-    EXPECT_PID_DEAD(pid);
+TEST_F(PipePdforkDaemon, Close) {
+  EXPECT_OK(close(pd_));
+  pd_ = -1;
+  EXPECT_PID_ALIVE(pid_);
+
+  // Can still explicitly kill it via the pid.
+  if (pid_ > 0) {
+    EXPECT_OK(kill(pid_, SIGKILL));
+    EXPECT_PID_DEAD(pid_);
   }
 }
 
-TEST_F(PipePdfork, Pdkill) {
-  EXPECT_PID_ALIVE(pid_);
-  // SIGCONT is ignored by default.
-  EXPECT_OK(pdkill(pd_, SIGCONT));
-  EXPECT_PID_ALIVE(pid_);
-  // SIGINT isn't
-  EXPECT_OK(pdkill(pd_, SIGINT));
-  EXPECT_PID_DEAD(pid_);
-  // pdkill() on zombie is no-op.
-  errno = 0;
-  EXPECT_EQ(0, pdkill(pd_, SIGINT));
-  EXPECT_EQ(0, errno);
-}
-
-TEST(Pdfork, PdkillDaemon) {
-  int pd = -1;
-  int pid = pdfork(&pd, PD_DAEMON);
-  EXPECT_OK(pid);
-  if (pid == 0) {
-    // Child: loop forever.
-    while (true) sleep(1);
-  }
-  usleep(100);  // ensure the child has a chance to run
+static void TestPdkill(pid_t pid, int pd) {
   EXPECT_PID_ALIVE(pid);
   // SIGCONT is ignored by default.
   EXPECT_OK(pdkill(pd, SIGCONT));
   EXPECT_PID_ALIVE(pid);
+
   // SIGINT isn't
   EXPECT_OK(pdkill(pd, SIGINT));
   EXPECT_PID_DEAD(pid);
-#ifdef OMIT
-  // TODO(drysdale), TODO(FreeBSD): make it so
-  // Can't pdkill() an already-dead child.
+
+  // pdkill() on zombie is no-op.
   errno = 0;
-  EXPECT_EQ(-1, pdkill(pd, SIGINT));
-  EXPECT_EQ(ESRCH, errno);
-#endif
+  EXPECT_EQ(0, pdkill(pd, SIGINT));
+  EXPECT_EQ(0, errno);
+}
+
+TEST_F(PipePdfork, Pdkill) {
+  TestPdkill(pid_, pd_);
+}
+
+TEST_F(PipePdforkDaemon, Pdkill) {
+  TestPdkill(pid_, pd_);
 }
 
 TEST(Pdfork, PdkillOtherSignal) {
