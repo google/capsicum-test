@@ -19,6 +19,10 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
+// TODO(drysdale): it would be nice to use proper synchronization between
+// processes, rather than synchronization-via-sleep; faster too.
+
+
 //------------------------------------------------
 // Utilities for the tests.
 
@@ -765,3 +769,10 @@ FORK_TEST(Pdfork, MissingRights) {
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
 }
+
+// TODO(drysdale): check that a different uid can perform pd* operations
+// with the relevant process descriptor
+
+// TODO(drysdale): thread/process interactions: pdfork from a non-tgid
+// thread and check everything works
+
