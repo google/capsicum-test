@@ -192,6 +192,7 @@ TEST(Pdfork, UseDescriptor) {
   char buf[] = "bug";
   EXPECT_FAIL_NOT_CAPMODE(write(pd, buf, sizeof(buf)));
   EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
+  CheckChildFinished(pid);
 }
 
 TEST(Pdfork, NonProcessDescriptor) {
@@ -296,9 +297,9 @@ TEST_F(PipePdfork, Poll) {
 
 // Can multiple processes poll on the same descriptor?
 TEST_F(PipePdfork, PollMultiple) {
-  int rc = fork();
-  EXPECT_OK(rc);
-  if (rc == 0) {
+  int child = fork();
+  EXPECT_OK(child);
+  if (child == 0) {
     // Child: wait to give time for setup, then write to the pipe (which will
     // induce exit of the pdfork()ed process) and exit.
     sleep(1);
@@ -338,10 +339,12 @@ TEST_F(PipePdfork, PollMultiple) {
     exit(0);
   } else {
     // Parent: wait on process D.
-    rc = 0;
+    int rc = 0;
     waitpid(doppel, &rc, 0);
     EXPECT_TRUE(WIFEXITED(rc));
     EXPECT_EQ(0, WEXITSTATUS(rc));
+    // Also wait on process B.
+    CheckChildFinished(child);
   }
 }
 
@@ -567,6 +570,7 @@ pid_t PdforkParentDeath(int pdfork_flags) {
   sleep(6);
   // Child dies, closing its process descriptor for the grandchild.
   EXPECT_PID_DEAD(child);
+  CheckChildFinished(child);
   return grandchild;
 }
 
