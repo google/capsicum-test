@@ -599,6 +599,22 @@ TEST_F(PipePdfork, NoSigchld) {
   signal(SIGCHLD, original);
 }
 
+// The exit of a pdfork()ed process whose process descriptors have
+// all been closed should generate SIGCHLD.
+TEST_F(PipePdfork, NoPDSigchld) {
+  had_signal.clear();
+  sighandler_t original = signal(SIGCHLD, handle_signal);
+
+  EXPECT_OK(close(pd_));
+  TerminateChild();
+  int rc = 0;
+  // Can waitpid() for the specific pid of the pdfork()ed child.
+  EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
+  EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
+  EXPECT_TRUE(had_signal[SIGCHLD]);  // @@@@@
+  signal(SIGCHLD, original);
+}
+
 TEST_F(PipePdfork, ModeBits) {
   // Owner rwx bits indicate liveness of child
   struct stat stat;
@@ -616,23 +632,25 @@ TEST_F(PipePdfork, ModeBits) {
   EXPECT_EQ(0, stat.st_mode & S_IRWXU);
 }
 
-#ifdef OMIT
-// TODO(FreeBSD): make wildcard wait ignore pdfork()ed children
-// TODO(drysdale): make wildcard wait ignore pdfork()ed children
 TEST_F(PipePdfork, WildcardWait) {
+  // TODO(FreeBSD): make wildcard wait ignore pdfork()ed children
   TerminateChild();
   sleep(1);  // Ensure child is truly dead.
 
-  // Wildcard waitpid(-1) should not see the pdfork()ed child.
+  // Wildcard waitpid(-1) should not see the pdfork()ed child because
+  // there is still a process descriptor for it.
   int rc;
-  EXPECT_EQ(0, waitpid(-1, &rc, WNOHANG));
+  EXPECT_EQ(0, waitpid(-1, &rc, WNOHANG));  // @@@@
 
-  int status;
-  rc = waitpid(pd_, &status, 0);
+  EXPECT_OK(close(pd_));
+  pd_ = -1;
+
+  // Now the last process descriptor is closed, the child is visible
+  // to a wildcard waitpid(-1).
+  EXPECT_EQ(pid_, waitpid(-1, &rc, WNOHANG));
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
 }
-#endif
 
 FORK_TEST(Pdfork, Pdkill) {
   had_signal.clear();
