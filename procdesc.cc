@@ -18,6 +18,9 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
+//------------------------------------------------
+// Utilities for the tests.
+
 static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
 #ifdef HAVE_PDWAIT4
   return pdwait4(pd, status, options, ru);
@@ -50,6 +53,38 @@ static void print_stat(FILE *f, const struct stat *stat) {
 #endif
           stat->st_atime, stat->st_mtime, stat->st_ctime);
 }
+
+static int had_signal = 0;
+static void handle_signal(int x) { had_signal = 1; }
+
+// Check that the given child process terminates as expected.
+void CheckChildFinished(pid_t pid, bool signaled=false) {
+  // Wait for the child to finish.
+  int rc;
+  int status = 0;
+  do {
+    rc = waitpid(pid, &status, 0);
+    if (rc < 0) {
+      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
+      ADD_FAILURE() << "Failed to wait for child";
+      break;
+    } else if (rc == pid) {
+      break;
+    }
+  } while (1);
+  EXPECT_EQ(pid, rc);
+  if (rc == pid) {
+    if (signaled) {
+      EXPECT_TRUE(WIFSIGNALED(status));
+    } else {
+      EXPECT_TRUE(WIFEXITED(status)) << std::hex << status;
+      EXPECT_EQ(0, WEXITSTATUS(status));
+    }
+  }
+}
+
+//------------------------------------------------
+// Basic tests of process descriptor functionality
 
 TEST(Pdfork, Simple) {
   int pd = -1;
@@ -94,6 +129,84 @@ TEST(Pdfork, Simple) {
 
   EXPECT_OK(close(pd));
 }
+
+TEST(Pdfork, InvalidFlag) {
+  int pd = -1;
+  int pid = pdfork(&pd, PD_DAEMON<<1);
+  if (pid == 0) {
+    exit(1);
+  }
+  EXPECT_EQ(-1, pid);
+  EXPECT_EQ(EINVAL, errno);
+  if (pid > 0) waitpid(pid, NULL, 0);
+}
+
+TEST(Pdfork, TimeCheck) {
+  time_t now = time(NULL);  // seconds since epoch
+  EXPECT_NE(-1, now);
+  if (verbose) fprintf(stderr, "Calling pdfork around %ld\n", now);
+
+  int pd = -1;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: check we didn't get a valid process descriptor.
+    EXPECT_EQ(-1, pdgetpid(pd, &pid));
+    EXPECT_EQ(EBADF, errno);
+    exit(HasFailure());
+  }
+
+  // Parent process. Ensure that [acm]times have been set correctly.
+  struct stat stat;
+  memset(&stat, 0, sizeof(stat));
+  EXPECT_OK(fstat(pd, &stat));
+  if (verbose) print_stat(stderr, &stat);
+
+
+#ifdef HAVE_STAT_BIRTHTIME
+  EXPECT_GE(now, stat.st_birthtime);
+  EXPECT_EQ(stat.st_birthtime, stat.st_atime);
+#endif
+  EXPECT_LT((now - stat.st_atime), 2);
+  EXPECT_EQ(stat.st_atime, stat.st_ctime);
+  EXPECT_EQ(stat.st_ctime, stat.st_mtime);
+
+  // Wait for the child to finish.
+  pid_t pd_pid = -1;
+  EXPECT_OK(pdgetpid(pd, &pd_pid));
+  EXPECT_EQ(pid, pd_pid);
+  CheckChildFinished(pid);
+}
+
+TEST(Pdfork, UseDescriptor) {
+  int pd = -1;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child: immediately exit
+    exit(0);
+  }
+  // Try read/writing to the process descriptor.
+  char buf[] = "bug";
+  EXPECT_FAIL_NOT_CAPMODE(write(pd, buf, sizeof(buf)));
+  EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
+}
+
+TEST(Pdfork, NonProcessDescriptor) {
+  int fd = open("/etc/passwd", O_RDONLY);
+  EXPECT_OK(fd);
+  // pd*() operations should fail on a non-process descriptor.
+  EXPECT_EQ(-1, pdkill(fd, SIGUSR1));
+  int status;
+  EXPECT_EQ(-1, pdwait4_(fd, &status, 0, NULL));
+  pid_t pid;
+  EXPECT_EQ(-1, pdgetpid(fd, &pid));
+  close(fd);
+}
+
+//------------------------------------------------
+// More complicated tests.
+
 
 // Test fixture that pdfork()s off a child process, which terminates
 // when it receives anything on a pipe.
@@ -349,17 +462,6 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   EXPECT_EQ(ECHILD, errno);
 }
 
-TEST(Pdfork, InvalidFlag) {
-  int pd = -1;
-  int pid = pdfork(&pd, PD_DAEMON<<1);
-  if (pid == 0) {
-    exit(1);
-  }
-  EXPECT_EQ(-1, pid);
-  EXPECT_EQ(EINVAL, errno);
-  if (pid > 0) waitpid(pid, NULL, 0);
-}
-
 // Setting PD_DAEMON prevents close() from killing the child.
 TEST(Pdfork, CloseDaemon) {
   int pd = -1;
@@ -417,9 +519,6 @@ TEST(Pdfork, PdkillDaemon) {
   EXPECT_EQ(ESRCH, errno);
 #endif
 }
-
-static int had_signal = 0;
-static void handle_signal(int x) { had_signal = 1; }
 
 TEST(Pdfork, PdkillOtherSignal) {
   int pd = -1;
@@ -549,31 +648,6 @@ TEST_F(PipePdfork, WildcardWait) {
 }
 #endif
 
-void CheckChildFinished(pid_t pid, bool signaled=false) {
-  // Wait for the child to finish.
-  int rc;
-  int status = 0;
-  do {
-    rc = waitpid(pid, &status, 0);
-    if (rc < 0) {
-      fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
-      ADD_FAILURE() << "Failed to wait for child";
-      break;
-    } else if (rc == pid) {
-      break;
-    }
-  } while (1);
-  EXPECT_EQ(pid, rc);
-  if (rc == pid) {
-    if (signaled) {
-      EXPECT_TRUE(WIFSIGNALED(status));
-    } else {
-      EXPECT_TRUE(WIFEXITED(status)) << std::hex << status;
-      EXPECT_EQ(0, WEXITSTATUS(status));
-    }
-  }
-}
-
 FORK_TEST(Pdfork, Pdkill) {
   had_signal = 0;
   int pd;
@@ -627,6 +701,11 @@ FORK_TEST(Pdfork, PdkillSignal) {
   CheckChildFinished(pid, true);
 }
 
+//------------------------------------------------
+// Test interactions with other parts of Capsicum:
+//  - capability mode
+//  - capabilities
+
 FORK_TEST(Pdfork, DaemonUnrestricted) {
   EXPECT_OK(cap_enter());
   int fd;
@@ -646,69 +725,6 @@ FORK_TEST(Pdfork, DaemonUnrestricted) {
     // Child: immediately terminate.
     exit(0);
   }
-}
-
-TEST(Pdfork, TimeCheck) {
-  time_t now = time(NULL);  // seconds since epoch
-  EXPECT_NE(-1, now);
-  if (verbose) fprintf(stderr, "Calling pdfork around %ld\n", now);
-
-  int pd = -1;
-  pid_t pid = pdfork(&pd, 0);
-  EXPECT_OK(pid);
-  if (pid == 0) {
-    // Child: check we didn't get a valid process descriptor.
-    EXPECT_EQ(-1, pdgetpid(pd, &pid));
-    EXPECT_EQ(EBADF, errno);
-    exit(HasFailure());
-  }
-
-  // Parent process. Ensure that [acm]times have been set correctly.
-  struct stat stat;
-  memset(&stat, 0, sizeof(stat));
-  EXPECT_OK(fstat(pd, &stat));
-  if (verbose) print_stat(stderr, &stat);
-
-
-#ifdef HAVE_STAT_BIRTHTIME
-  EXPECT_GE(now, stat.st_birthtime);
-  EXPECT_EQ(stat.st_birthtime, stat.st_atime);
-#endif
-  EXPECT_LT((now - stat.st_atime), 2);
-  EXPECT_EQ(stat.st_atime, stat.st_ctime);
-  EXPECT_EQ(stat.st_ctime, stat.st_mtime);
-
-  // Wait for the child to finish.
-  pid_t pd_pid = -1;
-  EXPECT_OK(pdgetpid(pd, &pd_pid));
-  EXPECT_EQ(pid, pd_pid);
-  CheckChildFinished(pid);
-}
-
-TEST(Pdfork, UseDescriptor) {
-  int pd = -1;
-  pid_t pid = pdfork(&pd, 0);
-  EXPECT_OK(pid);
-  if (pid == 0) {
-    // Child: immediately exit
-    exit(0);
-  }
-  // Try read/writing to the process descriptor.
-  char buf[] = "bug";
-  EXPECT_FAIL_NOT_CAPMODE(write(pd, buf, sizeof(buf)));
-  EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
-}
-
-TEST(Pdfork, NonProcessDescriptor) {
-  int fd = open("/etc/passwd", O_RDONLY);
-  EXPECT_OK(fd);
-  // pd*() operations should fail on a non-process descriptor.
-  EXPECT_EQ(-1, pdkill(fd, SIGUSR1));
-  int status;
-  EXPECT_EQ(-1, pdwait4_(fd, &status, 0, NULL));
-  pid_t pid;
-  EXPECT_EQ(-1, pdgetpid(fd, &pid));
-  close(fd);
 }
 
 FORK_TEST(Pdfork, MissingRights) {
