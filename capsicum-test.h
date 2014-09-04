@@ -146,10 +146,9 @@ extern bool verbose;
 // Get the state of a process as a single character.
 //  - 'D': disk wait
 //  - 'R': runnable
-//  - 'S': sleeping
+//  - 'S': sleeping/idle
 //  - 'T': stopped
 //  - 'Z': zombie
-//  - 'S': idle
 // On error, return either '?' or '\0'.
 char ProcessState(int pid);
 
