@@ -219,6 +219,7 @@ TEST(Pdfork, NonProcessDescriptor) {
 class PipePdforkBase : public ::testing::Test {
  public:
   PipePdforkBase(int pdfork_flags) : pd_(-1), pid_(-1) {
+    had_signal.clear();
     int pipes[2];
     EXPECT_OK(pipe(pipes));
     pipe_ = pipes[1];
@@ -240,12 +241,19 @@ class PipePdforkBase : public ::testing::Test {
     }
   }
   ~PipePdforkBase() {
+    // Terminate by any means necessary.
+    int status;
+    if (pd_ > 0) {
+      pdkill(pd_, SIGKILL);
+      pdwait4_(pd_, &status, 0, NULL);
+      close(pd_);
+    }
     if (pid_ > 0) {
       kill(pid_, SIGKILL);
+      waitpid(pid_, &status, WNOHANG);
     }
-    if (pd_ > 0) {
-      close(pid_);
-    }
+    // Check signal expectations.
+    EXPECT_FALSE(had_signal[SIGCHLD]);
   }
   int TerminateChild() {
     // Tell the child to exit.
