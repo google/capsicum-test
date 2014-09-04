@@ -13,6 +13,7 @@
 #include <fcntl.h>
 
 #include <iomanip>
+#include <map>
 
 #include "capsicum.h"
 #include "syscalls.h"
@@ -54,8 +55,10 @@ static void print_stat(FILE *f, const struct stat *stat) {
           stat->st_atime, stat->st_mtime, stat->st_ctime);
 }
 
-static int had_signal = 0;
-static void handle_signal(int x) { had_signal = 1; }
+static std::map<int,bool> had_signal;
+static void handle_signal(int x) {
+  had_signal[x] = true;
+}
 
 // Check that the given child process terminates as expected.
 void CheckChildFinished(pid_t pid, bool signaled=false) {
@@ -526,9 +529,9 @@ TEST(Pdfork, PdkillOtherSignal) {
   EXPECT_OK(pid);
   if (pid == 0) {
     // Child: watch for SIGUSR1 forever.
-    had_signal = 0;
+    had_signal.clear();
     signal(SIGUSR1, handle_signal);
-    while(!had_signal) sleep(1);
+    while(!had_signal[SIGUSR1]) sleep(1);
     exit(123);
   }
   // Send an expected SIGUSR1 to the pdfork()ed child.
@@ -602,14 +605,14 @@ TEST(Pdfork, BagpussDaemon) {
 
 // The exit of a pdfork()ed process should not generate SIGCHLD.
 TEST_F(PipePdfork, NoSigchld) {
-  had_signal = 0;
+  had_signal.clear();
   sighandler_t original = signal(SIGCHLD, handle_signal);
   TerminateChild();
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
   EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
-  EXPECT_EQ(0, had_signal);
+  EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
@@ -649,19 +652,19 @@ TEST_F(PipePdfork, WildcardWait) {
 #endif
 
 FORK_TEST(Pdfork, Pdkill) {
-  had_signal = 0;
+  had_signal.clear();
   int pd;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
 
   if (pid == 0) {
     // Child: set a SIGINT handler and sleep.
-    had_signal = 0;
+    had_signal.clear();
     signal(SIGINT, handle_signal);
     if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
     int left = sleep(10);
     if (verbose) fprintf(stderr, "[%d] child slept, %d sec left, had_signal=%d\n",
-                         getpid_(), left, had_signal);
+                         getpid_(), left, had_signal[SIGINT]);
     // Expect this sleep to be interrupted by the signal.
     exit(left == 0);
   }
@@ -680,7 +683,6 @@ FORK_TEST(Pdfork, Pdkill) {
 }
 
 FORK_TEST(Pdfork, PdkillSignal) {
-  had_signal = 0;
   int pd;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
