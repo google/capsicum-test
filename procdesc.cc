@@ -122,7 +122,7 @@ TEST(Pdfork, Simple) {
   int waitrc = pdwait4_(pd, &status, 0, &ru);
   EXPECT_EQ(pid, waitrc);
   if (verbose) {
-    fprintf(stderr, "For pid %d:\n", pid);
+    fprintf(stderr, "For pd %d pid %d:\n", pd, pid);
     print_rusage(stderr, &ru);
   }
   // Can pdwait4(pd) repeatedly until pd is closed.
@@ -157,7 +157,7 @@ TEST(Pdfork, TimeCheck) {
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
   if (pid == 0) {
-    // Child: check we didn't get a valid process descriptor.
+    // Child: check we didn't get a valid process descriptor then exit.
     EXPECT_EQ(-1, pdgetpid(pd, &pid));
     EXPECT_EQ(EBADF, errno);
     exit(HasFailure());
@@ -168,7 +168,6 @@ TEST(Pdfork, TimeCheck) {
   memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd, &stat));
   if (verbose) print_stat(stderr, &stat);
-
 
 #ifdef HAVE_STAT_BIRTHTIME
   EXPECT_GE(now, stat.st_birthtime);
@@ -279,7 +278,6 @@ TEST_F(PipePdfork, Poll) {
   fdp.revents = 0;
   EXPECT_EQ(1, poll(&fdp, 1, 0));
   EXPECT_TRUE(fdp.revents & POLLHUP);
-
 }
 
 // Can multiple processes poll on the same descriptor?
@@ -363,12 +361,11 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
   close(pd_copy);
 }
 
-// Check whether a pdfork()ed process dies correctly when released.
-// Can only check zombification.
-TEST_F(PipePdfork, Release) {
+TEST_F(PipePdfork, ChildExit) {
   EXPECT_PID_ALIVE(pid_);
   EXPECT_LT(0, TerminateChild());
   EXPECT_PID_DEAD(pid_);
+
   int status;
   int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_OK(rc);
@@ -383,12 +380,14 @@ TEST_F(PipePdfork, Close) {
   EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
 
   EXPECT_OK(close(pd_));
+  pd_ = -1;
   EXPECT_PID_DEAD(pid_);
+
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
-  errno = 0;
   int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EBADF, errno);
+
   // Closing all process descriptors reaps the child.
   // TODO(drysdale): make it so
 #ifndef __linux__
@@ -403,12 +402,13 @@ TEST_F(PipePdfork, CloseLast) {
   int pd_other = dup(pd_);
 
   EXPECT_OK(close(pd_));
+  pd_ = -1;
 
   EXPECT_PID_ALIVE(pid_);
   int status;
   EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
+
   // Can no longer pdwait4() the closed process descriptor
-  errno = 0;
   EXPECT_EQ(-1, pdwait4_(pd_, &status, WNOHANG, NULL));
   EXPECT_EQ(EBADF, errno);
   // but can pdwait4() the still-open process descriptor.
@@ -418,23 +418,6 @@ TEST_F(PipePdfork, CloseLast) {
 
   EXPECT_OK(close(pd_other));
   EXPECT_PID_DEAD(pid_);
-}
-
-TEST(Pdfork, WaitPid) {
-  int pd = -1;
-  int pid = pdfork(&pd, 0);
-  EXPECT_OK(pid);
-  if (pid == 0) {
-    // Child: sleep 1 second then exit.
-    sleep(1);
-    exit(0);
-  }
-  // waitpid(pid) for an explicit pid does pick up the dead child,
-  // even though it was pdfork()ed.
-  int status;
-  int rc = waitpid(pid, &status, 0);
-  EXPECT_OK(rc);
-  EXPECT_EQ(pid, rc);
 }
 
 TEST_F(PipePdfork, WaitPidThenPd) {
@@ -593,6 +576,7 @@ pid_t PdforkParentDeath(int pdfork_flags) {
 }
 
 TEST(Pdfork, Bagpuss) {
+  // "And of course when Bagpuss goes to sleep, all his friends go to sleep too"
   pid_t grandchild = PdforkParentDeath(0);
   // By default: child death => closed process descriptor => grandchild death.
   EXPECT_PID_DEAD(grandchild);
@@ -667,9 +651,9 @@ FORK_TEST(Pdfork, Pdkill) {
     signal(SIGINT, handle_signal);
     if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
     int left = sleep(10);
-    if (verbose) fprintf(stderr, "[%d] child slept, %d sec left, had_signal=%d\n",
+    if (verbose) fprintf(stderr, "[%d] child slept, %d sec left, had[SIGINT]=%d\n",
                          getpid_(), left, had_signal[SIGINT]);
-    // Expect this sleep to be interrupted by the signal.
+    // Expect this sleep to be interrupted by the signal (and so left > 0).
     exit(left == 0);
   }
 
@@ -678,11 +662,11 @@ FORK_TEST(Pdfork, Pdkill) {
   EXPECT_OK(pdgetpid(pd, &pd_pid));
   EXPECT_EQ(pid, pd_pid);
 
-  // Kill the child.
+  // Interrupt the child after a second.
   sleep(1);
   EXPECT_OK(pdkill(pd, SIGINT));
 
-  // Make sure the child finished properly.
+  // Make sure the child finished properly (caught signal then exited).
   CheckChildFinished(pid);
 }
 
@@ -692,18 +676,18 @@ FORK_TEST(Pdfork, PdkillSignal) {
   EXPECT_OK(pid);
 
   if (pid == 0) {
-    // Child: sleep.
+    // Child: sleep.  No SIGINT handler.
     if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
     int left = sleep(10);
     if (verbose) fprintf(stderr, "[%d] child slept, %d sec left\n", getpid_(), left);
     exit(99);
   }
 
-  // Kill the child.
+  // Kill the child (as it doesn't handle SIGINT).
   sleep(1);
   EXPECT_OK(pdkill(pd, SIGINT));
 
-  // Make sure the child finished properly.
+  // Make sure the child finished properly (terminated by signal).
   CheckChildFinished(pid, true);
 }
 
@@ -775,4 +759,3 @@ FORK_TEST(Pdfork, MissingRights) {
 
 // TODO(drysdale): thread/process interactions: pdfork from a non-tgid
 // thread and check everything works
-
