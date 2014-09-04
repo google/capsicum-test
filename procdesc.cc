@@ -18,6 +18,17 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
+static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
+#ifdef HAVE_PDWAIT4
+  return pdwait4(pd, status, options, ru);
+#else
+  // Simulate pdwait4() with wait4(pdgetpid()); this won't work in capability mode.
+  pid_t pid = -1;
+  EXPECT_OK(pdgetpid(pd, &pid));
+  return wait4(pid, status, options, ru);
+#endif
+}
+
 static void print_rusage(FILE *f, struct rusage *ru) {
   fprintf(f, "  User CPU time=%ld.%06ld\n", ru->ru_utime.tv_sec, ru->ru_utime.tv_usec);
   fprintf(f, "  System CPU time=%ld.%06ld\n", ru->ru_stime.tv_sec, ru->ru_stime.tv_usec);
@@ -66,8 +77,7 @@ TEST(Pdfork, Simple) {
   int status;
   struct rusage ru;
   memset(&ru, 0, sizeof(ru));
-#ifdef HAVE_PDWAIT4
-  int waitrc = pdwait4(pd, &status, 0, &ru);
+  int waitrc = pdwait4_(pd, &status, 0, &ru);
   EXPECT_EQ(pid, waitrc);
   if (verbose) {
     fprintf(stderr, "For pid %d:\n", pid);
@@ -78,22 +88,8 @@ TEST(Pdfork, Simple) {
   errno = 0;
 #ifdef OMIT
   // TODO(drysdale): make it so.
-  waitrc = pdwait4(pd, &status, 0, &ru);
+  waitrc = pdwait4_(pd, &status, 0, &ru);
   EXPECT_EQ(pid, waitrc);
-#endif
-#else
-  int waitrc = wait4(pid_got, &status, 0, &ru);
-  EXPECT_EQ(waitrc, pid);
-  if (verbose) {
-    fprintf(stderr, "For pid %d:\n", pid);
-    print_rusage(stderr, &ru);
-  }
-  // Can only wait4 once.
-  memset(&ru, 0, sizeof(ru));
-  errno = 0;
-  waitrc = wait4(pid_got, &status, 0, &ru);
-  EXPECT_EQ(-1, waitrc);
-  EXPECT_EQ(ECHILD, errno);
 #endif
 
   EXPECT_OK(close(pd));
@@ -217,7 +213,6 @@ TEST_F(PipePdfork, PollMultiple) {
   }
 }
 
-#ifdef HAVE_PDWAIT4
 // Check that exit status/rusage for a dead pdfork()ed child can be retrieved
 // via any process descriptor.
 TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
@@ -228,7 +223,7 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
   int status;
   struct rusage ru;
   memset(&ru, 0, sizeof(ru));
-  int waitrc = pdwait4(pd_, &status, 0, &ru);
+  int waitrc = pdwait4_(pd_, &status, 0, &ru);
   EXPECT_EQ(pid_, waitrc);
   if (verbose) {
     fprintf(stderr, "For pd %d -> pid %d:\n", pd_, pid_);
@@ -238,7 +233,7 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
 #ifdef OMIT
   // TODO(drysdale): make it so status/rusage are held around until last pd closed.
   memset(&ru, 0, sizeof(ru));
-  waitrc = pdwait4(pd_copy, &status, 0, &ru);
+  waitrc = pdwait4_(pd_copy, &status, 0, &ru);
   EXPECT_EQ(pid_, waitrc);
   if (verbose) {
     fprintf(stderr, "For pd %d -> pid %d:\n", pd_copy, pid_);
@@ -247,7 +242,6 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
 #endif
   close(pd_copy);
 }
-#endif
 
 // Check whether a pdfork()ed process dies correctly when released.
 // Can only check zombification.
@@ -255,12 +249,10 @@ TEST_F(PipePdfork, Release) {
   EXPECT_PID_ALIVE(pid_);
   EXPECT_LT(0, TerminateChild());
   EXPECT_PID_DEAD(pid_);
-#ifdef HAVE_PDWAIT4
   int status;
-  int rc = pdwait4(pd_, &status, 0, NULL);
+  int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
-#endif
   pid_ = 0;
 }
 
@@ -272,13 +264,11 @@ TEST_F(PipePdfork, Close) {
 
   EXPECT_OK(close(pd_));
   EXPECT_PID_DEAD(pid_);
-#ifdef HAVE_PDWAIT4
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
   errno = 0;
-  int rc = pdwait4(pd_, &status, 0, NULL);
+  int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EBADF, errno);
-#endif
   // Closing all process descriptors reaps the child.
   // TODO(drysdale): make it so
 #ifndef __linux__
@@ -297,16 +287,14 @@ TEST_F(PipePdfork, CloseLast) {
   EXPECT_PID_ALIVE(pid_);
   int status;
   EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
-#ifdef HAVE_PDWAIT4
   // Can no longer pdwait4() the closed process descriptor
   errno = 0;
-  EXPECT_EQ(-1, pdwait4(pd_, &status, WNOHANG, NULL));
+  EXPECT_EQ(-1, pdwait4_(pd_, &status, WNOHANG, NULL));
   EXPECT_EQ(EBADF, errno);
   // but can pdwait4() the still-open process descriptor.
   errno = 0;
-  EXPECT_EQ(0, pdwait4(pd_other, &status, WNOHANG, NULL));
+  EXPECT_EQ(0, pdwait4_(pd_other, &status, WNOHANG, NULL));
   EXPECT_EQ(0, errno);
-#endif
 
   EXPECT_OK(close(pd_other));
   EXPECT_PID_DEAD(pid_);
@@ -329,7 +317,6 @@ TEST(Pdfork, WaitPid) {
   EXPECT_EQ(pid, rc);
 }
 
-#ifdef HAVE_PDWAIT4
 TEST_F(PipePdfork, WaitPidThenPd) {
   TerminateChild();
   int status;
@@ -342,7 +329,7 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   // ...can still pdwait4(pd).  More explicitly: as long as there's an
   // open process descriptor, can still pdwait4(pd).
   errno = 0;
-  rc = pdwait4(pd_, &status, 0, NULL);
+  rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
 #endif
@@ -352,7 +339,7 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   TerminateChild();
   int status;
   // If we pdwait4(pd) first...
-  int rc = pdwait4(pd_, &status, 0, NULL);
+  int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
   // ...cannot subsequently waitpid(pid).
@@ -361,7 +348,6 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(ECHILD, errno);
 }
-#endif
 
 TEST(Pdfork, InvalidFlag) {
   int pd = -1;
@@ -718,10 +704,8 @@ TEST(Pdfork, NonProcessDescriptor) {
   EXPECT_OK(fd);
   // pd*() operations should fail on a non-process descriptor.
   EXPECT_EQ(-1, pdkill(fd, SIGUSR1));
-#ifdef HAVE_PDWAIT4
   int status;
-  EXPECT_EQ(-1, pdwait4(fd, &status, 0, NULL));
-#endif
+  EXPECT_EQ(-1, pdwait4_(fd, &status, 0, NULL));
   pid_t pid;
   EXPECT_EQ(-1, pdgetpid(fd, &pid));
   close(fd);
@@ -753,17 +737,13 @@ FORK_TEST(Pdfork, MissingRights) {
   pid_t other_pid;
   EXPECT_NOTCAPABLE(pdgetpid(cap_incapable, &other_pid));
   EXPECT_NOTCAPABLE(pdkill(cap_incapable, SIGINT));
-#ifdef HAVE_PDWAIT4
   int status;
-  EXPECT_NOTCAPABLE(pdwait4(cap_incapable, &status, 0, NULL));
-#endif
+  EXPECT_NOTCAPABLE(pdwait4_(cap_incapable, &status, 0, NULL));
 
   EXPECT_OK(pdgetpid(cap_capable, &other_pid));
   EXPECT_EQ(pid, other_pid);
   EXPECT_OK(pdkill(cap_capable, SIGINT));
-#ifdef HAVE_PDWAIT4
-  int rc = pdwait4(pd, &status, 0, NULL);
+  int rc = pdwait4_(pd, &status, 0, NULL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
-#endif
 }
