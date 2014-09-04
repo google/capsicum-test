@@ -391,6 +391,24 @@ TEST_F(PipePdfork, ChildExit) {
   pid_ = 0;
 }
 
+#ifdef HAVE_PROC_FDINFO
+TEST_F(PipePdfork, FdInfo) {
+  char buffer[1024];
+  sprintf(buffer, "/proc/%d/fdinfo/%d", getpid_(), pd_);
+  int procfd = open(buffer, O_RDONLY);
+  EXPECT_OK(procfd);
+
+  EXPECT_OK(read(procfd, buffer, sizeof(buffer)));
+  // The fdinfo should include the file pos of the underlying file
+  EXPECT_NE((char*)NULL, strstr(buffer, "pos:\t0")) << buffer;
+  // ...and the underlying pid
+  char pidline[256];
+  sprintf(pidline, "pid:\t%d", pid_);
+  EXPECT_NE((char*)NULL, strstr(buffer, pidline)) << buffer;
+  close(procfd);
+}
+#endif
+
 // Closing a normal process descriptor terminates the underlying process.
 TEST_F(PipePdfork, Close) {
   EXPECT_PID_ALIVE(pid_);
