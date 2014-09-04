@@ -125,14 +125,10 @@ TEST(Pdfork, Simple) {
     fprintf(stderr, "For pd %d pid %d:\n", pd, pid);
     print_rusage(stderr, &ru);
   }
-  // Can pdwait4(pd) repeatedly until pd is closed.
+  // Can only pdwait4(pd) once (as initial call reaps zombie).
   memset(&ru, 0, sizeof(ru));
-  errno = 0;
-#ifdef OMIT
-  // TODO(drysdale): make it so.
-  waitrc = pdwait4_(pd, &status, 0, &ru);
-  EXPECT_EQ(pid, waitrc);
-#endif
+  EXPECT_EQ(-1, pdwait4_(pd, &status, 0, &ru));
+  EXPECT_EQ(ECHILD, errno);
 
   EXPECT_OK(close(pd));
 }
@@ -350,7 +346,7 @@ TEST_F(PipePdfork, PollMultiple) {
 }
 
 // Check that exit status/rusage for a dead pdfork()ed child can be retrieved
-// via any process descriptor.
+// (once) via any process descriptor.
 TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
   EXPECT_PID_ALIVE(pid_);
   int pd_copy = dup(pd_);
@@ -359,23 +355,17 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
   int status;
   struct rusage ru;
   memset(&ru, 0, sizeof(ru));
-  int waitrc = pdwait4_(pd_, &status, 0, &ru);
+  int waitrc = pdwait4_(pd_copy, &status, 0, &ru);
   EXPECT_EQ(pid_, waitrc);
   if (verbose) {
     fprintf(stderr, "For pd %d -> pid %d:\n", pd_, pid_);
     print_rusage(stderr, &ru);
   }
 
-#ifdef OMIT
-  // TODO(drysdale): make it so status/rusage are held around until last pd closed.
+  // Child has been reaped, so original process descriptor dangles.
   memset(&ru, 0, sizeof(ru));
-  waitrc = pdwait4_(pd_copy, &status, 0, &ru);
-  EXPECT_EQ(pid_, waitrc);
-  if (verbose) {
-    fprintf(stderr, "For pd %d -> pid %d:\n", pd_copy, pid_);
-    print_rusage(stderr, &ru);
-  }
-#endif
+  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, &ru));  // @@@@@
+  EXPECT_EQ(ECHILD, errno);
   close(pd_copy);
 }
 
@@ -424,12 +414,8 @@ TEST_F(PipePdfork, Close) {
   EXPECT_EQ(-1, rc);
   EXPECT_EQ(EBADF, errno);
 
-  // Closing all process descriptors reaps the child.
-  // TODO(drysdale): make it so
-#ifndef __linux__
-  EXPECT_EQ(-1, waitpid(pid_, &status, WNOHANG));
-  EXPECT_EQ(ECHILD, errno);
-#endif
+  // Closing all process descriptors means the the child can only be reaped via pid.
+  EXPECT_EQ(pid_, waitpid(pid_, &status, WNOHANG));
 }
 
 TEST_F(PipePdfork, CloseLast) {
@@ -444,10 +430,10 @@ TEST_F(PipePdfork, CloseLast) {
   int status;
   EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
 
-  // Can no longer pdwait4() the closed process descriptor
+  // Can no longer pdwait4() the closed process descriptor...
   EXPECT_EQ(-1, pdwait4_(pd_, &status, WNOHANG, NULL));
   EXPECT_EQ(EBADF, errno);
-  // but can pdwait4() the still-open process descriptor.
+  // ...but can pdwait4() the still-open process descriptor.
   errno = 0;
   EXPECT_EQ(0, pdwait4_(pd_other, &status, WNOHANG, NULL));
   EXPECT_EQ(0, errno);
@@ -463,15 +449,10 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   int rc = waitpid(pid_, &status, 0);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
-#ifdef OMIT
-  // TODO(drysdale): make it so
-  // ...can still pdwait4(pd).  More explicitly: as long as there's an
-  // open process descriptor, can still pdwait4(pd).
-  errno = 0;
-  rc = pdwait4_(pd_, &status, 0, NULL);
-  EXPECT_OK(rc);
-  EXPECT_EQ(pid_, rc);
-#endif
+
+  // ...the zombie is reaped and cannot subsequently pdwait4(pd).
+  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, NULL));  // @@@@
+  EXPECT_EQ(ECHILD, errno);
 }
 
 TEST_F(PipePdfork, WaitPdThenPid) {
@@ -481,10 +462,9 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
-  // ...cannot subsequently waitpid(pid).
-  errno = 0;
-  rc = waitpid(pid_, &status, 0);
-  EXPECT_EQ(-1, rc);
+
+  // ...the zombie is reaped and cannot subsequently waitpid(pid).
+  EXPECT_EQ(-1, waitpid(pid_, &status, 0));
   EXPECT_EQ(ECHILD, errno);
 }
 
