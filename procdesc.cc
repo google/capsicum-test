@@ -498,6 +498,11 @@ static void TestPdkill(pid_t pid, int pd) {
   errno = 0;
   EXPECT_EQ(0, pdkill(pd, SIGINT));
   EXPECT_EQ(0, errno);
+
+  // pdkill() on reaped process gives -ESRCH.
+  CheckChildFinished(pid, true);
+  EXPECT_EQ(-1, pdkill(pd, SIGINT));
+  EXPECT_EQ(ESRCH, errno);
 }
 
 TEST_F(PipePdfork, Pdkill) {
