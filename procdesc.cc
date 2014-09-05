@@ -367,7 +367,7 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
 
   // Child has been reaped, so original process descriptor dangles.
   memset(&ru, 0, sizeof(ru));
-  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, &ru));  // @@@@@
+  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, &ru));
   EXPECT_EQ(ECHILD, errno);
   close(pd_copy);
 }
@@ -454,7 +454,7 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   EXPECT_EQ(pid_, rc);
 
   // ...the zombie is reaped and cannot subsequently pdwait4(pd).
-  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, NULL));  // @@@@
+  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, NULL));
   EXPECT_EQ(ECHILD, errno);
 }
 
@@ -604,8 +604,9 @@ TEST_F(PipePdfork, NoSigchld) {
 }
 
 // The exit of a pdfork()ed process whose process descriptors have
-// all been closed should generate SIGCHLD.
-TEST_F(PipePdfork, NoPDSigchld) {
+// all been closed should generate SIGCHLD.  The child process needs
+// PD_DAEMON to survive the closure of the process descriptors.
+TEST_F(PipePdforkDaemon, NoPDSigchld) {
   had_signal.clear();
   sighandler_t original = signal(SIGCHLD, handle_signal);
 
@@ -615,7 +616,8 @@ TEST_F(PipePdfork, NoPDSigchld) {
   // Can waitpid() for the specific pid of the pdfork()ed child.
   EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
-  EXPECT_TRUE(had_signal[SIGCHLD]);  // @@@@@
+  EXPECT_TRUE(had_signal[SIGCHLD]);
+  had_signal.clear();
   signal(SIGCHLD, original);
 }
 
@@ -644,7 +646,8 @@ TEST_F(PipePdfork, WildcardWait) {
   // Wildcard waitpid(-1) should not see the pdfork()ed child because
   // there is still a process descriptor for it.
   int rc;
-  EXPECT_EQ(0, waitpid(-1, &rc, WNOHANG));  // @@@@
+  EXPECT_EQ(-1, waitpid(-1, &rc, WNOHANG));
+  EXPECT_EQ(ECHILD, errno);
 
   EXPECT_OK(close(pd_));
   pd_ = -1;
@@ -652,8 +655,6 @@ TEST_F(PipePdfork, WildcardWait) {
   // Now the last process descriptor is closed, the child is visible
   // to a wildcard waitpid(-1).
   EXPECT_EQ(pid_, waitpid(-1, &rc, WNOHANG));
-  EXPECT_OK(rc);
-  EXPECT_EQ(pid_, rc);
 }
 
 FORK_TEST(Pdfork, Pdkill) {
