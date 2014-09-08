@@ -108,12 +108,14 @@ TEST(Pdfork, Simple) {
   }
   usleep(100);  // ensure the child has a chance to run
   EXPECT_NE(-1, pd);
+  EXPECT_PID_ALIVE(pid);
   int pid_got;
   EXPECT_OK(pdgetpid(pd, &pid_got));
   EXPECT_EQ(pid, pid_got);
 
   // Wait long enough for the child to exit().
   sleep(2);
+  EXPECT_PID_ZOMBIE(pid);
 
   // Wait for the the child.
   int status;
@@ -125,6 +127,8 @@ TEST(Pdfork, Simple) {
     fprintf(stderr, "For pd %d pid %d:\n", pd, pid);
     print_rusage(stderr, &ru);
   }
+  EXPECT_PID_GONE(pid);
+
   // Can only pdwait4(pd) once (as initial call reaps zombie).
   memset(&ru, 0, sizeof(ru));
   EXPECT_EQ(-1, pdwait4_(pd, &status, 0, &ru));

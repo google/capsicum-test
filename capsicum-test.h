@@ -166,8 +166,10 @@ char ProcessState(int pid);
       << " pid " << pid << " in state " << state; \
 }
 
-#define EXPECT_PID_ALIVE(pid) EXPECT_PID_REACHES_STATES(pid, 'R', 'S')
-#define EXPECT_PID_DEAD(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', '\0')
+#define EXPECT_PID_ALIVE(pid)   EXPECT_PID_REACHES_STATES(pid, 'R', 'S')
+#define EXPECT_PID_DEAD(pid)    EXPECT_PID_REACHES_STATES(pid, 'Z', '\0')
+#define EXPECT_PID_ZOMBIE(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', 'Z');
+#define EXPECT_PID_GONE(pid)    EXPECT_PID_REACHES_STATES(pid, '\0', '\0');
 
 void ShowSkippedTests(std::ostream& os);
 void TestSkipped(const char *testcase, const char *test, const std::string& reason);
