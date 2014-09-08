@@ -572,10 +572,11 @@ static int ChildFunc(void *arg) {
   // The shared process descriptor is outside our namespace, so we cannot
   // get its pid.
   if (verbose) fprintf(stderr, "    ChildFunc: shared_pd=%d\n", shared_pd);
-  pid_t shared_child;
-  EXPECT_OK(pdgetpid(shared_pd, &shared_child));
+  pid_t shared_child = -1;
+  EXPECT_EQ(-1, pdgetpid(shared_pd, &shared_child));
+  EXPECT_EQ(ESRCH, errno);
   if (verbose) fprintf(stderr, "    ChildFunc: corresponding pid=%d\n", shared_child);
-  EXPECT_EQ(0, shared_child);
+  EXPECT_EQ(-1, shared_child);
 
   // But we can pdkill() it even so.
   if (verbose) fprintf(stderr, "    ChildFunc: call pdkill(pd=%d)\n", shared_pd);
@@ -629,13 +630,19 @@ static int ChildFunc(void *arg) {
   int rc = sendmsg(shared_sock_fds[1], &mh, 0);
   EXPECT_OK(rc);
 
-  // Complete this child, orphaning the child.
+  // Wait for death of (grand)child, killed by our parent.
+  if (verbose) fprintf(stderr, "    ChildFunc: wait on pd=%d pid=%d\n", pd, child);
+  int status;
+  EXPECT_EQ(child, pdwait4(pd, &status, 0, NULL));
+
+  if (verbose) fprintf(stderr, "    ChildFunc: return 0\n");
   return 0;
 }
 
 #define STACK_SIZE (1024 * 1024)
 static char child_stack[STACK_SIZE];
 
+// TODO(drysdale): fork into a user namespace first so REQUIRE_ROOT can be removed.
 TEST(Linux, PidNamespacePdFork) {
   REQUIRE_ROOT();
   // Pass process descriptors in both directions across a PID namespace boundary.
@@ -669,12 +676,16 @@ TEST(Linux, PidNamespacePdFork) {
   sleep(1);
   EXPECT_PID_DEAD(firstborn);
 
-  // But we can still retrieve firstborn's PID.
+  // But we can still retrieve firstborn's PID, as it's not been reaped yet.
   pid_t child0;
   EXPECT_OK(pdgetpid(shared_pd, &child0));
   EXPECT_EQ(firstborn, child0);
   if (verbose) fprintf(stderr, "Parent: check on firstborn: pdgetpid(pd=%d) -> child=%d state='%c'\n",
                        shared_pd, child0, ProcessState(child0));
+
+  // Now reap it.
+  int status;
+  EXPECT_EQ(firstborn, waitpid(firstborn, &status, 0));
 
   // Get the process descriptor of the child-of-child via socket transfer.
   struct msghdr mh;
@@ -708,6 +719,7 @@ TEST(Linux, PidNamespacePdFork) {
 
   // Kill the grandchild via the process descriptor.
   EXPECT_OK(pdkill(grandchild_pd, SIGINT));
+  usleep(10000);
   if (verbose) fprintf(stderr, "Parent: post-pdkill: pdgetpid(grandchild_pd=%d) -> grandchild=%d state='%c'\n",
                        grandchild_pd, grandchild, ProcessState(grandchild));
   EXPECT_PID_DEAD(grandchild);
@@ -715,8 +727,7 @@ TEST(Linux, PidNamespacePdFork) {
   sleep(2);
 
   // Wait for the child.
-  int status;
-  EXPECT_EQ(child, waitpid(child, &status, 0));
+  EXPECT_EQ(child, waitpid(child, &status, WNOHANG));
   rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
   EXPECT_EQ(0, rc);
 
