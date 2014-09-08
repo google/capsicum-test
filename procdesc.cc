@@ -524,8 +524,13 @@ TEST(Pdfork, PdkillOtherSignal) {
     while(!had_signal[SIGUSR1]) sleep(1);
     exit(123);
   }
-  // Send an expected SIGUSR1 to the pdfork()ed child.
   sleep(1);
+
+  // Send an invalid signal.
+  EXPECT_EQ(-1, pdkill(pd, 0xFFFF));
+  EXPECT_EQ(EINVAL, errno);
+
+  // Send an expected SIGUSR1 to the pdfork()ed child.
   EXPECT_PID_ALIVE(pid);
   pdkill(pd, SIGUSR1);
   EXPECT_PID_DEAD(pid);
