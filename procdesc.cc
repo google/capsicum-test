@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include <iomanip>
 #include <map>
@@ -209,6 +210,52 @@ TEST(Pdfork, NonProcessDescriptor) {
   pid_t pid;
   EXPECT_EQ(-1, pdgetpid(fd, &pid));
   close(fd);
+}
+
+static void *SubThreadMain(void *data) {
+  while (true) {
+    if (verbose) fprintf(stderr, "      subthread still running\n");
+    usleep(100000);
+  }
+  return NULL;
+}
+
+static void *ThreadMain(void *data) {
+  int pd;
+  pid_t child = pdfork(&pd, 0);
+  if (child == 0) {
+    // Child: start a subthread then loop
+    pthread_t child_subthread;
+    EXPECT_OK(pthread_create(&child_subthread, NULL, SubThreadMain, NULL));
+    while (true) {
+      if (verbose) fprintf(stderr, "    pdforked process %d still running\n", getpid());
+      usleep(100000);
+    }
+    exit(0);
+  }
+  if (verbose) fprintf(stderr, "  thread generated pd %d\n", pd);
+  sleep(2);
+
+  // Pass the process descriptor back to the main thread.
+  return reinterpret_cast<void *>(pd);
+}
+
+TEST(Pdfork, FromThread) {
+  // Fire off a new thread to do all of the creation work.
+  pthread_t child_thread;
+  EXPECT_OK(pthread_create(&child_thread, NULL, ThreadMain, NULL));
+  void *data;
+  EXPECT_OK(pthread_join(child_thread, &data));
+  int pd = reinterpret_cast<intptr_t>(data);
+  if (verbose) fprintf(stderr, "retrieved pd %d from terminated thread\n", pd);
+
+  // Kill and reap.
+  pid_t pid;
+  EXPECT_OK(pdgetpid(pd, &pid));
+  EXPECT_OK(pdkill(pd, SIGKILL));
+  int status;
+  EXPECT_EQ(pid, pdwait4(pd, &status, 0, NULL));
+  EXPECT_TRUE(WIFSIGNALED(status));
 }
 
 //------------------------------------------------
@@ -789,5 +836,3 @@ FORK_TEST(Pdfork, MissingRights) {
 // TODO(drysdale): check that a different uid can perform pd* operations
 // with the relevant process descriptor
 
-// TODO(drysdale): thread/process interactions: pdfork from a non-tgid
-// thread and check everything works
