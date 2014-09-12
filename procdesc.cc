@@ -455,6 +455,7 @@ TEST_F(PipePdfork, FdInfo) {
 
 // Closing a normal process descriptor terminates the underlying process.
 TEST_F(PipePdfork, Close) {
+  sighandler_t original = signal(SIGCHLD, handle_signal);
   EXPECT_PID_ALIVE(pid_);
   int status;
   EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
@@ -463,6 +464,11 @@ TEST_F(PipePdfork, Close) {
   pd_ = -1;
   EXPECT_PID_DEAD(pid_);
 
+  // Closing the last process descriptor converts the process to a normal process
+  // before it is terminated, so we expect a SIGCHLD.
+  EXPECT_TRUE(had_signal[SIGCHLD]);
+  had_signal.clear();
+
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
   int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_EQ(-1, rc);
@@ -470,9 +476,11 @@ TEST_F(PipePdfork, Close) {
 
   // Closing all process descriptors means the the child can only be reaped via pid.
   EXPECT_EQ(pid_, waitpid(pid_, &status, WNOHANG));
+  signal(SIGCHLD, original);
 }
 
 TEST_F(PipePdfork, CloseLast) {
+  sighandler_t original = signal(SIGCHLD, handle_signal);
   // Child should only die when last process descriptor is closed.
   EXPECT_PID_ALIVE(pid_);
   int pd_other = dup(pd_);
@@ -494,6 +502,12 @@ TEST_F(PipePdfork, CloseLast) {
 
   EXPECT_OK(close(pd_other));
   EXPECT_PID_DEAD(pid_);
+
+  // Closing the last process descriptor converts the process to a normal process
+  // before it is terminated, so we expect a SIGCHLD.
+  EXPECT_TRUE(had_signal[SIGCHLD]);
+  had_signal.clear();
+  signal(SIGCHLD, original);
 }
 
 TEST_F(PipePdfork, WaitPidThenPd) {
