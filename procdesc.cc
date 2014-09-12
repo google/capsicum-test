@@ -510,6 +510,27 @@ TEST_F(PipePdfork, CloseLast) {
   signal(SIGCHLD, original);
 }
 
+TEST_F(PipePdfork, OtherUser) {
+  REQUIRE_ROOT();
+  // Now that the second process has been pdfork()ed, change euid.
+  setuid(100);
+  if (verbose) fprintf(stderr, "uid=%d euid=%d\n", getuid(), geteuid());
+
+  // Fail to kill child with normal PID operation.
+  EXPECT_EQ(-1, kill(pid_, SIGKILL));
+  EXPECT_EQ(EPERM, errno);
+  EXPECT_PID_ALIVE(pid_);
+
+  // Succeed with pdkill though.
+  EXPECT_OK(pdkill(pd_, SIGKILL));
+  EXPECT_PID_ZOMBIE(pid_);
+
+  int status;
+  int rc = pdwait4_(pd_, &status, WNOHANG, NULL);
+  EXPECT_OK(rc);
+  EXPECT_EQ(pid_, rc);
+}
+
 TEST_F(PipePdfork, WaitPidThenPd) {
   TerminateChild();
   int status;
@@ -846,7 +867,4 @@ FORK_TEST(Pdfork, MissingRights) {
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
 }
-
-// TODO(drysdale): check that a different uid can perform pd* operations
-// with the relevant process descriptor
 
