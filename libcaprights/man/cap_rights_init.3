@@ -66,10 +66,12 @@ and
 .BR cap_rights_is_set ()
 functions.
 For example:
-.Bd -literal
+.PP
+.in +4n
+.nf
 cap_rights_set(&rights, CAP_READ, CAP_WRITE, CAP_FSTAT, CAP_SEEK);
-.Ed
-.Pp
+.fi
+.PP
 The complete list of the capability rights can be found in the
 .BR rights (7)
 manual page.
@@ -87,6 +89,8 @@ function later.
 Also for convenience, a pointer to the given structure is returned, so it can
 be directly passed to
 .BR cap_rights_limit (2):
+.PP
+.in +4n
 .nf
 cap_rights_t rights;
 if (cap_rights_limit(fd, cap_rights_init(&rights, CAP_READ, CAP_WRITE)) < 0)
@@ -221,6 +225,6 @@ if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 .fi
 .SH SEE ALSO
 .BR cap_rights_limit (7),
-.Br open (2),
+.BR open (2),
 .BR capsicum (7) ,
 .BR rights (7)
