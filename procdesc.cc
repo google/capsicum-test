@@ -510,25 +510,35 @@ TEST_F(PipePdfork, CloseLast) {
   signal(SIGCHLD, original);
 }
 
-TEST_F(PipePdfork, OtherUser) {
+FORK_TEST(Pdfork, OtherUser) {
   REQUIRE_ROOT();
+  int pd;
+  pid_t pid = pdfork(&pd, 0);
+  EXPECT_OK(pid);
+  if (pid == 0) {
+    // Child process: loop forever.
+    while(true) usleep(100000);
+  }
+  usleep(100);
+
   // Now that the second process has been pdfork()ed, change euid.
   setuid(100);
   if (verbose) fprintf(stderr, "uid=%d euid=%d\n", getuid(), geteuid());
 
   // Fail to kill child with normal PID operation.
-  EXPECT_EQ(-1, kill(pid_, SIGKILL));
+  EXPECT_EQ(-1, kill(pid, SIGKILL));
   EXPECT_EQ(EPERM, errno);
-  EXPECT_PID_ALIVE(pid_);
+  EXPECT_PID_ALIVE(pid);
 
   // Succeed with pdkill though.
-  EXPECT_OK(pdkill(pd_, SIGKILL));
-  EXPECT_PID_ZOMBIE(pid_);
+  EXPECT_OK(pdkill(pd, SIGKILL));
+  EXPECT_PID_ZOMBIE(pid);
 
   int status;
-  int rc = pdwait4_(pd_, &status, WNOHANG, NULL);
+  int rc = pdwait4_(pd, &status, WNOHANG, NULL);
   EXPECT_OK(rc);
-  EXPECT_EQ(pid_, rc);
+  EXPECT_EQ(pid, rc);
+  EXPECT_TRUE(WIFSIGNALED(status));
 }
 
 TEST_F(PipePdfork, WaitPidThenPd) {

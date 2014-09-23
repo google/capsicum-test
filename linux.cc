@@ -1070,7 +1070,7 @@ TEST(Linux, Kcmp) {
   if (child == 0) {
     // Child: limit rights on FD.
     child = getpid_();
-    EXPECT_EQ(0, syscall(__NR_kcmp, parent, child, KCMP_FILE, fd, fd));
+    EXPECT_OK(syscall(__NR_kcmp, parent, child, KCMP_FILE, fd, fd));
     cap_rights_t rights;
     cap_rights_init(&rights, CAP_READ, CAP_WRITE);
     EXPECT_OK(cap_rights_limit(fd, &rights));
@@ -1102,7 +1102,8 @@ TEST(Linux, ProcFS) {
   char buffer[1024];
   sprintf(buffer, "/proc/%d/fdinfo/%d", me, cap);
   int procfd = open(buffer, O_RDONLY);
-  EXPECT_OK(procfd);
+  EXPECT_OK(procfd) << " failed to open " << buffer;
+  if (procfd < 0) return;
   int proccap = dup(procfd);
   EXPECT_OK(proccap);
   EXPECT_OK(cap_rights_limit(proccap, &rights));
