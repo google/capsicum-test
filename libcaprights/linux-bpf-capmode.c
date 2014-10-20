@@ -2,17 +2,19 @@
 #ifdef __linux__
 #define _GNU_SOURCE  /* to get O_* constants */
 #include <errno.h>
-#include <stddef.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <syscall.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <linux/audit.h>
-#include <linux/seccomp.h>
 #include <linux/filter.h>
+#include <linux/seccomp.h>
 #include <linux/unistd.h>
 #include <asm/prctl.h>
 

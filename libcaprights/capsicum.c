@@ -28,8 +28,10 @@
  * SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
 #include "config.h"
 #include <assert.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <string.h>
@@ -179,7 +181,7 @@ int execveat(int fd, const char *path, char *const argv[], char *const envp[], i
  * filesystem.  Bypass this and go directly to the execveat(2) syscall.
  */
 int fexecve_(int fd, char *const argv[], char *const envp[]) {
-  return execveat(fd, NULL, argv, envp, 0);
+  return execveat(fd, "", argv, envp, AT_EMPTY_PATH);
 }
 
 int pdfork(int *fd, int flags) {
