@@ -2,6 +2,7 @@
 #ifdef __linux__
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/timerfd.h>
 #include <sys/signalfd.h>
@@ -320,6 +321,48 @@ TEST(Linux, epoll) {
   close(sock_fds[1]);
   close(sock_fds[0]);
   unlink("/tmp/cap_epoll");
+}
+
+TEST(Linux, fstatat) {
+  int fd = open("/tmp/cap_fstatat", O_CREAT|O_RDWR, 0644);
+  EXPECT_OK(fd);
+  unsigned char buffer[] = {1, 2, 3, 4};
+  EXPECT_OK(write(fd, buffer, sizeof(buffer)));
+  cap_rights_t rights;
+  int cap_rf = dup(fd);
+  EXPECT_OK(cap_rf);
+  EXPECT_OK(cap_rights_limit(cap_rf, cap_rights_init(&rights, CAP_READ, CAP_FSTAT)));
+  int cap_ro = dup(fd);
+  EXPECT_OK(cap_ro);
+  EXPECT_OK(cap_rights_limit(cap_ro, cap_rights_init(&rights, CAP_READ)));
+
+  struct stat info;
+  EXPECT_OK(fstatat(fd, "", &info, AT_EMPTY_PATH));
+  EXPECT_NOTCAPABLE(fstatat(cap_ro, "", &info, AT_EMPTY_PATH));
+  EXPECT_OK(fstatat(cap_rf, "", &info, AT_EMPTY_PATH));
+
+  close(cap_ro);
+  close(cap_rf);
+  close(fd);
+
+  int dir = open("/tmp", O_RDONLY);
+  EXPECT_OK(dir);
+  int dir_rf = dup(dir);
+  EXPECT_OK(dir_rf);
+  EXPECT_OK(cap_rights_limit(dir_rf, cap_rights_init(&rights, CAP_READ, CAP_FSTAT)));
+  int dir_ro = dup(fd);
+  EXPECT_OK(dir_ro);
+  EXPECT_OK(cap_rights_limit(dir_ro, cap_rights_init(&rights, CAP_READ)));
+
+  EXPECT_OK(fstatat(dir, "cap_fstatat", &info, AT_EMPTY_PATH));
+  EXPECT_NOTCAPABLE(fstatat(dir_ro, "cap_fstatat", &info, AT_EMPTY_PATH));
+  EXPECT_OK(fstatat(dir_rf, "cap_fstatat", &info, AT_EMPTY_PATH));
+
+  close(dir_ro);
+  close(dir_rf);
+  close(dir);
+
+  unlink("/tmp/cap_fstatat");
 }
 
 // fanotify support may not be available at compile-time
