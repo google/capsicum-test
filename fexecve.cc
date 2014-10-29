@@ -66,7 +66,9 @@ FORK_TEST_F(Execve, SucceedWithCap) {
   int cap_fd = dup(exec_fd_);
   EXPECT_OK(cap_fd);
   cap_rights_t rights;
-  cap_rights_init(&rights, CAP_FEXECVE);
+  // TODO(drysdale): would prefer that Linux Capsicum not need all of these
+  // rights -- just CAP_FEXECVE|CAP_READ or CAP_FEXECVE would be preferable.
+  cap_rights_init(&rights, CAP_FEXECVE, CAP_LOOKUP, CAP_READ);
   EXPECT_OK(cap_rights_limit(cap_fd, &rights));
   EXPECT_OK(fexecve_(cap_fd, argv_pass, null_envp));
   // Should not reach here, exec() takes over.
