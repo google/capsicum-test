@@ -21,8 +21,8 @@
 
 #define AT_SYSCALLS_IN_CAPMODE
 
-// Failure to open file due to path traversal generates EACCES
-#define E_NO_TRAVERSE EACCES
+// Failure to open file due to path traversal generates EPERM
+#define E_NO_TRAVERSE EPERM
 
 #endif /* __linux__ */
 
