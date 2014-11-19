@@ -900,7 +900,9 @@ TEST(Capability, SyscallAt) {
     fprintf(stderr, "mknodat(2) tests need to be run as root; skipping\n");
     TEST_SKIPPED("requires root (partial)");
   }
+
   close(cap_dfd_all);
+  close(cap_dfd_no_mknod);
   close(cap_dfd_no_mkfifo);
   close(cap_dfd_no_mkdir);
   close(cap_dfd_no_unlink);

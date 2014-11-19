@@ -163,6 +163,7 @@ TEST(Openat, Subdir) {
   rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
   EXPECT_EQ(0, rc);
   // Tidy up.
+  close(cap_dir);
   rmdir("/tmp/cap_topdir/cap_subdir");
   rmdir("/tmp/cap_topdir");
 }
@@ -241,6 +242,8 @@ TEST(Openat, RelativeSymlink) {
   EXPECT_EQ(0, rc);
 
   // Tidy up
+  close(dir_fd);
+  close(cap_dir);
   unlink(SYMLINK_DIR "/symlink.absolute_in");
   unlink(SYMLINK_DIR "/symlink.absolute_out");
   unlink(SYMLINK_DIR "/symlink.normal");
