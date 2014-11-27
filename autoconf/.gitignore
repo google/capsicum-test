@@ -1,0 +1,10 @@
+autom4te.cache
+configure
+config.status
+config.log
+config.h.in~
+config.h.in
+config.h
+Makefile
+captest
+captest.o
