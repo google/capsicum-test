@@ -55,7 +55,7 @@ elif test "x$ac_cv_header_sys_capability_h" = "xyes" ; then
    AC_CHECK_DECL([cap_rights_limit],
                   [AC_DEFINE([HAVE_CAPSICUM_SYS_CAPABILITY_H])
                    hdrfound=true],[],
-                 [sys/capability.h])
+                 [#include <sys/capability.h>])
 fi
 
 AC_LANG_PUSH([C])
