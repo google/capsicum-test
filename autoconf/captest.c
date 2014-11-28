@@ -1,7 +1,7 @@
 #include "config.h"
 
 /* Include the appropriate header file for Capsicum function declarations */
-#ifdef HAVE_CAPSICUM_HEADER
+#ifdef HAVE_CAPSICUM
 # ifdef HAVE_CAPSICUM_SYS_CAPSICUM_H
 #  include <sys/capsicum.h>
 # else

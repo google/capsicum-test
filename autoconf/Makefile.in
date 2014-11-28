@@ -1,7 +1,7 @@
 CC=@CC@
 CFLAGS=-Wall @CFLAGS@
 CPPFLAGS=@CPPFLAGS@
-LDLIBS=@LIBS@
+LDLIBS=@CAPSICUM_LIB@
 
 test: captest
 	./captest
