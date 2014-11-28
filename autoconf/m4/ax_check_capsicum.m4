@@ -1,7 +1,13 @@
 # -*- Autoconf -*-
 
-# CHECK_CAPSICUM_HEADER
-# ---------------------
+# AX_CHECK_CAPSICUM
+# -----------------
+AC_DEFUN([AX_CHECK_CAPSICUM],
+[AX_CHECK_CAPSICUM_HEADER
+AX_CHECK_CAPSICUM_LIB])
+
+# AX_CHECK_CAPSICUM_HEADER
+# ------------------------
 # Determine if the header file for Capsicum functions are available, and indicate which
 # header file contains them:
 #  - FreeBSD 10.x uses <sys/capability.h>
@@ -26,7 +32,7 @@ AC_DEFINE([HAVE_CAPSICUM_HEADER],[],[Capsicum header file available])
 #   # endif
 #   #endif
 #
-AC_DEFUN([CHECK_CAPSICUM_HEADER],
+AC_DEFUN([AX_CHECK_CAPSICUM_HEADER],
 [# First check existence of the headers
 AC_CHECK_HEADERS([sys/capability.h sys/capsicum.h])
 # If <sys/capsicum.h> exists, assume it is the correct header.
@@ -41,13 +47,13 @@ elif test "x$ac_cv_header_sys_capability_h" = "xyes" ; then
                  [sys/capability.h])
 fi])
 
-# CHECK_CAPSICUM_LIB
-# ------------------
+# AX_CHECK_CAPSICUM_LIB
+# ---------------------
 # Add the library providing Capsicum functions to LIBS, if available.
 # Potentially sets the following definition:
 AC_DEFINE([HAVE_CAPSICUM],[],[Capsicum library available])
 #
-AC_DEFUN([CHECK_CAPSICUM_LIB],
+AC_DEFUN([AX_CHECK_CAPSICUM_LIB],
 [AC_LANG_PUSH([C])
 AC_SEARCH_LIBS([cap_rights_limit], [caprights],
                [AC_DEFINE([HAVE_CAPSICUM])],[],[])

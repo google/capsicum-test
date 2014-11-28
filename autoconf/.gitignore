@@ -8,3 +8,4 @@ config.h
 Makefile
 captest
 captest.o
+aclocal.m4
