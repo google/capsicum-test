@@ -1,11 +1,15 @@
+# Files created by autoreconf:
+aclocal.m4
 autom4te.cache
+config.h.in
+config.h.in~
 configure
+# Files created by ./configure:
 config.status
 config.log
-config.h.in~
-config.h.in
 config.h
 Makefile
+# Files created by make:
 captest
 captest.o
-aclocal.m4
+
