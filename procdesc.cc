@@ -254,7 +254,7 @@ TEST(Pdfork, FromThread) {
   EXPECT_OK(pdgetpid(pd, &pid));
   EXPECT_OK(pdkill(pd, SIGKILL));
   int status;
-  EXPECT_EQ(pid, pdwait4(pd, &status, 0, NULL));
+  EXPECT_EQ(pid, pdwait4_(pd, &status, 0, NULL));
   EXPECT_TRUE(WIFSIGNALED(status));
 }
 
