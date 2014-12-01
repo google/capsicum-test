@@ -19,11 +19,16 @@ int main(void)
 #ifdef HAVE_CAPSICUM
   int rc;
   cap_rights_t rights;
-  cap_rights_init(&rights, CAP_WRITE);
+  cap_ioctl_t cmd = 0;
+  cap_rights_init(&rights, CAP_WRITE, CAP_IOCTL);
   fprintf(stderr, "Compiled with Capsicum support\n");
   rc = cap_rights_limit(2, &rights);
   if (rc < 0) {
     fprintf(stderr, "cap_right_limit() failed, errno=%d\n", errno);
+  }
+  rc = cap_ioctls_limit(2, &cmd, 1);
+  if (rc < 0) {
+    fprintf(stderr, "cap_ioctls_limit() failed, errno=%d\n", errno);
   }
 #else
   fprintf(stderr, "Compiled without Capsicum support\n");
