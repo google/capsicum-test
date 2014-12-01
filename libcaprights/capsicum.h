@@ -25,6 +25,7 @@ extern "C" {
  ************************************************************/
 int cap_enter(void);
 int cap_getmode(unsigned int *mode);
+bool cap_sandboxed(void);
 int cap_rights_limit(int fd, const cap_rights_t *rights);
 int cap_rights_get(int fd, cap_rights_t *rights);
 int cap_fcntls_limit(int fd, cap_fcntl_t fcntls);

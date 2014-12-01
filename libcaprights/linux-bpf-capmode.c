@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <syscall.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
@@ -382,6 +383,12 @@ int cap_getmode(unsigned int *mode) {
 #endif
 	*mode = (seccomp == SECCOMP_MODE_FILTER && beneath == 1);
 	return 0;
+}
+
+bool cap_sandboxed(void) {
+	unsigned int mode;
+	if (cap_getmode(&mode) != 0) return false;
+	return (mode == 1);
 }
 
 #endif /* __linux__ */
