@@ -47,13 +47,13 @@ AC_DEFUN([AX_CHECK_CAPSICUM],
 hdrfound=false
 # If <sys/capsicum.h> exists (Linux, FreeBSD>=11.x), assume it is the correct header.
 if test "x$ac_cv_header_sys_capsicum_h" = "xyes" ; then
-   AC_DEFINE([HAVE_CAPSICUM_SYS_CAPSICUM_H])
+   AC_DEFINE([HAVE_CAPSICUM_SYS_CAPSICUM_H],[],[Capsicum functions declared in <sys/capsicum.h>])
    hdrfound=true
 elif test "x$ac_cv_header_sys_capability_h" = "xyes" ; then
    # Just <sys/capability.h>; on FreeBSD 10.x this covers Capsicum, but on Linux it
    # describes POSIX.1e capabilities.  So check it declares cap_rights_limit.
    AC_CHECK_DECL([cap_rights_limit],
-                  [AC_DEFINE([HAVE_CAPSICUM_SYS_CAPABILITY_H])
+                  [AC_DEFINE([HAVE_CAPSICUM_SYS_CAPABILITY_H],[],[Capsicum functions declared in <sys/capability.h>])
                    hdrfound=true],[],
                  [#include <sys/capability.h>])
 fi
@@ -74,13 +74,10 @@ then
     # If both library and header were found, action-if-found
     m4_ifblank([$1],[
                 LIBS="${CAPSICUM_LIB} $LIBS"
-                AC_DEFINE([HAVE_CAPSICUM])])
+                AC_DEFINE([HAVE_CAPSICUM],[],[Capsicum library available])])
 else
     # If either header or library was not found, action-if-not-found
     m4_default([$2],[AC_MSG_WARN([Capsicum support not found])])
 fi])
 
-AC_DEFINE([HAVE_CAPSICUM_SYS_CAPSICUM_H],[],[Capsicum functions declared in <sys/capsicum.h>])
-AC_DEFINE([HAVE_CAPSICUM_SYS_CAPABILITY_H],[],[Capsicum functions declared in <sys/capability.h>])
-AC_DEFINE([HAVE_CAPSICUM],[],[Capsicum library available])
 
