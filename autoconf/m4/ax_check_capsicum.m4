@@ -6,7 +6,7 @@
 #
 # DESCRIPTION
 #
-#   This macro searches for an installed Capsicum library, and:
+#   This macro searches for an installed Capsicum library, and if found:
 #    - calls one of AC_DEFINE([HAVE_CAPSICUM_SYS_CAPSICUM_H]) or
 #      AC_DEFINE([HAVE_CAPSICUM_SYS_CAPABILITY_H])
 #    - sets CAPSICUM_LIB to the -l option needed to link Capsicum support.
