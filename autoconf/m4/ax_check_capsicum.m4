@@ -47,32 +47,32 @@
 AU_ALIAS([CHECK_CAPSICUM], [AX_CHECK_CAPSICUM])
 AC_DEFUN([AX_CHECK_CAPSICUM],
 [AC_CHECK_HEADERS([sys/capability.h sys/capsicum.h])
-hdrfound=false
+capsicum_hdrfound=false
 # If <sys/capsicum.h> exists (Linux, FreeBSD>=11.x), assume it is the correct header.
 if test "x$ac_cv_header_sys_capsicum_h" = "xyes" ; then
    AC_DEFINE([HAVE_CAPSICUM_SYS_CAPSICUM_H],[],[Capsicum functions declared in <sys/capsicum.h>])
-   hdrfound=true
+   capsicum_hdrfound=true
 elif test "x$ac_cv_header_sys_capability_h" = "xyes" ; then
    # Just <sys/capability.h>; on FreeBSD 10.x this covers Capsicum, but on Linux it
    # describes POSIX.1e capabilities.  So check it declares cap_rights_limit.
    AC_CHECK_DECL([cap_rights_limit],
                   [AC_DEFINE([HAVE_CAPSICUM_SYS_CAPABILITY_H],[],[Capsicum functions declared in <sys/capability.h>])
-                   hdrfound=true],[],
+                   capsicum_hdrfound=true],[],
                  [#include <sys/capability.h>])
 fi
 
 AC_LANG_PUSH([C])
 # FreeBSD >= 10.x has Capsicum functions in libc
-libfound=false
+capsicum_libfound=false
 AC_LINK_IFELSE([AC_LANG_CALL([], [cap_rights_limit])],
-               [libfound=true],[])
+               [capsicum_libfound=true],[])
 # Linux has Capsicum functions in libcaprights
 AC_CHECK_LIB([caprights],[cap_rights_limit],
              [AC_SUBST([CAPSICUM_LIB],[-lcaprights])
-              libfound=true],[])
+              capsicum_libfound=true],[])
 AC_LANG_POP([C])
 
-if test "$hdrfound" = "true" && test "$libfound" = "true"
+if test "$capsicum_hdrfound" = "true" && test "$capsicum_libfound" = "true"
 then
     # If both library and header were found, action-if-found
     m4_ifblank([$1],[
