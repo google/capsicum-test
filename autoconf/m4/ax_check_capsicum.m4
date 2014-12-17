@@ -39,7 +39,10 @@
 #
 #   Copyright (c) 2014 Google Inc.
 #
-#   TODO(drysdale): confirm use of relevant license.
+#   Copying and distribution of this file, with or without modification,
+#   are permitted in any medium without royalty provided the copyright
+#   notice and this notice are preserved.  This file is offered as-is,
+#   without any warranty.
 
 AU_ALIAS([CHECK_CAPSICUM], [AX_CHECK_CAPSICUM])
 AC_DEFUN([AX_CHECK_CAPSICUM],
