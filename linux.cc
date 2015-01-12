@@ -922,6 +922,40 @@ TEST(Linux, DeadNSInit2) {
   }
 }
 
+FORK_TEST(Linux, PrctlOpenatBeneath) {
+  // Set no_new_privs = 1
+  EXPECT_OK(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+  int rc = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(1, rc);  // no_new_privs = 1
+
+  // Set openat-beneath mode
+  EXPECT_OK(prctl(PR_SET_OPENAT_BENEATH, 1, 0, 0, 0));
+  rc = prctl(PR_GET_OPENAT_BENEATH, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(1, rc);  // openat_beneath = 1
+
+  // Clear openat-beneath mode
+  EXPECT_OK(prctl(PR_SET_OPENAT_BENEATH, 0, 0, 0, 0));
+  rc = prctl(PR_GET_OPENAT_BENEATH, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(0, rc);  // openat_beneath = 0
+
+  EXPECT_OK(cap_enter());  // Enter capability mode
+
+  // Expect to be in openat_beneath mode
+  rc = prctl(PR_GET_OPENAT_BENEATH, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(1, rc);  // openat_beneath = 1
+
+  // Expect this to be immutable.
+  EXPECT_CAPMODE(prctl(PR_SET_OPENAT_BENEATH, 0, 0, 0, 0));
+  rc = prctl(PR_GET_OPENAT_BENEATH, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(1, rc);  // openat_beneath = 1
+
+}
+
 FORK_TEST(Linux, NoNewPrivs) {
   if (getuid() == 0) {
     // If root, drop CAP_SYS_ADMIN POSIX.1e capability.
