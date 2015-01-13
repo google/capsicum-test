@@ -52,8 +52,10 @@ static void print_stat(FILE *f, const struct stat *stat) {
           ".st_birthtime=%ld, "
 #endif
           ".st_atime=%ld, .st_mtime=%ld, .st_ctime=%ld}\n",
-          stat->st_dev, stat->st_ino, stat->st_mode, stat->st_nlink, stat->st_uid, stat->st_gid,
-          stat->st_rdev, stat->st_size, stat->st_blksize, stat->st_blocks,
+          (long)stat->st_dev, (long)stat->st_ino, stat->st_mode,
+          (long)stat->st_nlink, stat->st_uid, stat->st_gid,
+          (long)stat->st_rdev, stat->st_size, (long)stat->st_blksize,
+          stat->st_blocks,
 #ifdef HAVE_STAT_BIRTHTIME
           stat->st_birthtime,
 #endif
