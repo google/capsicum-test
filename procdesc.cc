@@ -33,7 +33,8 @@ static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
 #else
   // Simulate pdwait4() with wait4(pdgetpid()); this won't work in capability mode.
   pid_t pid = -1;
-  EXPECT_OK(pdgetpid(pd, &pid));
+  int rc = pdgetpid(pd, &pid);
+  if (rc < 0) return rc;
   return wait4(pid, status, options, ru);
 #endif
 }
