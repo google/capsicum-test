@@ -30,8 +30,6 @@ OS Configuration
 The following kernel configuration options are needed to run the tests:
 
  - `CONFIG_64BIT`: Capsicum support is currently only implemented for 64 bit mode
- - `CONFIG_SECURITY`: enable Linux Security Module (LSM) support
- - `CONFIG_SECURITY_PATH`: enable LSM hooks for path operations
  - `CONFIG_SECURITY_CAPSICUM`: enable the Capsicum framework
  - `CONFIG_PROCDESC`: enable Capsicum process-descriptor functionality
  - `CONFIG_DEBUG_FS`: enable debug filesystem
@@ -42,7 +40,6 @@ The following kernel configuration options are needed to run the tests:
 The following kernel configuration options are needed so that all tests can run:
 
   - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
-  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
 
 ### FreeBSD 9.x
 
@@ -52,7 +49,6 @@ The following kernel configuration options are needed so that all tests can run:
   - `options CAPABILITY_MODE`: Enable capability mode
   - `options PROCDESC`: Enable process descriptors
   - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
-  - `options VFS_AIO`: Enable asynchronous I/O (or `kldload aio`)
 
 Other Dependencies
 ------------------
