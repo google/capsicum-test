@@ -35,11 +35,11 @@ double CompareSyscall(EntryFn entry_fn, int count, int nr,
 }
 
 FORK_TEST(Overhead, GetTid) {
-  EXPECT_GT(2.5, CompareSyscall(&cap_enter, 10000, __NR_gettid, 0, 0, 0));
+  EXPECT_GT(10, CompareSyscall(&cap_enter, 10000, __NR_gettid, 0, 0, 0));
 }
 FORK_TEST(Overhead, Seek) {
   int fd = open("/etc/passwd", O_RDONLY);
-  EXPECT_GT(35, CompareSyscall(&cap_enter, 10000, __NR_lseek, fd, 0, SEEK_SET));
+  EXPECT_GT(50, CompareSyscall(&cap_enter, 10000, __NR_lseek, fd, 0, SEEK_SET));
   close(fd);
 }
 #endif
