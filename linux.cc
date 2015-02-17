@@ -106,8 +106,7 @@ TEST(Linux, TimerFD) {
 
 FORK_TEST(Linux, SignalFD) {
   if (force_mt) {
-    fprintf(stderr, "Skipping signalfd test as running multi-threaded\n");
-    TEST_SKIPPED("multi-threaded runs clash with signals");
+    TEST_SKIPPED("multi-threaded run clashes with signals");
     return;
   }
   pid_t me = getpid();
@@ -1143,8 +1142,7 @@ TEST(Linux, Kcmp) {
   errno = 0;
   int rc = syscall(__NR_kcmp, parent, parent, KCMP_FILE, fd, fd);
   if (rc == -1 && errno == ENOSYS) {
-    fprintf(stderr, "Skipping kcmp(2) test as -ENOSYS\n");
-    TEST_SKIPPED("kcmp(2) -> -ENOSYS");
+    TEST_SKIPPED("kcmp(2) gives -ENOSYS");
     return;
   }
 
@@ -1251,8 +1249,7 @@ int memfd_create_(const char *name, unsigned int flags) {
 TEST(Linux, MemFDDeathTest) {
   int memfd = memfd_create_("capsicum-test", MFD_ALLOW_SEALING);
   if (memfd == -1 && errno == ENOSYS) {
-    fprintf(stderr, "Skipping memfd_create(2) test as -ENOSYS\n");
-    TEST_SKIPPED("memfd_create(2) -> -ENOSYS");
+    TEST_SKIPPED("memfd_create(2) gives -ENOSYS");
     return;
   }
   const int LEN = 16;

@@ -218,13 +218,13 @@ void TestSkipped(const char *testcase, const char *test, const std::string& reas
 #define TEST_SKIPPED(reason) \
   do { \
     const ::testing::TestInfo* const info = ::testing::UnitTest::GetInstance()->current_test_info(); \
+    std::cerr << "Skipping " << info->test_case_name() << "::" << info->name() << " because: " << reason << std::endl; \
     TestSkipped(info->test_case_name(), info->name(), reason);          \
   } while (0)
 
 // Mark a test that can only be run as root.
 #define REQUIRE_ROOT() \
   if (getuid() != 0) { \
-    fprintf(stderr, "This test needs to be run as root; skipping\n"); \
     TEST_SKIPPED("requires root"); \
     return; \
   }

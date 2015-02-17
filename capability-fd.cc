@@ -897,7 +897,6 @@ TEST(Capability, SyscallAt) {
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
     unlink("/tmp/cap_at_topdir/cap_fifo");
   } else {
-    fprintf(stderr, "mknodat(2) tests need to be run as root; skipping\n");
     TEST_SKIPPED("requires root (partial)");
   }
 
@@ -919,8 +918,7 @@ FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
   char buffer[1024];
   int rc = fgetxattr_(fd, "user.capsicumtest", buffer, sizeof(buffer));
   if (rc < 0 && errno == ENOTSUP) {
-    fprintf(stderr, "Filesystem for /tmp doesn't support extended attributes, skipping tests\n");
-    fprintf(stderr, "(need user_xattr mount option for non-root users on Linux)\n");
+    // Need user_xattr mount option for non-root users on Linux
     TEST_SKIPPED("/tmp doesn't support extended attributes");
     close(fd);
     return;
