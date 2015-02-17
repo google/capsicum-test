@@ -8,6 +8,7 @@
 #include <string>
 
 bool verbose = false;
+bool force_mt = false;
 
 char ProcessState(int pid) {
 #ifdef __linux__

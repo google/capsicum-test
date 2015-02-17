@@ -13,16 +13,53 @@
 #include "gtest/gtest.h"
 
 extern bool verbose;
+extern bool force_mt;
+
+static void *WaitingThreadFn(void *p) {
+  // Loop until cancelled
+  while (true) {
+    usleep(10000);
+    pthread_testcancel();
+  }
+  return NULL;
+}
+
+// If force_mt is set, run another thread in parallel with the test.  This forces
+// the kernel into multi-threaded mode.
+template <typename T, typename Function>
+void MaybeRunWithThread(T *self, Function fn) {
+  pthread_t subthread;
+  if (force_mt) {
+    pthread_create(&subthread, NULL, WaitingThreadFn, NULL);
+  }
+  (self->*fn)();
+  if (force_mt) {
+    pthread_cancel(subthread);
+    pthread_join(subthread, NULL);
+  }
+}
+template <typename Function>
+void MaybeRunWithThread(Function fn) {
+  pthread_t subthread;
+  if (force_mt) {
+    pthread_create(&subthread, NULL, WaitingThreadFn, NULL);
+  }
+  (fn)();
+  if (force_mt) {
+    pthread_cancel(subthread);
+    pthread_join(subthread, NULL);
+  }
+}
 
 // Run the given test function in a forked process, so that trapdoor
 // entry doesn't affect other tests, and watch out for hung processes.
 // Implemented as a macro to allow access to the test case instance's
 // HasFailure() method, which is reported as the forked process's
 // exit status.
-#define _RUN_FORKED(TESTFN, TESTCASENAME, TESTNAME)            \
+#define _RUN_FORKED(INNERCODE, TESTCASENAME, TESTNAME)         \
     pid_t pid = fork();                                        \
     if (pid == 0) {                                            \
-      TESTFN();                                                \
+      INNERCODE;                                               \
       exit(HasFailure());                                      \
     } else if (pid > 0) {                                      \
       int rc, status;                                          \
@@ -49,14 +86,18 @@ extern bool verbose;
         EXPECT_EQ(0, rc);                                      \
       }                                                        \
     }
+#define _RUN_FORKED_MEM(THIS, TESTFN, TESTCASENAME, TESTNAME)  \
+  _RUN_FORKED(MaybeRunWithThread(THIS, &TESTFN), TESTCASENAME, TESTNAME);
+#define _RUN_FORKED_FN(TESTFN, TESTCASENAME, TESTNAME)   \
+  _RUN_FORKED(MaybeRunWithThread(&TESTFN), TESTCASENAME, TESTNAME);
 
 // Run a test case in a forked process, possibly cleaning up a
 // test file after completion
 #define FORK_TEST_ON(test_case_name, test_name, test_file)     \
     static void test_case_name##_##test_name##_ForkTest();     \
     TEST(test_case_name, test_name ## Forked) {                \
-      _RUN_FORKED(test_case_name##_##test_name##_ForkTest,     \
-                  #test_case_name, #test_name);                \
+      _RUN_FORKED_FN(test_case_name##_##test_name##_ForkTest,  \
+                     #test_case_name, #test_name);             \
       const char *filename = test_file;                        \
       if (filename) unlink(filename);                          \
     }                                                          \
@@ -71,11 +112,12 @@ extern bool verbose;
   class ICLASS_NAME(test_case_name, test_name) : public test_case_name { \
     public:                                                    \
       ICLASS_NAME(test_case_name, test_name)() {}              \
-    protected:                                                 \
       void InnerTestBody();                                    \
     };                                                         \
     TEST_F(ICLASS_NAME(test_case_name, test_name), _) {        \
-      _RUN_FORKED(InnerTestBody, #test_case_name, #test_name); \
+      _RUN_FORKED_MEM(this,                                    \
+                      ICLASS_NAME(test_case_name, test_name)::InnerTestBody,  \
+                      #test_case_name, #test_name);            \
     }                                                          \
     void ICLASS_NAME(test_case_name, test_name)::InnerTestBody()
 

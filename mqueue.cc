@@ -16,8 +16,8 @@
 #define FORK_TEST_ON_MQ(test_case_name, test_name, test_mq)    \
     static void test_case_name##_##test_name##_ForkTest();     \
     TEST(test_case_name, test_name ## Forked) {                \
-      _RUN_FORKED(test_case_name##_##test_name##_ForkTest,     \
-                  #test_case_name, #test_name);                \
+      _RUN_FORKED_FN(test_case_name##_##test_name##_ForkTest,  \
+                     #test_case_name, #test_name);             \
       const char *mqname = test_mq;                            \
       if (mqname) mq_unlink_(mqname);                          \
     }                                                          \

@@ -105,6 +105,11 @@ TEST(Linux, TimerFD) {
 }
 
 FORK_TEST(Linux, SignalFD) {
+  if (force_mt) {
+    fprintf(stderr, "Skipping signalfd test as running multi-threaded\n");
+    TEST_SKIPPED("multi-threaded runs clash with signals");
+    return;
+  }
   pid_t me = getpid();
   sigset_t mask;
   sigemptyset(&mask);
