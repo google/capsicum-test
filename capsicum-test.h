@@ -15,7 +15,7 @@
 extern bool verbose;
 extern bool force_mt;
 
-static void *WaitingThreadFn(void *p) {
+static inline void *WaitingThreadFn(void *p) {
   // Loop until cancelled
   while (true) {
     usleep(10000);
