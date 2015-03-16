@@ -881,3 +881,83 @@ FORK_TEST(Pdfork, MissingRights) {
   EXPECT_EQ(pid, rc);
 }
 
+
+//------------------------------------------------
+// Passing process descriptors between processes.
+
+TEST_F(PipePdfork, PassProcessDescriptor) {
+  int sock_fds[2];
+  EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
+
+  struct msghdr mh;
+  mh.msg_name = NULL;  // No address needed
+  mh.msg_namelen = 0;
+  char buffer1[1024];
+  struct iovec iov[1];
+  iov[0].iov_base = buffer1;
+  iov[0].iov_len = sizeof(buffer1);
+  mh.msg_iov = iov;
+  mh.msg_iovlen = 1;
+  char buffer2[1024];
+  mh.msg_control = buffer2;
+  mh.msg_controllen = sizeof(buffer2);
+  struct cmsghdr *cmptr;
+
+  if (verbose) fprintf(stderr, "[%d] about to fork()\n", getpid_());
+  pid_t child2 = fork();
+  if (child2 == 0) {
+    // Child: wait to receive process descriptor over socket
+    if (verbose) fprintf(stderr, "  [%d] child of %d waiting for process descriptor on socket\n", getpid_(), getppid());
+    int rc = recvmsg(sock_fds[0], &mh, 0);
+    EXPECT_OK(rc);
+    EXPECT_LE(CMSG_LEN(sizeof(int)), mh.msg_controllen);
+    cmptr = CMSG_FIRSTHDR(&mh);
+    int pd = *(int*)CMSG_DATA(cmptr);
+    EXPECT_EQ(CMSG_LEN(sizeof(int)), cmptr->cmsg_len);
+    cmptr = CMSG_NXTHDR(&mh, cmptr);
+    EXPECT_TRUE(cmptr == NULL);
+    if (verbose) fprintf(stderr, "  [%d] got process descriptor %d on socket\n", getpid_(), pd);
+
+    // Child: confirm we can do pd*() operations on the process descriptor
+    pid_t other;
+    EXPECT_OK(pdgetpid(pd, &other));
+    if (verbose) fprintf(stderr, "  [%d] process descriptor %d is pid %d\n", getpid_(), pd, other);
+
+    sleep(2);
+    if (verbose) fprintf(stderr, "  [%d] close process descriptor %d\n", getpid_(), pd);
+    close(pd);
+
+    // Last process descriptor closed, expect death
+    EXPECT_PID_DEAD(other);
+
+    exit(HasFailure());
+  }
+  usleep(1000);  // Ensure subprocess runs
+
+  // Send the process descriptor over the pipe to the sub-process
+  mh.msg_controllen = CMSG_LEN(sizeof(int));
+  cmptr = CMSG_FIRSTHDR(&mh);
+  cmptr->cmsg_level = SOL_SOCKET;
+  cmptr->cmsg_type = SCM_RIGHTS;
+  cmptr->cmsg_len = CMSG_LEN(sizeof(int));
+  *(int *)CMSG_DATA(cmptr) = pd_;
+  buffer1[0] = 0;
+  iov[0].iov_len = 1;
+  sleep(1);
+  if (verbose) fprintf(stderr, "[%d] send process descriptor %d on socket\n", getpid_(), pd_);
+  int rc = sendmsg(sock_fds[1], &mh, 0);
+  EXPECT_OK(rc);
+
+  if (verbose) fprintf(stderr, "[%d] close process descriptor %d\n", getpid_(), pd_);
+  close(pd_);  // Not last open process descriptor
+
+  // wait for child2
+  int status;
+  EXPECT_EQ(child2, waitpid(child2, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  // confirm death all round
+  EXPECT_PID_DEAD(child2);
+  EXPECT_PID_DEAD(pid_);
+}
