@@ -687,7 +687,7 @@ static int ChildFunc(void *arg) {
     EXPECT_EQ(2, getpid_());
     EXPECT_EQ(1, getppid());
     while (true) {
-      if (verbose) fprintf(stderr, "      child of ChildFunc: still alive\n");
+      if (verbose) fprintf(stderr, "      child of ChildFunc: \"I aten't dead\"\n");
       sleep(1);
     }
     exit(0);
@@ -728,7 +728,7 @@ TEST(Linux, PidNamespacePdFork) {
   EXPECT_OK(firstborn);
   if (firstborn == 0) {
     while (true) {
-      if (verbose) fprintf(stderr, "  Firstborn: still alive\n");
+      if (verbose) fprintf(stderr, "  Firstborn: \"I aten't dead\"\n");
       sleep(1);
     }
     exit(0);
@@ -807,7 +807,7 @@ int NSInit(void *data) {
     // Child: loop forever until terminated.
     if (verbose) fprintf(stderr, "    child of NSInit: pid=%d, ppid=%d\n", getpid_(), getppid());
     while (true) {
-      if (verbose) fprintf(stderr, "    child of NSInit: still alive\n");
+      if (verbose) fprintf(stderr, "    child of NSInit: \"I aten't dead\"\n");
       usleep(100000);
     }
     exit(0);

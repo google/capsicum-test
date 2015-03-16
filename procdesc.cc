@@ -82,7 +82,7 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
     } else if (rc == pid) {
       break;
     }
-  } while (1);
+  } while (true);
   EXPECT_EQ(pid, rc);
   if (rc == pid) {
     if (signaled) {
@@ -217,7 +217,7 @@ TEST(Pdfork, NonProcessDescriptor) {
 
 static void *SubThreadMain(void *data) {
   while (true) {
-    if (verbose) fprintf(stderr, "      subthread still running\n");
+    if (verbose) fprintf(stderr, "      subthread: \"I aten't dead\"\n");
     usleep(100000);
   }
   return NULL;
@@ -231,7 +231,7 @@ static void *ThreadMain(void *data) {
     pthread_t child_subthread;
     EXPECT_OK(pthread_create(&child_subthread, NULL, SubThreadMain, NULL));
     while (true) {
-      if (verbose) fprintf(stderr, "    pdforked process %d still running\n", getpid());
+      if (verbose) fprintf(stderr, "    pdforked process %d: \"I aten't dead\"\n", getpid());
       usleep(100000);
     }
     exit(0);
@@ -520,7 +520,7 @@ FORK_TEST(Pdfork, OtherUser) {
   EXPECT_OK(pid);
   if (pid == 0) {
     // Child process: loop forever.
-    while(true) usleep(100000);
+    while (true) usleep(100000);
   }
   usleep(100);
 
@@ -620,7 +620,7 @@ TEST(Pdfork, PdkillOtherSignal) {
     // Child: watch for SIGUSR1 forever.
     had_signal.clear();
     signal(SIGUSR1, handle_signal);
-    while(!had_signal[SIGUSR1]) sleep(1);
+    while (!had_signal[SIGUSR1]) sleep(1);
     exit(123);
   }
   sleep(1);
@@ -659,7 +659,7 @@ pid_t PdforkParentDeath(int pdfork_flags) {
     pid_t grandchild = pdfork(&pd, pdfork_flags);
     if (grandchild == 0) {
       while (true) {
-        if (verbose) fprintf(stderr, "    [%d] grandchild still alive\n", getpid_());
+        if (verbose) fprintf(stderr, "    [%d] grandchild: \"I aten't dead\"\n", getpid_());
         sleep(1);
       }
     }
