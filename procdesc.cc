@@ -736,7 +736,7 @@ TEST_F(PipePdfork, ModeBits) {
   memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd_, &stat));
   if (verbose) print_stat(stderr, &stat);
-  EXPECT_EQ(S_IRWXU, stat.st_mode & S_IRWXU);
+  EXPECT_EQ(S_IRWXU, (long)(stat.st_mode & S_IRWXU));
 
   TerminateChild();
   usleep(100000);
@@ -744,7 +744,7 @@ TEST_F(PipePdfork, ModeBits) {
   memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd_, &stat));
   if (verbose) print_stat(stderr, &stat);
-  EXPECT_EQ(0, stat.st_mode & S_IRWXU);
+  EXPECT_EQ(0L, (stat.st_mode & S_IRWXU));
 }
 
 TEST_F(PipePdfork, WildcardWait) {

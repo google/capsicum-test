@@ -777,12 +777,12 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
   cap_rights_t r_rs;
   cap_rights_init(&r_rs, CAP_READ, CAP_SEEK);
 
-  int child = fork();
+  pid_t child = fork();
   if (child == 0) {
     // Child: enter cap mode
     EXPECT_OK(cap_enter());
 
-    // Child: wait to receive FD over pipe
+    // Child: wait to receive FD over socket
     int rc = recvmsg(sock_fds[0], &mh, 0);
     EXPECT_OK(rc);
     EXPECT_LE(CMSG_LEN(sizeof(int)), mh.msg_controllen);
