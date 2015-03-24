@@ -1,5 +1,6 @@
 // Tests of SCTP functionality
 // Requires: libsctp-dev package on Debian Linux, CONFIG_IP_SCTP in kernel config
+#ifdef HAVE_SCTP
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -208,3 +209,4 @@ TEST(Sctp, Socket) {
   close(cap_sock_all);
   close(cap_sock_all_nopeel);
 }
+#endif
