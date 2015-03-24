@@ -15,6 +15,7 @@
 #include <sys/syscall.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
+#include <linux/net.h>
 #include <linux/seccomp.h>
 #include <linux/unistd.h>
 #include <asm/prctl.h>
@@ -69,8 +70,12 @@ static struct sock_filter capmode_filter[] = {
 	EXAMINE_SYSCALL,
 
 	/* Allowed syscalls */
+#ifdef __NR_accept
 	ALLOW_SYSCALL(accept),
+#endif
+#ifdef __NR_accept4
 	ALLOW_SYSCALL(accept4),
+#endif
 	ALLOW_SYSCALL(brk),
 #ifdef __NR_cap_rights_get
 	ALLOW_SYSCALL(cap_rights_get),
@@ -94,8 +99,14 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(fchmod),
 	ALLOW_SYSCALL(fchmodat),
 	ALLOW_SYSCALL(fchown),
+#ifdef __NR_fchown32
+	ALLOW_SYSCALL(fchown32),
+#endif
 	ALLOW_SYSCALL(fchownat),
 	ALLOW_SYSCALL(fcntl),
+#ifdef __NR_fcntl64
+	ALLOW_SYSCALL(fcntl64),
+#endif
 	ALLOW_SYSCALL(fdatasync),
 	ALLOW_SYSCALL(fgetxattr),
 	ALLOW_SYSCALL(finit_module),
@@ -105,35 +116,61 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(fremovexattr),
 	ALLOW_SYSCALL(fsetxattr),
 	ALLOW_SYSCALL(fstat),
+#ifdef __NR_fstat64
+	ALLOW_SYSCALL(fstat64),
+#endif
+#ifdef __NR_fstatat64
+	ALLOW_SYSCALL(fstatat64),
+#endif
 	ALLOW_SYSCALL(fstatfs),
 	ALLOW_SYSCALL(fsync),
 	ALLOW_SYSCALL(ftruncate),
+#ifdef __NR_ftruncate64
+	ALLOW_SYSCALL(ftruncate64),
+#endif
 	ALLOW_SYSCALL(futimesat),
 	ALLOW_SYSCALL(getdents),
+#ifdef __NR_getdents64
+	ALLOW_SYSCALL(getdents64),
+#endif
 	ALLOW_SYSCALL(getegid),
 	ALLOW_SYSCALL(geteuid),
 	ALLOW_SYSCALL(getgid),
 	ALLOW_SYSCALL(getgroups),
 	ALLOW_SYSCALL(getitimer),
+#ifdef __NR_getpeername
 	ALLOW_SYSCALL(getpeername),
+#endif
 	ALLOW_SYSCALL(getpgid),
 	ALLOW_SYSCALL(getpgrp),
 	ALLOW_SYSCALL(getpid),
 	ALLOW_SYSCALL(getppid),
 	ALLOW_SYSCALL(getpriority),
 	ALLOW_SYSCALL(getresgid),
+#ifdef __NR_getresgid32
+	ALLOW_SYSCALL(getresgid32),
+#endif
 	ALLOW_SYSCALL(getresuid),
+#ifdef __NR_getresuid32
+	ALLOW_SYSCALL(getresuid32),
+#endif
 	ALLOW_SYSCALL(getrlimit),
 	ALLOW_SYSCALL(getrusage),
 	ALLOW_SYSCALL(getsid),
+#ifdef __NR_getsockname
 	ALLOW_SYSCALL(getsockname),
+#endif
+#ifdef __NR_getsockopt
 	ALLOW_SYSCALL(getsockopt),
+#endif
 	ALLOW_SYSCALL(gettid),
 	ALLOW_SYSCALL(gettimeofday),
 	ALLOW_SYSCALL(getuid),
 	ALLOW_SYSCALL(ioctl),
 	ALLOW_SYSCALL(linkat),
+#ifdef __NR_listen
 	ALLOW_SYSCALL(listen),
+#endif
 	ALLOW_SYSCALL(lseek),
 	ALLOW_SYSCALL(madvise),
 	ALLOW_SYSCALL(mincore),
@@ -151,7 +188,15 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(munlockall),
 	ALLOW_SYSCALL(munmap),
 	ALLOW_SYSCALL(nanosleep),
+#ifdef __NR_newfstatat
 	ALLOW_SYSCALL(newfstatat),
+#endif
+#ifdef __NR__newselect
+	ALLOW_SYSCALL(_newselect),
+#endif
+#ifdef __NR_oldfstat
+	ALLOW_SYSCALL(oldfstat),
+#endif
 #ifdef __NR_pdfork
 	ALLOW_SYSCALL(pdfork),
 #endif
@@ -177,9 +222,13 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(readahead),
 	ALLOW_SYSCALL(readlinkat),
 	ALLOW_SYSCALL(readv),
+#ifdef __NR_recvfrom
 	ALLOW_SYSCALL(recvfrom),
+#endif
 	ALLOW_SYSCALL(recvmmsg),
+#ifdef __NR_recvmsg
 	ALLOW_SYSCALL(recvmsg),
+#endif
 	ALLOW_SYSCALL(renameat),
 	ALLOW_SYSCALL(rt_sigaction),
 	ALLOW_SYSCALL(rt_sigpending),
@@ -199,26 +248,111 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(sched_yield),
 	ALLOW_SYSCALL(select),
 	ALLOW_SYSCALL(sendfile),
+#ifdef __NR_sendfile64
+	ALLOW_SYSCALL(sendfile64),
+#endif
 	ALLOW_SYSCALL(sendmmsg),
+#ifdef __NR_sendmsg
 	ALLOW_SYSCALL(sendmsg),
+#endif
+#ifdef __NR_sendto
 	ALLOW_SYSCALL(sendto),
+#endif
+
+
+
 	ALLOW_SYSCALL(setfsgid),
+#ifdef __NR_setfsgid32
+	ALLOW_SYSCALL(setfsgid32),
+#endif
 	ALLOW_SYSCALL(setfsuid),
+#ifdef __NR_setfsuid32
+	ALLOW_SYSCALL(setfsuid32),
+#endif
 	ALLOW_SYSCALL(setgid),
+#ifdef __NR_setgid32
+	ALLOW_SYSCALL(setgid32),
+#endif
 	ALLOW_SYSCALL(setitimer),
 	ALLOW_SYSCALL(setpriority),
 	ALLOW_SYSCALL(setregid),
+#ifdef __NR_setregid32
+	ALLOW_SYSCALL(setregid32),
+#endif
 	ALLOW_SYSCALL(setresgid),
+#ifdef __NR_setresgid32
+	ALLOW_SYSCALL(setresgid32),
+#endif
 	ALLOW_SYSCALL(setresuid),
+#ifdef __NR_setresuid32
+	ALLOW_SYSCALL(setresuid32),
+#endif
 	ALLOW_SYSCALL(setreuid),
+#ifdef __NR_setreuid32
+	ALLOW_SYSCALL(setreuid32),
+#endif
 	ALLOW_SYSCALL(setrlimit),
 	ALLOW_SYSCALL(setsid),
+#ifdef __NR_setsockopt
 	ALLOW_SYSCALL(setsockopt),
+#endif
 	ALLOW_SYSCALL(setuid),
+#ifdef __NR_setuid32
+	ALLOW_SYSCALL(setuid32),
+#endif
+#ifdef __NR_set_thread_area
+	ALLOW_SYSCALL(set_thread_area),
+#endif
+#ifdef __NR_shutdown
 	ALLOW_SYSCALL(shutdown),
+#endif
 	ALLOW_SYSCALL(sigaltstack),
+#ifdef __NR_socket
 	ALLOW_SYSCALL(socket),
+#endif
+#ifdef __NR_socketcall
+	/* socketcall is a multiplexor equivalent to various other syscalls */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_socketcall, 0, 36),
+	EXAMINE_ARG(0),  /* call */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_LISTEN, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_ACCEPT, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_GETSOCKNAME, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_GETPEERNAME, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SOCKETPAIR, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SEND, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SENDTO, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_RECV, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_RECVFROM, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SHUTDOWN, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SETSOCKOPT, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_GETSOCKOPT, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SENDMSG, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SENDMMSG, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_RECVMSG, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_RECVMMSG, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_ACCEPT4, 0, 1),
+	ALLOW,
+	FAIL_ECAPMODE,  /* Deny SYS_SOCKET, SYS_BIND, SYS_CONNECT */
+#endif
+#ifdef __NR_socketpair
 	ALLOW_SYSCALL(socketpair),
+#endif
 	ALLOW_SYSCALL(symlinkat),
 	ALLOW_SYSCALL(sync),
 	ALLOW_SYSCALL(syncfs),
@@ -283,6 +417,17 @@ static struct sock_filter capmode_filter[] = {
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(MAP_SHARED|MAP_PRIVATE|MAP_32BIT|MAP_FIXED|MAP_HUGETLB|MAP_NONBLOCK|MAP_NORESERVE|MAP_POPULATE|MAP_STACK), 0, 1),
 	FAIL_ECAPMODE,
 	ALLOW,
+
+#ifdef __NR_mmap2
+	/* mmap2(2) */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_mmap2, 0, 6),
+	EXAMINE_ARG(3),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(MAP_SHARED|MAP_PRIVATE|MAP_32BIT|MAP_FIXED|MAP_HUGETLB|MAP_NONBLOCK|MAP_NORESERVE|MAP_POPULATE|MAP_STACK), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+#endif
 
 	/* openat(2) */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 7),
