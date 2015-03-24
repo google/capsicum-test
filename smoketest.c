@@ -23,8 +23,8 @@ int main(int argc, char *argv[]) {
   cap_rights_init(&r_rws, CAP_READ, CAP_WRITE, CAP_SEEK);
   int cap_fd = dup(STDOUT_FILENO);
   int rc = cap_rights_limit(cap_fd, &r_rws);
-  fprintf(stderr, "cap_fd=%d\n", cap_fd);
-  if (rc < 0) fprintf(stderr, "cap_rights_limit() failed: errno=%d %s\n", errno, strerror(errno));
+  fprintf(stderr, "[%d] cap_fd=%d\n", getpid(), cap_fd);
+  if (rc < 0) fprintf(stderr, "*** cap_rights_limit() failed: errno=%d %s\n", errno, strerror(errno));
 
   /* cap_rights_get() available? */
   cap_rights_t rights;
@@ -32,63 +32,74 @@ int main(int argc, char *argv[]) {
   rc = cap_rights_get(cap_fd, &rights);
   char buffer[256];
   cap_rights_describe(&rights, buffer);
-  fprintf(stderr, "cap_rights_get(cap_fd=%d) rc=%d rights=%s\n", cap_fd, rc, buffer);
-  if (rc < 0) fprintf(stderr, "cap_rights_get() failed: errno=%d %s\n", errno, strerror(errno));
+  fprintf(stderr, "[%d] cap_rights_get(cap_fd=%d) rc=%d rights=%s\n", getpid(), cap_fd, rc, buffer);
+  if (rc < 0) fprintf(stderr, "*** cap_rights_get() failed: errno=%d %s\n", errno, strerror(errno));
+
+  /* fstat() policed? */
+  struct stat buf;
+  rc = fstat(cap_fd, &buf);
+  fprintf(stderr, "[%d] fstat(cap_fd=%d) rc=%d errno=%d\n", getpid(), cap_fd, rc, errno);
+  if (rc != -1) fprintf(stderr, "*** fstat() unexpectedly succeeded\n");
 
   /* pdfork() available? */
   int pd = -1;
   rc = pdfork(&pd, 0);
-  fprintf(stderr, "[%d] pdfork() rc=%d pd=%d\n", getpid(), rc, pd);
-  if (rc < 0) fprintf(stderr, "pdfork() failed: errno=%d %s\n", errno, strerror(errno));
+  if (rc < 0) fprintf(stderr, "*** pdfork() failed: errno=%d %s\n", errno, strerror(errno));
 
   if (rc == 0) { /* child */
     int count = 0;
     while (count < 20) {
-      fprintf(stderr, "[%d] child alive, parent is ppid=%d\n", getpid(), getppid());
+      fprintf(stderr, "  [%d] child alive, parent is ppid=%d\n", getpid(), getppid());
       sleep(1);
     }
-    fprintf(stderr, "[%d] child exit(0)\n", getpid());
+    fprintf(stderr, "  [%d] child exit(0)\n", getpid());
     exit(0);
   }
+  fprintf(stderr, "[%d] pdfork() rc=%d pd=%d\n", getpid(), rc, pd);
 
   /* pdgetpid() available? */
   pid_t actual_pid = rc;
   pid_t got_pid = -1;
   rc = pdgetpid(pd, &got_pid);
-  if (rc < 0) fprintf(stderr, "pdgetpid(pd=%d) failed: errno=%d %s\n", pd, errno, strerror(errno));
-  fprintf(stderr, "pdgetpid(pd=%d)=%d, pdfork returned %d\n", pd, got_pid, actual_pid);
+  if (rc < 0) fprintf(stderr, "*** pdgetpid(pd=%d) failed: errno=%d %s\n", pd, errno, strerror(errno));
+  fprintf(stderr, "[%d] pdgetpid(pd=%d)=%d, pdfork returned %d\n", getpid(), pd, got_pid, actual_pid);
 
   sleep(lifetime);
+
   /* pdkill() available? */
   rc = pdkill(pd, SIGKILL);
   fprintf(stderr, "[%d] pdkill(pd=%d, SIGKILL) -> rc=%d\n", getpid(), pd, rc);
-  if (rc < 0) fprintf(stderr, "pdkill() failed: errno=%d %s\n", errno, strerror(errno));
+  if (rc < 0) fprintf(stderr, "*** pdkill() failed: errno=%d %s\n", errno, strerror(errno));
 
   fprintf(stderr, "[%d] forking off a child process to check cap_enter()\n", getpid());
   if (fork() == 0) {
     /* cap_getmode() / cap_enter() available? */
     unsigned int cap_mode = -1;
     rc = cap_getmode(&cap_mode);
-    fprintf(stderr, "[%d] cap_getmode() -> rc=%d, cap_mode=%d\n", getpid(), rc, cap_mode);
-    if (rc < 0) fprintf(stderr, "cap_enter() failed: errno=%d %s\n", errno, strerror(errno));
+    fprintf(stderr, "  [%d] cap_getmode() -> rc=%d, cap_mode=%d\n", getpid(), rc, cap_mode);
+    if (rc < 0) fprintf(stderr, "*** cap_getmode() failed: errno=%d %s\n", errno, strerror(errno));
 
     rc = cap_enter();
-    fprintf(stderr, "[%d] cap_enter() -> rc=%d\n", getpid(), rc);
-    if (rc < 0) fprintf(stderr, "cap_enter() failed: errno=%d %s\n", errno, strerror(errno));
+    fprintf(stderr, "  [%d] cap_enter() -> rc=%d\n", getpid(), rc);
+    if (rc < 0) fprintf(stderr, "*** cap_enter() failed: errno=%d %s\n", errno, strerror(errno));
 
     rc = cap_getmode(&cap_mode);
-    fprintf(stderr, "[%d] cap_getmode() -> rc=%d, cap_mode=%d\n", getpid(), rc, cap_mode);
-    if (rc < 0) fprintf(stderr, "cap_enter() failed: errno=%d %s\n", errno, strerror(errno));
+    fprintf(stderr, "  [%d] cap_getmode() -> rc=%d, cap_mode=%d\n", getpid(), rc, cap_mode);
+    if (rc < 0) fprintf(stderr, "*** cap_getmode() failed: errno=%d %s\n", errno, strerror(errno));
+
+    /* open disallowed? */
+    rc = open("/etc/passwd", O_RDONLY);
+    fprintf(stderr, "  [%d] open('/etc/passwd/) -> rc=%d, errno=%d\n", getpid(), rc, errno);
+    if (rc != -1) fprintf(stderr, "*** open() unexpectedly succeeded\n");
   } else {
     /* fexecve() available? */
-    char* argv_pass[] = {(char*)"/bin/ls", NULL};
+    char* argv_pass[] = {(char*)"/bin/ls", "-l", "smoketest", NULL};
     char* null_envp[] = {NULL};
     int ls_bin = open("/bin/ls", O_RDONLY);
-    fprintf(stderr, "[%d] about to fexecve('/bin/ls')\n", getpid());
+    fprintf(stderr, "[%d] about to fexecve('/bin/ls', '-l', 'smoketest')\n", getpid());
     rc = fexecve(ls_bin, argv_pass, null_envp);
     /* should never reach here */
-    fprintf(stderr, "[%d] fexecve(fd=%d, ...) -> rc=%d\n", getpid(), ls_bin, rc);
-    if (rc < 0) fprintf(stderr, "fexecve() failed: errno=%d %s\n", errno, strerror(errno));
+    fprintf(stderr, "*** fexecve(fd=%d) failed: rc=%d errno=%d %s\n", ls_bin, rc, errno, strerror(errno));
   }
 
   return 0;
