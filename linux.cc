@@ -1091,7 +1091,8 @@ TEST(Linux, AIO) {
   memset(&req, 0, sizeof(req));
   req.aio_reqprio = 0;
   req.aio_fildes = fd;
-  req.aio_buf = (__u64)buffer;
+  uintptr_t bufaddr = (uintptr_t)buffer;
+  req.aio_buf = (__u64)bufaddr;
   req.aio_nbytes = 4;
   req.aio_offset = 0;
   struct iocb* reqs[1] = {&req};
