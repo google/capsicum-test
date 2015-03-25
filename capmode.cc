@@ -126,8 +126,6 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   struct stat sb;
   EXPECT_OK(fstat(fd_file_, &sb));
   EXPECT_OK(lseek(fd_file_, 0, SEEK_SET));
-  char sbuf[32];
-  EXPECT_OK(profil((profil_arg1_t*)sbuf, sizeof(sbuf), 0, 1));
   char ch;
   EXPECT_OK(read(fd_file_, &ch, sizeof(ch)));
   EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
@@ -303,6 +301,13 @@ FORK_TEST(Capmode, AllowedTimerSyscalls) {
   ts.tv_sec = 0;
   ts.tv_nsec = 1;
   EXPECT_OK(nanosleep(&ts, NULL));
+}
+
+
+FORK_TEST(Capmode, AllowedProfilSyscall) {
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+  char sbuf[32];
+  EXPECT_OK(profil((profil_arg1_t*)sbuf, sizeof(sbuf), 0, 1));
 }
 
 
