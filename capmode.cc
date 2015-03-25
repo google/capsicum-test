@@ -236,15 +236,15 @@ FORK_TEST(Capmode, AllowedIdentifierSyscalls) {
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
-  EXPECT_EQ(my_gid, getegid());
-  EXPECT_EQ(my_uid, geteuid());
-  EXPECT_EQ(my_gid, getgid());
+  EXPECT_EQ(my_gid, getegid_());
+  EXPECT_EQ(my_uid, geteuid_());
+  EXPECT_EQ(my_gid, getgid_());
   EXPECT_EQ(my_pid, getpid());
   EXPECT_EQ(my_ppid, getppid());
-  EXPECT_EQ(my_uid, getuid());
+  EXPECT_EQ(my_uid, getuid_());
   EXPECT_EQ(my_sid, getsid(my_pid));
   gid_t grps[128];
-  EXPECT_OK(getgroups(128, grps));
+  EXPECT_OK(getgroups_(128, grps));
   uid_t ruid;
   uid_t euid;
   uid_t suid;

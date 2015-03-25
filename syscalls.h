@@ -85,6 +85,11 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
   return ptrace(request, pid, (caddr_t)addr, static_cast<int>((long)data));
 }
 #define PTRACE_PEEKDATA_ PT_READ_D
+#define getegid_ getegid
+#define getgid_ getgid
+#define geteuid_ geteuid
+#define getuid_ getuid
+#define getgroups_ getgroups
 
 /* Features available */
 #if __FreeBSD_version >= 1000000
@@ -159,6 +164,15 @@ static inline int execveat(int fd, const char *path,
 static inline int fexecve_(int fd, char *const argv[], char *const envp[]) {
   return execveat(fd, "", argv, envp, AT_EMPTY_PATH);
 }
+/*
+ * Linux glibc attempts to be clever and intercepts various uid/gid functions.
+ * Bypass by calling the syscalls directly.
+ */
+static inline gid_t getegid_(void) { return syscall(__NR_getegid); }
+static inline gid_t getgid_(void) { return syscall(__NR_getgid); }
+static inline uid_t geteuid_(void) { return syscall(__NR_geteuid); }
+static inline uid_t getuid_(void) { return syscall(__NR_getuid); }
+static inline int getgroups_(int size, gid_t list[]) { return syscall(__NR_getgroups, size, list); }
 
 #define mincore_ mincore
 #define sendfile_ sendfile
