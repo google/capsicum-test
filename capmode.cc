@@ -322,7 +322,7 @@ FORK_TEST(Capmode, AllowedResourceSyscalls) {
   EXPECT_EQ(0, errno);
   EXPECT_OK(setpriority(PRIO_PROCESS, 0, rc));
   struct rlimit rlim;
-  EXPECT_OK(getrlimit(RLIMIT_CORE, &rlim));
+  EXPECT_OK(getrlimit_(RLIMIT_CORE, &rlim));
   EXPECT_OK(setrlimit(RLIMIT_CORE, &rlim));
   struct rusage ruse;
   EXPECT_OK(getrusage(RUSAGE_SELF, &ruse));

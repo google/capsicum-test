@@ -90,6 +90,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define geteuid_ geteuid
 #define getuid_ getuid
 #define getgroups_ getgroups
+#define getrlimit_ getrlimit
 
 /* Features available */
 #if __FreeBSD_version >= 1000000
@@ -173,6 +174,9 @@ static inline gid_t getgid_(void) { return syscall(__NR_getgid); }
 static inline uid_t geteuid_(void) { return syscall(__NR_geteuid); }
 static inline uid_t getuid_(void) { return syscall(__NR_getuid); }
 static inline int getgroups_(int size, gid_t list[]) { return syscall(__NR_getgroups, size, list); }
+static inline int getrlimit_(int resource, struct rlimit *rlim) {
+  return syscall(__NR_getrlimit, resource, rlim);
+}
 
 #define mincore_ mincore
 #define sendfile_ sendfile
