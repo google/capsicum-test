@@ -9,6 +9,7 @@
 
 bool verbose = false;
 bool force_mt = false;
+bool force_nofork = false;
 
 char ProcessState(int pid) {
 #ifdef __linux__

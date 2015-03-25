@@ -9,6 +9,8 @@ int main(int argc, char* argv[]) {
       verbose = true;
     } else if (strcmp(argv[ii], "-t") == 0) {
       force_mt = true;
+    } else if (strcmp(argv[ii], "-F") == 0) {
+      force_nofork = true;
     }
   }
   int rc = RUN_ALL_TESTS();

@@ -14,6 +14,7 @@
 
 extern bool verbose;
 extern bool force_mt;
+extern bool force_nofork;
 
 static inline void *WaitingThreadFn(void *p) {
   // Loop until cancelled
@@ -57,10 +58,12 @@ void MaybeRunWithThread(Function fn) {
 // HasFailure() method, which is reported as the forked process's
 // exit status.
 #define _RUN_FORKED(INNERCODE, TESTCASENAME, TESTNAME)         \
-    pid_t pid = fork();                                        \
+    pid_t pid = force_nofork ? 0 : fork();                     \
     if (pid == 0) {                                            \
       INNERCODE;                                               \
-      exit(HasFailure());                                      \
+      if (!force_nofork) {                                     \
+        exit(HasFailure());                                    \
+      }                                                        \
     } else if (pid > 0) {                                      \
       int rc, status;                                          \
       int remaining_us = 10000000;                             \
