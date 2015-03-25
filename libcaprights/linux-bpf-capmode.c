@@ -260,8 +260,6 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(sendto),
 #endif
 
-
-
 	ALLOW_SYSCALL(setfsgid),
 #ifdef __NR_setfsgid32
 	ALLOW_SYSCALL(setfsgid32),
@@ -308,6 +306,32 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(shutdown),
 #endif
 	ALLOW_SYSCALL(sigaltstack),
+
+#ifdef __NR_sigaction
+	ALLOW_SYSCALL(sigaction),
+#endif
+#ifdef __NR_signal
+	ALLOW_SYSCALL(signal),
+#endif
+#ifdef __NR_signalfd
+	ALLOW_SYSCALL(signalfd),
+#endif
+#ifdef __NR_signalfd4
+	ALLOW_SYSCALL(signalfd4),
+#endif
+#ifdef __NR_sigpending
+	ALLOW_SYSCALL(sigpending),
+#endif
+#ifdef __NR_sigprocmask
+	ALLOW_SYSCALL(sigprocmask),
+#endif
+#ifdef __NR_sigreturn
+	ALLOW_SYSCALL(sigreturn),
+#endif
+#ifdef __NR_sigsuspend
+	ALLOW_SYSCALL(sigsuspend),
+#endif
+
 #ifdef __NR_socket
 	ALLOW_SYSCALL(socket),
 #endif
