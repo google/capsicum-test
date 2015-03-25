@@ -118,6 +118,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
  * Linux
  ************************************************************/
 #ifdef __linux__
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
@@ -128,26 +129,39 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #include <sys/sendfile.h>
 #include <sys/statfs.h>
 #include <sys/xattr.h>
+#include <sys/mount.h>
 
 /* profil(2) has a first argument of unsigned short* */
 #define profil_arg1_t unsigned short
 
-inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
+static inline int getdents_(unsigned int fd, void *dirp, unsigned int count) {
   return syscall(__NR_getdents, fd, dirp, count);
 }
 /* A sample mount(2) call */
-#include <sys/mount.h>
-inline int bogus_mount_() {
+static inline int bogus_mount_() {
   return mount("/dev/bogus", "/bogus", "debugfs", MS_RDONLY, "");
+}
+
+/* libc's getpid() wrapper caches the pid value, and doesn't invalidate
+ * the cached value on pdfork(), so directly syscall. */
+static inline pid_t getpid_() {
+  return syscall(__NR_getpid);
+}
+static inline int execveat(int fd, const char *path,
+                           char *const argv[], char *const envp[], int flags) {
+  return syscall(__NR_execveat, fd, path, argv, envp, flags);
+}
+
+/*
+ * Linux glibc includes an fexecve() function, implemented via the /proc
+ * filesystem.  Bypass this and go directly to the execveat(2) syscall.
+ */
+static inline int fexecve_(int fd, char *const argv[], char *const envp[]) {
+  return execveat(fd, "", argv, envp, AT_EMPTY_PATH);
 }
 
 #define mincore_ mincore
 #define sendfile_ sendfile
-/* libc's getpid() wrapper caches the pid value, and doesn't invalidate
- * the cached value on pdfork(), so directly syscall. */
-inline pid_t getpid_() {
-  return syscall(__NR_getpid);
-}
 #define flistxattr_ flistxattr
 #define fgetxattr_ fgetxattr
 #define fsetxattr_ fsetxattr

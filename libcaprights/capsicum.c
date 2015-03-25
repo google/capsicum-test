@@ -172,18 +172,6 @@ ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds) {
     return rc;
 }
 
-int execveat(int fd, const char *path, char *const argv[], char *const envp[], int flags) {
-  return syscall(__NR_execveat, fd, path, argv, envp, flags);
-}
-
-/*
- * Linux glibc includes an fexecve() function, implemented via the /proc
- * filesystem.  Bypass this and go directly to the execveat(2) syscall.
- */
-int fexecve_(int fd, char *const argv[], char *const envp[]) {
-  return execveat(fd, "", argv, envp, AT_EMPTY_PATH);
-}
-
 int pdfork(int *fd, int flags) {
   return syscall(__NR_pdfork, fd, flags);
 }
