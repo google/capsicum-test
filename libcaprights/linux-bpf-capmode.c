@@ -24,6 +24,7 @@
 #if defined(__i386__)
 #define ARCH_NR	AUDIT_ARCH_I386
 #elif defined(__x86_64__)
+/* Note: x86_64 also includes x32 ABI */
 #define ARCH_NR	AUDIT_ARCH_X86_64
 #else
 #warning "Platform does not support seccomp filter yet"
@@ -483,6 +484,73 @@ static struct sock_filter capmode_filter[] = {
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_MCE_KILL_GET, 0, 1),
 	ALLOW,
 	FAIL_ECAPMODE,
+
+#ifdef __NR_x32_rt_sigaction
+	ALLOW_SYSCALL(x32_rt_sigaction),
+#endif
+#ifdef __NR_x32_rt_sigreturn
+	ALLOW_SYSCALL(x32_rt_sigreturn),
+#endif
+#ifdef __NR_x32_ioctl
+	ALLOW_SYSCALL(x32_ioctl),
+#endif
+#ifdef __NR_x32_readv
+	ALLOW_SYSCALL(x32_readv),
+#endif
+#ifdef __NR_x32_writev
+	ALLOW_SYSCALL(x32_writev),
+#endif
+#ifdef __NR_x32_recvfrom
+	ALLOW_SYSCALL(x32_recvfrom),
+#endif
+#ifdef __NR_x32_sendmsg
+	ALLOW_SYSCALL(x32_sendmsg),
+#endif
+#ifdef __NR_x32_recvmsg
+	ALLOW_SYSCALL(x32_recvmsg),
+#endif
+#ifdef __NR_x32_rt_sigpending
+	ALLOW_SYSCALL(x32_rt_sigpending),
+#endif
+#ifdef __NR_x32_rt_sigtimedwait
+	ALLOW_SYSCALL(x32_rt_sigtimedwait),
+#endif
+#ifdef __NR_x32_rt_sigqueueinfo
+	ALLOW_SYSCALL(x32_rt_sigqueueinfo),
+#endif
+#ifdef __NR_x32_sigaltstack
+	ALLOW_SYSCALL(x32_sigaltstack),
+#endif
+#ifdef __NR_x32_mq_notify
+	ALLOW_SYSCALL(x32_mq_notify),
+#endif
+#ifdef __NR_x32_vmsplice
+	ALLOW_SYSCALL(x32_vmsplice),
+#endif
+#ifdef __NR_x32_preadv
+	ALLOW_SYSCALL(x32_preadv),
+#endif
+#ifdef __NR_x32_pwritev
+	ALLOW_SYSCALL(x32_pwritev),
+#endif
+#ifdef __NR_x32_rt_tgsigqueueinfo
+	ALLOW_SYSCALL(x32_rt_tgsigqueueinfo),
+#endif
+#ifdef __NR_x32_recvmmsg
+	ALLOW_SYSCALL(x32_recvmmsg),
+#endif
+#ifdef __NR_X32_sendmmsg
+	ALLOW_SYSCALL(x32_sendmmsg),
+#endif
+#ifdef __NR_x32_setsockopt
+	ALLOW_SYSCALL(x32_setsockopt),
+#endif
+#ifdef __NR_x32_getsockopt
+	ALLOW_SYSCALL(x32_getsockopt),
+#endif
+#ifdef __NR_x32_execveat
+	ALLOW_SYSCALL(x32_execveat),
+#endif
 
 	/* Fail everything else */
 	FAIL_ECAPMODE,
