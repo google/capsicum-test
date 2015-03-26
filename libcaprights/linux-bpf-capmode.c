@@ -1,6 +1,7 @@
 /* seccomp-BPF implementation of capability mode */
 #ifdef __linux__
 #define _GNU_SOURCE  /* to get O_* constants */
+#include "config.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -18,6 +19,9 @@
 #include <linux/net.h>
 #include <linux/seccomp.h>
 #include <linux/unistd.h>
+#ifdef HAVE_ASM_UNISTD_64_X32_H
+#include <asm/unistd_64_x32.h>
+#endif
 #include <asm/prctl.h>
 
 /* Macros for BPF generation */
