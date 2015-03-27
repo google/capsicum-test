@@ -40,8 +40,8 @@ static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
 }
 
 static void print_rusage(FILE *f, struct rusage *ru) {
-  fprintf(f, "  User CPU time=%ld.%06ld\n", ru->ru_utime.tv_sec, ru->ru_utime.tv_usec);
-  fprintf(f, "  System CPU time=%ld.%06ld\n", ru->ru_stime.tv_sec, ru->ru_stime.tv_usec);
+  fprintf(f, "  User CPU time=%ld.%06ld\n", (long)ru->ru_utime.tv_sec, (long)ru->ru_utime.tv_usec);
+  fprintf(f, "  System CPU time=%ld.%06ld\n", (long)ru->ru_stime.tv_sec, (long)ru->ru_stime.tv_usec);
   fprintf(f, "  Max RSS=%ld\n", ru->ru_maxrss);
 }
 
@@ -55,12 +55,12 @@ static void print_stat(FILE *f, const struct stat *stat) {
           ".st_atime=%ld, .st_mtime=%ld, .st_ctime=%ld}\n",
           (long)stat->st_dev, (long)stat->st_ino, stat->st_mode,
           (long)stat->st_nlink, stat->st_uid, stat->st_gid,
-          (long)stat->st_rdev, stat->st_size, (long)stat->st_blksize,
-          stat->st_blocks,
+          (long)stat->st_rdev, (long)stat->st_size, (long)stat->st_blksize,
+          (long)stat->st_blocks,
 #ifdef HAVE_STAT_BIRTHTIME
-          stat->st_birthtime,
+          (long)stat->st_birthtime,
 #endif
-          stat->st_atime, stat->st_mtime, stat->st_ctime);
+          (long)stat->st_atime, (long)stat->st_mtime, (long)stat->st_ctime);
 }
 
 static std::map<int,bool> had_signal;
@@ -155,7 +155,7 @@ TEST(Pdfork, InvalidFlag) {
 TEST(Pdfork, TimeCheck) {
   time_t now = time(NULL);  // seconds since epoch
   EXPECT_NE(-1, now);
-  if (verbose) fprintf(stderr, "Calling pdfork around %ld\n", now);
+  if (verbose) fprintf(stderr, "Calling pdfork around %ld\n", (long)(long)now);
 
   int pd = -1;
   pid_t pid = pdfork(&pd, 0);
@@ -744,7 +744,7 @@ TEST_F(PipePdfork, ModeBits) {
   memset(&stat, 0, sizeof(stat));
   EXPECT_OK(fstat(pd_, &stat));
   if (verbose) print_stat(stderr, &stat);
-  EXPECT_EQ(0L, (stat.st_mode & S_IRWXU));
+  EXPECT_EQ(0, (int)(stat.st_mode & S_IRWXU));
 }
 
 TEST_F(PipePdfork, WildcardWait) {
