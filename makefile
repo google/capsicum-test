@@ -4,28 +4,29 @@ OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.
 GTEST_DIR=gtest-1.6.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
 GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
-CXXFLAGS+=-Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS)
+CXXFLAGS+=$(ARCHFLAG) -Wall -g -ansi $(GTEST_INCS) $(GTEST_FLAGS)
+CFLAGS+=$(ARCHFLAG) -Wall -g
 
 capsicum-test: $(OBJECTS) libgtest.a
-	$(CXX) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP) $(LIBCAPRIGHTS)
+	$(CXX) $(CXXFLAGS) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP) $(LIBCAPRIGHTS)
 
 # Small statically-linked program for fexecve tests
 # (needs to be statically linked so that execve()ing it
 # doesn't involve ld.so traversing the filesystem).
 mini-me: mini-me.c
-	$(CC) -static -o $@ $<
+	$(CC) $(CFLAGS) -static -o $@ $<
 mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
 
 # Simple C test of Capsicum syscalls
 SMOKETEST_OBJECTS=smoketest.o
 smoketest: $(SMOKETEST_OBJECTS)
-	$(CC) -g -o $@ $(SMOKETEST_OBJECTS) $(LIBCAPRIGHTS)
+	$(CC) $(CFLAGS) -o $@ $(SMOKETEST_OBJECTS) $(LIBCAPRIGHTS)
 
 test: capsicum-test mini-me mini-me.noexec
 	./capsicum-test
 gtest-all.o:
-	$(CXX) -I$(GTEST_DIR)/include -I$(GTEST_DIR) $(GTEST_FLAGS) -c ${GTEST_DIR}/src/gtest-all.cc
+	$(CXX) $(ARCHFLAG) -I$(GTEST_DIR)/include -I$(GTEST_DIR) $(GTEST_FLAGS) -c ${GTEST_DIR}/src/gtest-all.cc
 libgtest.a: gtest-all.o
 	$(AR) -rv libgtest.a gtest-all.o
 
