@@ -44,8 +44,8 @@ TEST(Socket, UnixDomain) {
     un.sun_family = AF_UNIX;
     strcpy(un.sun_path, socketName);
     socklen_t len = sizeof(un);
-    EXPECT_NOTCAPABLE(connect(cap_sock_rw, (struct sockaddr *)&un, len));
-    EXPECT_OK(connect(cap_sock_all, (struct sockaddr *)&un, len));
+    EXPECT_NOTCAPABLE(connect_(cap_sock_rw, (struct sockaddr *)&un, len));
+    EXPECT_OK(connect_(cap_sock_all, (struct sockaddr *)&un, len));
 
     exit(HasFailure());
   }
@@ -69,8 +69,8 @@ TEST(Socket, UnixDomain) {
   socklen_t len =  (sizeof(un) - sizeof(un.sun_path) + strlen(un.sun_path));
 
   // Can only bind the fully-capable socket.
-  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&un, len));
-  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&un, len));
+  EXPECT_NOTCAPABLE(bind_(cap_sock_rw, (struct sockaddr *)&un, len));
+  EXPECT_OK(bind_(cap_sock_all, (struct sockaddr *)&un, len));
 
   // Can only listen on the fully-capable socket.
   EXPECT_NOTCAPABLE(listen(cap_sock_rw, 3));
@@ -147,8 +147,8 @@ TEST(Socket, TCP) {
   socklen_t len = sizeof(addr);
 
   // Can only bind the fully-capable socket.
-  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, len));
-  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, len));
+  EXPECT_NOTCAPABLE(bind_(cap_sock_rw, (struct sockaddr *)&addr, len));
+  EXPECT_OK(bind_(cap_sock_all, (struct sockaddr *)&addr, len));
 
   getsockname(cap_sock_all, (struct sockaddr *)&addr, &len);
   int port = ntohs(addr.sin_port);
@@ -178,8 +178,8 @@ TEST(Socket, TCP) {
     addr.sin_port = htons(port);  // Pick unused port
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     socklen_t len = sizeof(addr);
-    EXPECT_NOTCAPABLE(connect(cap_sock_rw, (struct sockaddr *)&addr, len));
-    EXPECT_OK(connect(cap_sock_all, (struct sockaddr *)&addr, len));
+    EXPECT_NOTCAPABLE(connect_(cap_sock_rw, (struct sockaddr *)&addr, len));
+    EXPECT_OK(connect_(cap_sock_all, (struct sockaddr *)&addr, len));
 
     exit(HasFailure());
   }
@@ -260,8 +260,8 @@ TEST(Socket, UDP) {
   socklen_t len = sizeof(addr);
 
   // Can only bind the fully-capable socket.
-  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, len));
-  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, len));
+  EXPECT_NOTCAPABLE(bind_(cap_sock_rw, (struct sockaddr *)&addr, len));
+  EXPECT_OK(bind_(cap_sock_all, (struct sockaddr *)&addr, len));
   getsockname(cap_sock_all, (struct sockaddr *)&addr, &len);
   int port = ntohs(addr.sin_port);
 

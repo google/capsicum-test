@@ -91,6 +91,8 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define getuid_ getuid
 #define getgroups_ getgroups
 #define getrlimit_ getrlimit
+#define bind_ bind
+#define connect_ connect
 
 /* Features available */
 #if __FreeBSD_version >= 1000000
@@ -136,6 +138,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #include <sys/statfs.h>
 #include <sys/xattr.h>
 #include <sys/mount.h>
+#include <linux/net.h>
 
 /* profil(2) has a first argument of unsigned short* */
 #define profil_arg1_t unsigned short
@@ -177,6 +180,27 @@ static inline int getgroups_(int size, gid_t list[]) { return syscall(__NR_getgr
 static inline int getrlimit_(int resource, struct rlimit *rlim) {
   return syscall(__NR_getrlimit, resource, rlim);
 }
+
+/*
+ * Linux glibc for i386 consumes the errno returned from the raw socketcall(2) operation,
+ * so use the raw syscall for those operations that are disallowed in capability mode.
+ */
+#ifdef __NR_bind
+#define bind_ bind
+#else
+static inline int bind_(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
+  unsigned long args[3] = {(unsigned long)sockfd, (unsigned long)(intptr_t)addr, (unsigned long)addrlen};
+  return syscall(__NR_socketcall, SYS_BIND, args);
+}
+#endif
+#ifdef __NR_connect
+#define connect_ connect
+#else
+static inline int connect_(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
+  unsigned long args[3] = {(unsigned long)sockfd, (unsigned long)(intptr_t)addr, (unsigned long)addrlen};
+  return syscall(__NR_socketcall, SYS_CONNECT, args);
+}
+#endif
 
 #define mincore_ mincore
 #define sendfile_ sendfile

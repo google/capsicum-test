@@ -357,8 +357,10 @@ static struct sock_filter capmode_filter[] = {
 #endif
 #ifdef __NR_socketcall
 	/* socketcall is a multiplexor equivalent to various other syscalls */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(socketcall), 0, 36),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(socketcall), 0, 38),
 	EXAMINE_ARG(0),  /* call */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SOCKET, 0, 1),
+	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_LISTEN, 0, 1),
 	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_ACCEPT, 0, 1),
@@ -393,7 +395,7 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_ACCEPT4, 0, 1),
 	ALLOW,
-	FAIL_ECAPMODE,  /* Deny SYS_SOCKET, SYS_BIND, SYS_CONNECT */
+	FAIL_ECAPMODE,  /* Deny SYS_BIND, SYS_CONNECT */
 #endif
 #ifdef __NR_socketpair
 	ALLOW_SYSCALL(socketpair),

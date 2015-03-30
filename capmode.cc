@@ -102,11 +102,11 @@ FORK_TEST_F(WithFiles, DisallowedSocketSyscalls) {
   addr.sin_family = AF_INET;
   addr.sin_port = 0;
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  EXPECT_CAPMODE(bind(fd_socket_, (sockaddr*)&addr, sizeof(addr)));
+  EXPECT_CAPMODE(bind_(fd_socket_, (sockaddr*)&addr, sizeof(addr)));
   addr.sin_family = AF_INET;
   addr.sin_port = 53;
   addr.sin_addr.s_addr = htonl(0x08080808);
-  EXPECT_CAPMODE(connect(fd_tcp_socket_, (sockaddr*)&addr, sizeof(addr)));
+  EXPECT_CAPMODE(connect_(fd_tcp_socket_, (sockaddr*)&addr, sizeof(addr)));
 }
 
 FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
@@ -187,7 +187,7 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
   EXPECT_FAIL_NOT_CAPMODE(sendfile_(fd_socket_, fd_file_, &offset, 1));
 
   // The socket/socketpair syscalls are allowed, but they don't give
-  // anything useful (can't call bind/connect on them).
+  // anything externally useful (can't call bind/connect on them).
   int fd_socket2 = socket(PF_INET, SOCK_DGRAM, 0);
   EXPECT_OK(fd_socket2);
   if (fd_socket2 >= 0) close(fd_socket2);
