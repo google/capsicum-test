@@ -906,6 +906,9 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
   if (verbose) fprintf(stderr, "[%d] about to fork()\n", getpid_());
   pid_t child2 = fork();
   if (child2 == 0) {
+    // Child: close our copy of the original process descriptor.
+    close(pd_);
+
     // Child: wait to receive process descriptor over socket
     if (verbose) fprintf(stderr, "  [%d] child of %d waiting for process descriptor on socket\n", getpid_(), getppid());
     int rc = recvmsg(sock_fds[0], &mh, 0);
