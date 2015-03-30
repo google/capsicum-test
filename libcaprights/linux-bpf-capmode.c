@@ -35,12 +35,26 @@
 #define ARCH_NR	0
 #endif
 
+#ifdef  __X32_SYSCALL_BIT
+/*
+ * x32 ABI syscalls have a high bit set; remove this in all comparisons, so that
+ * the a filter built for x86_64 (but including the __NR_x32_* additional
+ * values) can be used for both x86_64 and x32 ABI programs.
+ */
+#define SYSCALL_NUM_MASK	(~__X32_SYSCALL_BIT)
+#else
+#define SYSCALL_NUM_MASK	(~0)
+#endif
+#define SYSCALL_NUM(name)	(__NR_##name & SYSCALL_NUM_MASK)
+
 #define VALIDATE_ARCHITECTURE	\
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, arch)),	\
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_NR, 1, 0),	\
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
 #define EXAMINE_SYSCALL	\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr))
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr)),	\
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, SYSCALL_NUM_MASK)
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define EXAMINE_ARG(n)							\
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64))
@@ -52,15 +66,17 @@
 #define EXAMINE_ARGHI(n)							\
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64)))
 #endif
+
 #define ALLOW	\
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
-#define ALLOW_SYSCALL(name)	\
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1),	\
+#define ALLOW_SYSCALL_NUM(num)	\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (num & SYSCALL_NUM_MASK), 0, 1),	\
 	ALLOW
+#define ALLOW_SYSCALL(name)	ALLOW_SYSCALL_NUM(SYSCALL_NUM(name))
 #define FAIL_ECAPMODE	\
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO | (ECAPMODE & 0xFFFF))
 #define FAIL_SYSCALL(name)	\
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1),	\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(name), 0, 1),	\
 	FAIL_ECAPMODE
 #ifdef SECCOMP_DATA_TID_PRESENT
 /* Build environment includes .tgid and .tid fields in seccomp_data */
@@ -341,7 +357,7 @@ static struct sock_filter capmode_filter[] = {
 #endif
 #ifdef __NR_socketcall
 	/* socketcall is a multiplexor equivalent to various other syscalls */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_socketcall, 0, 36),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(socketcall), 0, 36),
 	EXAMINE_ARG(0),  /* call */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_LISTEN, 0, 1),
 	ALLOW,
@@ -401,7 +417,7 @@ static struct sock_filter capmode_filter[] = {
 	/* arch_prctl(2) */
 #if defined(__NR_arch_prctl)
 	/* TODO(drysdale): sort out other architectures */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_arch_prctl, 0, 11),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(arch_prctl), 0, 11),
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
 	EXAMINE_ARG(0),  /* code */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_GET_FS, 0, 1),
@@ -418,8 +434,8 @@ static struct sock_filter capmode_filter[] = {
 #ifdef SECCOMP_DATA_TID_PRESENT
 	/* tgkill(2)/kill(2): check arg[0] vs current tgid. */
 	/* First check info is available */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_tgkill, 1, 0),
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_kill, 0, 10),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(tgkill), 1, 0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(kill), 0, 10),
 	BPF_STMT(BPF_LD+BPF_W+BPF_LEN, 0),  /* A <- data len */
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
 		offsetof(struct seccomp_data, tgid) + sizeof(pid_t),
@@ -439,7 +455,7 @@ static struct sock_filter capmode_filter[] = {
 #endif
 
 	/* mmap(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_mmap, 0, 6),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap), 0, 6),
 	EXAMINE_ARG(3),  /* flags */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
 	ALLOW,
@@ -449,7 +465,7 @@ static struct sock_filter capmode_filter[] = {
 
 #ifdef __NR_mmap2
 	/* mmap2(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_mmap2, 0, 6),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap2), 0, 6),
 	EXAMINE_ARG(3),  /* flags */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
 	ALLOW,
@@ -459,7 +475,7 @@ static struct sock_filter capmode_filter[] = {
 #endif
 
 	/* openat(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 7),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(openat), 0, 7),
 	EXAMINE_ARG(0),  /* dfd */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),
 	FAIL_ECAPMODE,
@@ -470,9 +486,9 @@ static struct sock_filter capmode_filter[] = {
 
 	/* prctl(2) */
 #ifdef PR_GET_OPENAT_BENEATH
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_prctl, 0, 36),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(prctl), 0, 36),
 #else
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_prctl, 0, 34),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(prctl), 0, 34),
 #endif
 	EXAMINE_ARG(0),  /* option */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_CAPBSET_READ, 0, 1),
@@ -588,6 +604,7 @@ static struct sock_fprog capmode_fprog = {
 	.filter = capmode_filter
 };
 
+#ifdef UNUSED
 static void print_filter(struct sock_fprog *bpf) {
 	int pc;
 	for (pc = 1; pc <= bpf->len; pc++) {
@@ -596,6 +613,7 @@ static void print_filter(struct sock_fprog *bpf) {
 			pc, filter->code, filter->jt, filter->jf, filter->k);
 	}
 }
+#endif
 
 int seccomp_(unsigned int op, unsigned int flags, struct sock_fprog *filter) {
 	errno = 0;
