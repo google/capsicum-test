@@ -66,7 +66,14 @@ The following additional development packages are needed to build the full test 
 Linux libcaprights
 ------------------
 
-The Capsicum userspace library is held in the libcaprights/ subdirectory.  This library needs to
-be built (with "./configure; make" or "dpkg-buildpackage -uc -us") and
-installed (with "make install" or "dpkg -i libcaprights*.deb") to allow the tests to
-build.
+The Capsicum userspace library is held in the libcaprights/ subdirectory.  Ideally, this
+library should be built (with "./configure; make" or "dpkg-buildpackage -uc -us") and
+installed (with "make install" or "dpkg -i libcaprights*.deb") so that the tests will
+use behave like a normal Capsicum-aware application.
+
+However, if no installed copy of the library is found, the `GNUmakefile` will attempt
+to use the local `libcaprights/*.c` source; this requires `./configure` to have been
+performed in the `libcaprights` subdirectory. The local code is also used for
+cross-compiled builds of the test suite (e.g. `make ARCH=32` or `make ARCH=x32`).
+
+

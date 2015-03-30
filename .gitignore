@@ -12,3 +12,4 @@ casper*.deb
 casper*.dsc
 casper*.tar.gz
 casper*.changes
+libcaprights.a

@@ -1,7 +1,7 @@
 OS:=$(shell uname)
 
-# Set ARCHFLAG to 32 or x32 for i386/x32 ABIs
-ARCH=64
+# Set ARCH to 32 or x32 for i386/x32 ABIs
+ARCH?=64
 ARCHFLAG=-m$(ARCH)
 
 ifeq ($(OS),Linux)
@@ -25,11 +25,25 @@ LIBSCTP=-lsctp
 CXXFLAGS=-DHAVE_SCTP
 endif
 
-ifeq ($(wildcard /usr/lib/libcaprights.a),)
+# Detect installed libcaprights static library.
+ifneq ($(wildcard /usr/$(PLATFORM_LIBDIR)/libcaprights.a),)
 LIBCAPRIGHTS=/usr/$(PLATFORM_LIBDIR)/libcaprights.a
 else
+ifneq ($(wildcard /usr/lib/libcaprights.a),)
 LIBCAPRIGHTS=/usr/lib/libcaprights.a
+else
+# Not found in install dirs; compile directly (assuming ./configure
+# has already been done in libcaprights/)
+LIBCAPRIGHTS=./libcaprights.a
+LOCAL_LIBS=$(LIBCAPRIGHTS)
+LOCAL_CLEAN=./libcaprights.a libcaprights/capsicum.o libcaprights/linux-bpf-capmode.o
 endif
 endif
 
+endif
+
+# Chain on to the master makefile
 include makefile
+
+./libcaprights.a: libcaprights/capsicum.o libcaprights/linux-bpf-capmode.o
+	ar cr $@ $^
