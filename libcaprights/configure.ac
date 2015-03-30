@@ -36,7 +36,6 @@ AC_TYPE_SSIZE_T
 AC_TYPE_UINT64_T
 
 # Checks for library functions.
-AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset])
 
 AC_CONFIG_FILES([Makefile])
