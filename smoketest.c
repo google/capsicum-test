@@ -12,9 +12,11 @@
 
 #include "capsicum.h"
 
-int getpid_(void) {
-  return syscall(__NR_getpid);
-}
+#ifdef __linux__
+int getpid_(void) { return syscall(__NR_getpid); }
+#else
+#define getpid_ getpid
+#endif
 
 int main(int argc, char *argv[]) {
   int lifetime = 4; /* seconds */
