@@ -1,3 +1,10 @@
+libcaprights (0.1.1-1) UNRELEASED; urgency=low
+
+  * Add i386, x32 support
+  * Drop fexecve/execveat wrappers as they belong elsewhere
+
+ -- David Drysdale <drysdale@google.com>  Tue, 20 May 2014 15:39:08 +0100
+
 libcaprights (0.1.0-1) UNRELEASED; urgency=low
 
   * Initial release
