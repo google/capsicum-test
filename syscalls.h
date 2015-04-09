@@ -111,6 +111,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define HAVE_SYSCTL
 #define HAVE_FPATHCONF
 #define HAVE_F_DUP2FD
+#define HAVE_PROCDESC_FSTAT
 /* TODO(FreeBSD): re-enable when pselect(2) is allowed in capability mode */
 /* #define HAVE_PSELECT */
 #define HAVE_SCTP
@@ -237,6 +238,7 @@ static inline int connect_(int sockfd, const struct sockaddr *addr, socklen_t ad
 #define HAVE_PPOLL
 #define HAVE_EXECVEAT
 #define HAVE_SYSCALL
+#define HAVE_PROCDESC_FSTAT
 
 /* Linux allows anyone to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 0

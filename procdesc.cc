@@ -167,6 +167,7 @@ TEST(Pdfork, TimeCheck) {
     exit(HasFailure());
   }
 
+#ifdef HAVE_PROCDESC_FSTAT
   // Parent process. Ensure that [acm]times have been set correctly.
   struct stat stat;
   memset(&stat, 0, sizeof(stat));
@@ -180,6 +181,7 @@ TEST(Pdfork, TimeCheck) {
   EXPECT_LT((now - stat.st_atime), 2);
   EXPECT_EQ(stat.st_atime, stat.st_ctime);
   EXPECT_EQ(stat.st_ctime, stat.st_mtime);
+#endif
 
   // Wait for the child to finish.
   pid_t pd_pid = -1;
@@ -730,6 +732,7 @@ TEST_F(PipePdforkDaemon, NoPDSigchld) {
   signal(SIGCHLD, original);
 }
 
+#ifdef HAVE_PROCDESC_FSTAT
 TEST_F(PipePdfork, ModeBits) {
   // Owner rwx bits indicate liveness of child
   struct stat stat;
@@ -746,6 +749,7 @@ TEST_F(PipePdfork, ModeBits) {
   if (verbose) print_stat(stderr, &stat);
   EXPECT_EQ(0, (int)(stat.st_mode & S_IRWXU));
 }
+#endif
 
 TEST_F(PipePdfork, WildcardWait) {
   // TODO(FreeBSD): make wildcard wait ignore pdfork()ed children
