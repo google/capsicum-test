@@ -1,6 +1,7 @@
 capsicum-test
 mini-me
 mini-me.noexec
+mini-me.setuid
 libgtest.a
 smoketest
 *.o

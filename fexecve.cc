@@ -20,10 +20,12 @@
 // fail).
 #define EXEC_PROG "./mini-me"
 #define EXEC_PROG_NOEXEC  EXEC_PROG ".noexec"
+#define EXEC_PROG_SETUID  EXEC_PROG ".setuid"
 
 // Arguments to use in execve() calls.
 static char* argv_pass[] = {(char*)EXEC_PROG, (char*)"--pass", NULL};
 static char* argv_fail[] = {(char*)EXEC_PROG, (char*)"--fail", NULL};
+static char* argv_checkroot[] = {(char*)EXEC_PROG, (char*)"--checkroot", NULL};
 static char* null_envp[] = {NULL};
 
 class Execve : public ::testing::Test {
@@ -84,6 +86,21 @@ FORK_TEST(Fexecve, ExecutePermissionCheck) {
     EXPECT_EQ((mode_t)0, data.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH));
     EXPECT_EQ(-1, fexecve_(fd, argv_fail, null_envp));
     EXPECT_EQ(EACCES, errno);
+    close(fd);
+  }
+}
+
+FORK_TEST(Fexecve, SetuidIgnored) {
+  int fd = open(EXEC_PROG_SETUID, O_RDONLY);
+  EXPECT_OK(fd);
+  EXPECT_OK(cap_enter());
+  if (fd >= 0) {
+    struct stat data;
+    EXPECT_OK(fstat(fd, &data));
+    EXPECT_EQ((mode_t)S_ISUID, data.st_mode & S_ISUID);
+    EXPECT_OK(fexecve_(fd, argv_checkroot, null_envp));
+    // Should not reach here, exec() takes over.
+    EXPECT_TRUE(!"fexecve() should have succeeded");
     close(fd);
   }
 }

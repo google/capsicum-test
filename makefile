@@ -1,4 +1,4 @@
-all: capsicum-test smoketest mini-me mini-me.noexec
+all: capsicum-test smoketest mini-me mini-me.noexec mini-me.setuid
 OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o overhead.o
 
 GTEST_DIR=gtest-1.6.0
@@ -17,6 +17,8 @@ mini-me: mini-me.c
 	$(CC) $(CFLAGS) -static -o $@ $<
 mini-me.noexec: mini-me
 	cp mini-me $@ && chmod -x $@
+mini-me.setuid: mini-me
+	rm $@ && cp mini-me $@&& sudo chown root $@ && sudo chmod u+s $@
 
 # Simple C test of Capsicum syscalls
 SMOKETEST_OBJECTS=smoketest.o
