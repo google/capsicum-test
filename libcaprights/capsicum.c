@@ -88,7 +88,7 @@ static int cap_rights_get_all(int fd,
                               cap_fcntl_t *fcntls,
                               int *nioctls,
                               cap_ioctl_t **ioctls) {
-  int rc = syscall(__NR_cap_rights_get, fd, rights, fcntls, nioctls, NULL);
+  int rc = syscall(__NR_cap_rights_get, fd, rights, fcntls, nioctls, NULL, 0);
   if (rc < 0)
     return rc;
   if (ioctls) {
@@ -98,7 +98,7 @@ static int cap_rights_get_all(int fd,
         errno = ENOMEM;
         return -1;
       }
-      rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, nioctls, *ioctls);
+      rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, nioctls, *ioctls, 0);
       if (rc < 0)
         return rc;
     } else {
@@ -122,14 +122,14 @@ int cap_rights_limit(int fd, const cap_rights_t *rights) {
   if (rc)
     return rc;
   cap_rights_regularize(rights, &fcntls, &nioctls, &ioctls);
-  rc = syscall(__NR_cap_rights_limit, fd, rights, fcntls, nioctls, ioctls);
+  rc = syscall(__NR_cap_rights_limit, fd, rights, fcntls, nioctls, ioctls, 0);
   if (ioctls)
     free(ioctls);
   return rc;
 }
 
 int cap_rights_get(int fd, cap_rights_t *rights) {
-  return syscall(__NR_cap_rights_get, fd, rights, NULL, NULL, NULL);
+  return syscall(__NR_cap_rights_get, fd, rights, NULL, NULL, NULL, 0);
 }
 
 int cap_fcntls_limit(int fd, cap_fcntl_t fcntls) {
@@ -141,14 +141,14 @@ int cap_fcntls_limit(int fd, cap_fcntl_t fcntls) {
   rc = cap_rights_get_all(fd, &primary, &prev_fcntls, &nioctls, &ioctls);
   if (rc)
     return rc;
-  rc = syscall(__NR_cap_rights_limit, fd, &primary, fcntls, nioctls, ioctls);
+  rc = syscall(__NR_cap_rights_limit, fd, &primary, fcntls, nioctls, ioctls, 0);
   if (ioctls)
     free(ioctls);
   return rc;
 }
 
 int cap_fcntls_get(int fd, cap_fcntl_t *fcntlsp) {
-  return syscall(__NR_cap_rights_get, fd, NULL, fcntlsp, NULL, NULL);
+  return syscall(__NR_cap_rights_get, fd, NULL, fcntlsp, NULL, NULL, 0);
 }
 
 int cap_ioctls_limit(int fd, const cap_ioctl_t *cmds, size_t ncmds) {
@@ -159,13 +159,13 @@ int cap_ioctls_limit(int fd, const cap_ioctl_t *cmds, size_t ncmds) {
   rc = cap_rights_get_all(fd, &primary, &fcntls, &prev_nioctls, NULL);
   if (rc)
     return rc;
-  rc = syscall(__NR_cap_rights_limit, fd, &primary, fcntls, ncmds, cmds);
+  rc = syscall(__NR_cap_rights_limit, fd, &primary, fcntls, ncmds, cmds, 0);
   return rc;
 }
 
 ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds) {
   int n = maxcmds;
-  int rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, &n, cmds);
+  int rc = syscall(__NR_cap_rights_get, fd, NULL, NULL, &n, cmds, 0);
   if (rc >= 0)
     return (n == -1) ? CAP_IOCTLS_ALL : n;
   else
