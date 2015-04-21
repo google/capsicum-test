@@ -1,9 +1,16 @@
+libcaprights (0.1.2-1) UNRELEASED; urgency=low
+
+  * Add zero flags parameter for system calls
+  * Add recent system calls to BPF program for capability mode
+
+ -- David Drysdale <drysdale@google.com>  Tue, 21 Apr 2015 11:35:08 +0100
+
 libcaprights (0.1.1-1) UNRELEASED; urgency=low
 
   * Add i386, x32 support
   * Drop fexecve/execveat wrappers as they belong elsewhere
 
- -- David Drysdale <drysdale@google.com>  Tue, 20 May 2014 15:39:08 +0100
+ -- David Drysdale <drysdale@google.com>  Thu, 9 April 2015 10:58:27 +0100
 
 libcaprights (0.1.0-1) UNRELEASED; urgency=low
 
