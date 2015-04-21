@@ -167,6 +167,9 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(getpid),
 	ALLOW_SYSCALL(getppid),
 	ALLOW_SYSCALL(getpriority),
+#ifdef __NR_getrandom
+	ALLOW_SYSCALL(getrandom),
+#endif
 	ALLOW_SYSCALL(getresgid),
 #ifdef __NR_getresgid32
 	ALLOW_SYSCALL(getresgid32),
@@ -194,6 +197,9 @@ static struct sock_filter capmode_filter[] = {
 #endif
 	ALLOW_SYSCALL(lseek),
 	ALLOW_SYSCALL(madvise),
+#ifdef __NR_memfd_create
+	ALLOW_SYSCALL(memfd_create),
+#endif
 	ALLOW_SYSCALL(mincore),
 	ALLOW_SYSCALL(mkdirat),
 	ALLOW_SYSCALL(mknodat),
@@ -267,6 +273,9 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(sched_setparam),
 	ALLOW_SYSCALL(sched_setscheduler),
 	ALLOW_SYSCALL(sched_yield),
+#ifdef __NR_seccomp
+	ALLOW_SYSCALL(seccomp),
+#endif
 	ALLOW_SYSCALL(select),
 	ALLOW_SYSCALL(sendfile),
 #ifdef __NR_sendfile64
