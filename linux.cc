@@ -1236,6 +1236,27 @@ FORK_TEST(Linux, ProcessClocks) {
   // Orphan the child.
 }
 
+int getrandom_(void *buf, size_t buflen, unsigned int flags) {
+#ifdef __NR_getrandom
+  return syscall(__NR_getrandom, buf, buflen, flags);
+#else
+  errno = ENOSYS;
+  return -1;
+#endif
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#include <linux/random.h>  // Requires 3.17 kernel
+FORK_TEST(Linux, GetRandom) {
+  EXPECT_OK(cap_enter());
+  unsigned char buffer[1024];
+  unsigned char buffer2[1024];
+  EXPECT_OK(getrandom_(buffer, sizeof(buffer), GRND_NONBLOCK));
+  EXPECT_OK(getrandom_(buffer2, sizeof(buffer2), GRND_NONBLOCK));
+  EXPECT_NE(0, memcmp(buffer, buffer2, sizeof(buffer)));
+}
+#endif
+
 int memfd_create_(const char *name, unsigned int flags) {
 #ifdef __NR_memfd_create
   return syscall(__NR_memfd_create, name, flags);
