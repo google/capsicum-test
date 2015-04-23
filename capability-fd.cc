@@ -984,3 +984,33 @@ FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
   close(cap);
   close(fd);
 }
+
+TEST(Capability, NoBypassDAC) {
+  REQUIRE_ROOT();
+  int fd = open("/tmp/cap_root_owned", O_RDONLY|O_CREAT, 0644);
+  EXPECT_OK(fd);
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_FCHMOD, CAP_FSTAT);
+  EXPECT_OK(cap_rights_limit(fd, &rights));
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: change uid to a lesser being
+    setuid(other_uid);
+    // Attempt to fchmod the file, and fail.
+    // Having CAP_FCHMOD doesn't bypass the need to comply with DAC policy.
+    int rc = fchmod(fd, 0666);
+    EXPECT_EQ(-1, rc);
+    EXPECT_EQ(EPERM, errno);
+    exit(HasFailure());
+  }
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  EXPECT_TRUE(WIFEXITED(status)) << "0x" << std::hex << status;
+  EXPECT_EQ(0, WEXITSTATUS(status));
+  struct stat info;
+  EXPECT_OK(fstat(fd, &info));
+  EXPECT_EQ((mode_t)(S_IFREG|0644), info.st_mode);
+  close(fd);
+  unlink("/tmp/cap_root_owned");
+}
