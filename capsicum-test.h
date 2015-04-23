@@ -15,6 +15,7 @@
 extern bool verbose;
 extern bool force_mt;
 extern bool force_nofork;
+extern uid_t other_uid;
 
 static inline void *WaitingThreadFn(void *p) {
   // Loop until cancelled

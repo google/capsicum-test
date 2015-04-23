@@ -10,6 +10,7 @@
 bool verbose = false;
 bool force_mt = false;
 bool force_nofork = false;
+uid_t other_uid = 0;
 
 char ProcessState(int pid) {
 #ifdef __linux__
