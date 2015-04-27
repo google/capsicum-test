@@ -91,6 +91,10 @@ FORK_TEST(Fexecve, ExecutePermissionCheck) {
 }
 
 FORK_TEST(Fexecve, SetuidIgnored) {
+  if (geteuid() == 0) {
+    TEST_SKIPPED("requires non-root");
+    return;
+  }
   int fd = open(EXEC_PROG_SETUID, O_RDONLY);
   EXPECT_OK(fd);
   EXPECT_OK(cap_enter());
