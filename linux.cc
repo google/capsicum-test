@@ -324,7 +324,6 @@ TEST(Linux, epoll) {
   close(epoll_fd);
   close(sock_fds[1]);
   close(sock_fds[0]);
-  unlink("/tmp/cap_epoll");
 }
 
 TEST(Linux, fstatat) {
@@ -1234,6 +1233,34 @@ FORK_TEST(Linux, ProcessClocks) {
                        self, child_clock, (long)ts.tv_sec, (long)ts.tv_nsec);
 
   // Orphan the child.
+}
+
+TEST(Linux, SetLease) {
+  int fd_all = open("/tmp/cap_lease", O_CREAT|O_RDWR, 0644);
+  EXPECT_OK(fd_all);
+  int fd_rw = dup(fd_all);
+  EXPECT_OK(fd_rw);
+
+  cap_rights_t r_all;
+  cap_rights_init(&r_all, CAP_READ, CAP_WRITE, CAP_FLOCK, CAP_FSIGNAL);
+  EXPECT_OK(cap_rights_limit(fd_all, &r_all));
+
+  cap_rights_t r_rw;
+  cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);
+  EXPECT_OK(cap_rights_limit(fd_rw, &r_rw));
+
+  EXPECT_NOTCAPABLE(fcntl(fd_rw, F_SETLEASE, F_WRLCK));
+  EXPECT_NOTCAPABLE(fcntl(fd_rw, F_GETLEASE));
+
+  EXPECT_OK(fcntl(fd_all, F_SETLEASE, F_WRLCK));
+  EXPECT_EQ(F_WRLCK, fcntl(fd_all, F_GETLEASE));
+
+  EXPECT_OK(fcntl(fd_all, F_SETLEASE, F_UNLCK, 0));
+  EXPECT_EQ(F_UNLCK, fcntl(fd_all, F_GETLEASE));
+
+  close(fd_all);
+  close(fd_rw);
+  unlink("/tmp/cap_lease");
 }
 
 int getrandom_(void *buf, size_t buflen, unsigned int flags) {
