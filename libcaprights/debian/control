@@ -1,7 +1,7 @@
 Source: libcaprights
 Priority: optional
 Maintainer: David Drysdale <drysdale@google.com>
-Build-Depends: debhelper (>= 9.0.0), autotools-dev
+Build-Depends: debhelper (>= 9.0.0), autotools-dev, autoconf, libtool
 Standards-Version: 3.9.5
 Section: libs
 Homepage: https://github.com/google/capsicum-test
