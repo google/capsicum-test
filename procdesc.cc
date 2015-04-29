@@ -143,7 +143,7 @@ TEST(Pdfork, Simple) {
 
 TEST(Pdfork, InvalidFlag) {
   int pd = -1;
-  int pid = pdfork(&pd, PD_DAEMON<<1);
+  int pid = pdfork(&pd, PD_DAEMON<<5);
   if (pid == 0) {
     exit(1);
   }
@@ -527,7 +527,7 @@ FORK_TEST(Pdfork, OtherUser) {
   usleep(100);
 
   // Now that the second process has been pdfork()ed, change euid.
-  setuid(100);
+  setuid(other_uid);
   if (verbose) fprintf(stderr, "uid=%d euid=%d\n", getuid(), geteuid());
 
   // Fail to kill child with normal PID operation.
