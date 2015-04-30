@@ -475,10 +475,7 @@ TEST_F(PipePdfork, Close) {
   pd_ = -1;
   EXPECT_PID_DEAD(pid_);
 
-  // Closing the last process descriptor converts the process to a normal process
-  // before it is terminated, so we expect a SIGCHLD.
-  EXPECT_TRUE(had_signal[SIGCHLD]);
-  had_signal.clear();
+  EXPECT_FALSE(had_signal[SIGCHLD]);
 
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
   int rc = pdwait4_(pd_, &status, 0, NULL);
@@ -514,10 +511,7 @@ TEST_F(PipePdfork, CloseLast) {
   EXPECT_OK(close(pd_other));
   EXPECT_PID_DEAD(pid_);
 
-  // Closing the last process descriptor converts the process to a normal process
-  // before it is terminated, so we expect a SIGCHLD.
-  EXPECT_TRUE(had_signal[SIGCHLD]);
-  had_signal.clear();
+  EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
@@ -733,8 +727,7 @@ TEST_F(PipePdforkDaemon, NoPDSigchld) {
   // Can waitpid() for the specific pid of the pdfork()ed child.
   EXPECT_EQ(pid_, waitpid(pid_, &rc, __WALL));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
-  EXPECT_TRUE(had_signal[SIGCHLD]);
-  had_signal.clear();
+  EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
@@ -770,10 +763,6 @@ TEST_F(PipePdfork, WildcardWait) {
 
   EXPECT_OK(close(pd_));
   pd_ = -1;
-
-  // Now the last process descriptor is closed, the child is visible
-  // to a wildcard waitpid(-1).
-  EXPECT_EQ(pid_, waitpid(-1, &rc, WNOHANG));
 }
 
 FORK_TEST(Pdfork, Pdkill) {
