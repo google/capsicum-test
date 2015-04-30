@@ -8,7 +8,6 @@
 #include <sys/procdesc.h>
 #include <sys/capsicum.h>
 
-#define HAVE_PDWAIT4
 #define HAVE_CAP_RIGHTS_LIMIT
 #define HAVE_CAP_RIGHTS_GET
 #define HAVE_CAP_FCNTLS_LIMIT

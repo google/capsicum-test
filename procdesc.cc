@@ -35,6 +35,9 @@ static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
   pid_t pid = -1;
   int rc = pdgetpid(pd, &pid);
   if (rc < 0) return rc;
+#ifdef __WALL
+  options |= __WALL;
+#endif
   return wait4(pid, status, options, ru);
 #endif
 }

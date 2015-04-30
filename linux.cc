@@ -706,9 +706,9 @@ static int ChildFunc(void *arg) {
   SendFD(pd, shared_sock_fds[1]);
 
   // Wait for death of (grand)child, killed by our parent.
-  if (verbose) fprintf(stderr, "    ChildFunc: wait on pd=%d pid=%d\n", pd, child);
+  if (verbose) fprintf(stderr, "    ChildFunc: wait on pid=%d\n", child);
   int status;
-  EXPECT_EQ(child, pdwait4(pd, &status, 0, NULL));
+  EXPECT_EQ(child, wait4(child, &status, 0, NULL));
 
   if (verbose) fprintf(stderr, "    ChildFunc: return 0\n");
   return 0;
