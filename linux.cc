@@ -668,10 +668,9 @@ static int ChildFunc(void *arg) {
   // get its pid.
   if (verbose) fprintf(stderr, "    ChildFunc: shared_pd=%d\n", shared_pd);
   pid_t shared_child = -1;
-  EXPECT_EQ(-1, pdgetpid(shared_pd, &shared_child));
-  EXPECT_EQ(ESRCH, errno);
+  EXPECT_OK(pdgetpid(shared_pd, &shared_child));
   if (verbose) fprintf(stderr, "    ChildFunc: corresponding pid=%d\n", shared_child);
-  EXPECT_EQ(-1, shared_child);
+  EXPECT_EQ(0, shared_child);
 
   // But we can pdkill() it even so.
   if (verbose) fprintf(stderr, "    ChildFunc: call pdkill(pd=%d)\n", shared_pd);
