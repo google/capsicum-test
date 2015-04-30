@@ -411,7 +411,7 @@ TEST_F(PipePdfork, PollMultiple) {
 }
 
 // Check that exit status/rusage for a dead pdfork()ed child can be retrieved
-// (once) via any process descriptor.
+// via any process descriptor, multiple times.
 TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
   EXPECT_PID_ALIVE(pid_);
   int pd_copy = dup(pd_);
@@ -426,11 +426,14 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
     fprintf(stderr, "For pd %d -> pid %d:\n", pd_, pid_);
     print_rusage(stderr, &ru);
   }
+  EXPECT_PID_GONE(pid_);
 
-  // Child has been reaped, so original process descriptor dangles.
+#ifdef NOTYET
+  // Child has been reaped, so original process descriptor dangles but
+  // still has access to rusage information.
   memset(&ru, 0, sizeof(ru));
-  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, &ru));
-  EXPECT_EQ(ECHILD, errno);
+  EXPECT_EQ(0, pdwait4_(pd_, &status, 0, &ru));
+#endif
   close(pd_copy);
 }
 
@@ -554,9 +557,10 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
 
-  // ...the zombie is reaped and cannot subsequently pdwait4(pd).
-  EXPECT_EQ(-1, pdwait4_(pd_, &status, 0, NULL));
-  EXPECT_EQ(ECHILD, errno);
+#ifdef NOTYET
+  // ...the zombie is reaped but we can still subsequently pdwait4(pd).
+  EXPECT_EQ(0, pdwait4_(pd_, &status, 0, NULL));
+#endif
 }
 
 TEST_F(PipePdfork, WaitPdThenPid) {
