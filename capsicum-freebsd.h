@@ -18,6 +18,7 @@ extern "C" {
 #define AT_SYSCALLS_IN_CAPMODE
 #define HAVE_CAP_RIGHTS_GET
 #define HAVE_CAP_RIGHTS_LIMIT
+#define HAVE_PROCDESC_FSTAT
 #define HAVE_CAP_FCNTLS_LIMIT
 // fcntl(2) takes int, cap_fcntls_limit(2) takes uint32_t.
 typedef uint32_t cap_fcntl_t;
