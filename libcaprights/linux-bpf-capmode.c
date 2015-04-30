@@ -107,6 +107,9 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW_SYSCALL(clock_getres),
 	ALLOW_SYSCALL(clock_gettime),
 	ALLOW_SYSCALL(clone),
+#ifdef __NR_clone4
+	ALLOW_SYSCALL(clone4),
+#endif
 	ALLOW_SYSCALL(close),
 	ALLOW_SYSCALL(dup),
 	ALLOW_SYSCALL(dup2),
@@ -223,18 +226,6 @@ static struct sock_filter capmode_filter[] = {
 #endif
 #ifdef __NR_oldfstat
 	ALLOW_SYSCALL(oldfstat),
-#endif
-#ifdef __NR_pdfork
-	ALLOW_SYSCALL(pdfork),
-#endif
-#ifdef __NR_pdgetpid
-	ALLOW_SYSCALL(pdgetpid),
-#endif
-#ifdef __NR_pdkill
-	ALLOW_SYSCALL(pdkill),
-#endif
-#ifdef __NR_pdwait4
-	ALLOW_SYSCALL(pdwait4),
 #endif
 	ALLOW_SYSCALL(pipe),
 	ALLOW_SYSCALL(pipe2),

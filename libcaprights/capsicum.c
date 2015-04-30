@@ -41,14 +41,12 @@
 #include <limits.h>
 
 #include <sys/prctl.h>
-#include <sys/resource.h>
 #include <sys/syscall.h>
 #include <linux/seccomp.h>
-#include <linux/procdesc.h>
 #include "capsicum.h"
 
 /************************************************************
- * Capsicum System Calls.
+ * Capsicum Calls.
  ************************************************************/
 static inline unsigned int right_to_index(uint64_t right) {
   static const int bit2idx[] = {
@@ -170,22 +168,6 @@ ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds) {
     return (n == -1) ? CAP_IOCTLS_ALL : n;
   else
     return rc;
-}
-
-int pdfork(int *fd, int flags) {
-  return syscall(__NR_pdfork, fd, flags);
-}
-
-int pdgetpid(int fd, pid_t *pid) {
-  return syscall(__NR_pdgetpid, fd, pid);
-}
-
-int pdkill(int fd, int signum) {
-  return syscall(__NR_pdkill, fd, signum);
-}
-
-int pdwait4(int fd, int *status, int options, struct rusage *rusage) {
-  return syscall(__NR_pdwait4, fd, status, options, rusage);
 }
 
 static void cap_rights_vset(cap_rights_t *rights, va_list ap) {
