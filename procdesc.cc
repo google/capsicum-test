@@ -20,6 +20,13 @@
 #include "syscalls.h"
 #include "capsicum-test.h"
 
+#ifndef __WALL
+// Linux requires __WALL in order for waitpid(specific_pid,...) to
+// see and reap any specific pid.  Define this to nothing for platforms
+// (FreeBSD) where it doesn't exist, to reduce macroing.
+#define __WALL 0
+#endif
+
 // TODO(drysdale): it would be nice to use proper synchronization between
 // processes, rather than synchronization-via-sleep; faster too.
 
@@ -77,7 +84,7 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
   int rc;
   int status = 0;
   do {
-    rc = waitpid(pid, &status, 0);
+    rc = waitpid(pid, &status, __WALL);
     if (rc < 0) {
       fprintf(stderr, "Warning: waitpid error %s (%d)\n", strerror(errno), errno);
       ADD_FAILURE() << "Failed to wait for child";
@@ -152,7 +159,7 @@ TEST(Pdfork, InvalidFlag) {
   }
   EXPECT_EQ(-1, pid);
   EXPECT_EQ(EINVAL, errno);
-  if (pid > 0) waitpid(pid, NULL, 0);
+  if (pid > 0) waitpid(pid, NULL, __WALL);
 }
 
 TEST(Pdfork, TimeCheck) {
@@ -306,7 +313,7 @@ class PipePdforkBase : public ::testing::Test {
     }
     if (pid_ > 0) {
       kill(pid_, SIGKILL);
-      waitpid(pid_, &status, WNOHANG);
+      waitpid(pid_, &status, __WALL|WNOHANG);
     }
     // Check signal expectations.
     EXPECT_FALSE(had_signal[SIGCHLD]);
@@ -399,7 +406,7 @@ TEST_F(PipePdfork, PollMultiple) {
   } else {
     // Parent: wait on process D.
     int rc = 0;
-    waitpid(doppel, &rc, 0);
+    waitpid(doppel, &rc, __WALL);
     EXPECT_TRUE(WIFEXITED(rc));
     EXPECT_EQ(0, WEXITSTATUS(rc));
     // Also wait on process B.
@@ -466,7 +473,7 @@ TEST_F(PipePdfork, Close) {
   sighandler_t original = signal(SIGCHLD, handle_signal);
   EXPECT_PID_ALIVE(pid_);
   int status;
-  EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
+  EXPECT_EQ(0, waitpid(pid_, &status, __WALL|WNOHANG));
 
   EXPECT_OK(close(pd_));
   pd_ = -1;
@@ -483,7 +490,7 @@ TEST_F(PipePdfork, Close) {
   EXPECT_EQ(EBADF, errno);
 
   // Closing all process descriptors means the the child can only be reaped via pid.
-  EXPECT_EQ(pid_, waitpid(pid_, &status, WNOHANG));
+  EXPECT_EQ(pid_, waitpid(pid_, &status, __WALL|WNOHANG));
   signal(SIGCHLD, original);
 }
 
@@ -498,7 +505,7 @@ TEST_F(PipePdfork, CloseLast) {
 
   EXPECT_PID_ALIVE(pid_);
   int status;
-  EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
+  EXPECT_EQ(0, waitpid(pid_, &status, __WALL|WNOHANG));
 
   // Can no longer pdwait4() the closed process descriptor...
   EXPECT_EQ(-1, pdwait4_(pd_, &status, WNOHANG, NULL));
@@ -553,7 +560,7 @@ TEST_F(PipePdfork, WaitPidThenPd) {
   TerminateChild();
   int status;
   // If we waitpid(pid) first...
-  int rc = waitpid(pid_, &status, 0);
+  int rc = waitpid(pid_, &status, __WALL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
 
@@ -571,7 +578,7 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   EXPECT_EQ(pid_, rc);
 
   // ...the zombie is reaped and cannot subsequently waitpid(pid).
-  EXPECT_EQ(-1, waitpid(pid_, &status, 0));
+  EXPECT_EQ(-1, waitpid(pid_, &status, __WALL));
   EXPECT_EQ(ECHILD, errno);
 }
 
@@ -641,7 +648,7 @@ TEST(Pdfork, PdkillOtherSignal) {
 
   // Child's exit status confirms whether it received the signal.
   int status;
-  int rc = waitpid(pid, &status, 0);
+  int rc = waitpid(pid, &status, __WALL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
   EXPECT_TRUE(WIFEXITED(status)) << "0x" << std::hex << rc;
@@ -711,7 +718,7 @@ TEST_F(PipePdfork, NoSigchld) {
   TerminateChild();
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
-  EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
+  EXPECT_EQ(pid_, waitpid(pid_, &rc, __WALL));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
@@ -728,7 +735,7 @@ TEST_F(PipePdforkDaemon, NoPDSigchld) {
   TerminateChild();
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
-  EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
+  EXPECT_EQ(pid_, waitpid(pid_, &rc, __WALL));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
   EXPECT_TRUE(had_signal[SIGCHLD]);
   had_signal.clear();
@@ -963,7 +970,7 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
 
   // wait for child2
   int status;
-  EXPECT_EQ(child2, waitpid(child2, &status, 0));
+  EXPECT_EQ(child2, waitpid(child2, &status, __WALL));
   rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
   EXPECT_EQ(0, rc);
 

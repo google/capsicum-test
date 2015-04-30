@@ -708,7 +708,7 @@ static int ChildFunc(void *arg) {
   // Wait for death of (grand)child, killed by our parent.
   if (verbose) fprintf(stderr, "    ChildFunc: wait on pid=%d\n", child);
   int status;
-  EXPECT_EQ(child, wait4(child, &status, 0, NULL));
+  EXPECT_EQ(child, wait4(child, &status, __WALL, NULL));
 
   if (verbose) fprintf(stderr, "    ChildFunc: return 0\n");
   return 0;
@@ -760,7 +760,7 @@ TEST(Linux, PidNamespacePdFork) {
 
   // Now reap it.
   int status;
-  EXPECT_EQ(firstborn, waitpid(firstborn, &status, 0));
+  EXPECT_EQ(firstborn, waitpid(firstborn, &status, __WALL));
 
   // Get the process descriptor of the child-of-child via socket transfer.
   int grandchild_pd = ReceiveFD(shared_sock_fds[0]);
