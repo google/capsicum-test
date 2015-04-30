@@ -208,10 +208,6 @@ TEST(Pdfork, UseDescriptor) {
     // Child: immediately exit
     exit(0);
   }
-  // Try read/writing to the process descriptor.
-  char buf[] = "bug";
-  EXPECT_FAIL_NOT_CAPMODE(write(pd, buf, sizeof(buf)));
-  EXPECT_FAIL_NOT_CAPMODE(read(pd, buf, sizeof(buf)));
   CheckChildFinished(pid);
 }
 
