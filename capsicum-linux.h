@@ -13,6 +13,7 @@
 #define HAVE_CAP_FCNTLS_LIMIT
 #define HAVE_CAP_IOCTLS_LIMIT
 #define HAVE_PROC_FDINFO
+#define HAVE_PDWAIT4
 #define CAP_FROM_ACCEPT
 // TODO(drysdale): uncomment if/when Linux propagates rights on sctp_peeloff.
 // Linux does not generate a capability from sctp_peeloff(cap_fd,...).

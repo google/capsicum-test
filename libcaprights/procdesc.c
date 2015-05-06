@@ -2,7 +2,12 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 #include <linux/sched.h>
+#include <linux/wait.h>
 #include "procdesc.h"
 
 extern const int sigchld_num;  /* = SIGCHLD */
@@ -57,6 +62,10 @@ int pdkill(int fd, int signum) {
   return (rc == 1) ? 0 : -1;
 }
 
+pid_t pdwait4(int pd, int *status, int options, struct rusage *ru) {
+  return wait4(pd, status, options|__WALL|WCLONEFD, ru);
+}
+
 #else
 
 /* If clone4(2) is unavailable, process descriptor functionality is unavailable */
@@ -69,6 +78,10 @@ int pdgetpid(int fd, pid_t *pid) {
   return -1;
 }
 int pdkill(int fd, int signum) {
+  errno = ENOSYS;
+  return -1;
+}
+pid_t pdwait4(int pd, int *status, int options, struct rusage *ru) {
   errno = ENOSYS;
   return -1;
 }

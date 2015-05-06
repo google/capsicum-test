@@ -24,6 +24,10 @@ int pdgetpid(int fd, pid_t *pid);
 /* Requires CAP_PDKILL right. */
 int pdkill(int fd, int signum);
 
+/* Wait for a process identified by a process descriptor. */
+/* Requires CAP_PDWAIT right. */
+pid_t pdwait4(int pd, int *status, int options, struct rusage *ru);
+
 #ifdef __cplusplus
 }
 #endif

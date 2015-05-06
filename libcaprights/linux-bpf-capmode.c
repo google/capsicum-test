@@ -19,6 +19,7 @@
 #include <linux/net.h>
 #include <linux/seccomp.h>
 #include <linux/unistd.h>
+#include <linux/wait.h>
 #ifdef HAVE_ASM_UNISTD_64_X32_H
 #include <asm/unistd_64_x32.h>
 #endif
@@ -530,6 +531,13 @@ static struct sock_filter capmode_filter[] = {
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_MCE_KILL_GET, 0, 1),
 	ALLOW,
 	FAIL_ECAPMODE,
+
+	/* wait4(2) */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(wait4), 0, 4),
+	EXAMINE_ARG(2),  /* options */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, WCLONEFD, 1, 0),
+	FAIL_ECAPMODE,
+	ALLOW,
 
 #ifdef __NR_x32_rt_sigaction
 	ALLOW_SYSCALL(x32_rt_sigaction),
