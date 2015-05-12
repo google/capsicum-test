@@ -1,6 +1,7 @@
 /* Small standalone test program to check the existence of Capsicum syscalls */
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -13,12 +14,20 @@
 #include "capsicum.h"
 
 #ifdef __linux__
+// glibc on Linux caches getpid() return value.
 int getpid_(void) { return syscall(__NR_getpid); }
 #else
 #define getpid_ getpid
 #endif
 
+static int seen_sigchld = 0;
+static void handle_signal(int x) {
+  fprintf(stderr, "[%d] received SIGCHLD\n", getpid_());
+  seen_sigchld = 1;
+}
+
 int main(int argc, char *argv[]) {
+  signal(SIGCHLD, handle_signal);
   int lifetime = 4; /* seconds */
   if (1 < argc) {
     lifetime = atoi(argv[1]);
@@ -77,8 +86,15 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "[%d] pdkill(pd=%d, SIGKILL) -> rc=%d\n", getpid_(), pd, rc);
   if (rc < 0) fprintf(stderr, "*** pdkill() failed: errno=%d %s\n", errno, strerror(errno));
 
+  /* Death of a pdforked child should be invisible */
+  if (seen_sigchld) fprintf(stderr, "*** SIGCHLD emitted\n");
+  int status;
+  rc = wait4(-1, &status, WNOHANG, NULL);
+  if (rc > 0) fprintf(stderr, "*** wait4(-1, ...) unexpectedly found child %d\n", rc);
+
   fprintf(stderr, "[%d] forking off a child process to check cap_enter()\n", getpid_());
-  if (fork() == 0) {
+  pid_t child = fork();
+  if (child == 0) { /* child */
     /* cap_getmode() / cap_enter() available? */
     unsigned int cap_mode = -1;
     rc = cap_getmode(&cap_mode);
@@ -97,16 +113,19 @@ int main(int argc, char *argv[]) {
     rc = open("/etc/passwd", O_RDONLY);
     fprintf(stderr, "  [%d] open('/etc/passwd/) -> rc=%d, errno=%d\n", getpid_(), rc, errno);
     if (rc != -1) fprintf(stderr, "*** open() unexpectedly succeeded\n");
-  } else {
-    /* fexecve() available? */
-    char* argv_pass[] = {(char*)"/bin/ls", "-l", "smoketest", NULL};
-    char* null_envp[] = {NULL};
-    int ls_bin = open("/bin/ls", O_RDONLY);
-    fprintf(stderr, "[%d] about to fexecve('/bin/ls', '-l', 'smoketest')\n", getpid_());
-    rc = fexecve(ls_bin, argv_pass, null_envp);
-    /* should never reach here */
-    fprintf(stderr, "*** fexecve(fd=%d) failed: rc=%d errno=%d %s\n", ls_bin, rc, errno, strerror(errno));
+    exit(0);
   }
+  rc = wait4(child, &status, 0, NULL);
+  fprintf(stderr, "[%d] child %d exited with status %x\n", getpid_(), child, status);
+
+  /* fexecve() available? */
+  char* argv_pass[] = {(char*)"/bin/ls", "-l", "smoketest", NULL};
+  char* null_envp[] = {NULL};
+  int ls_bin = open("/bin/ls", O_RDONLY);
+  fprintf(stderr, "[%d] about to fexecve('/bin/ls', '-l', 'smoketest')\n", getpid_());
+  rc = fexecve(ls_bin, argv_pass, null_envp);
+  /* should never reach here */
+  fprintf(stderr, "*** fexecve(fd=%d) failed: rc=%d errno=%d %s\n", ls_bin, rc, errno, strerror(errno));
 
   return 0;
 }
