@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
   rc = pdkill(pd, SIGKILL);
   fprintf(stderr, "[%d] pdkill(pd=%d, SIGKILL) -> rc=%d\n", getpid_(), pd, rc);
   if (rc < 0) fprintf(stderr, "*** pdkill() failed: errno=%d %s\n", errno, strerror(errno));
+  usleep(50000);  /* Allow time for death and signals */
 
   /* Death of a pdforked child should be invisible */
   if (seen_sigchld) fprintf(stderr, "*** SIGCHLD emitted\n");
