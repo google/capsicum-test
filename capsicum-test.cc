@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 #include <map>
 #include <vector>
@@ -35,7 +36,10 @@ char ProcessState(int pid) {
 #ifdef __FreeBSD__
   char buffer[1024];
   snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
+  sig_t original = signal(SIGCHLD, SIG_IGN);
   FILE* cmd = popen(buffer, "r");
+  usleep(50000);  // allow any pending SIGCHLD signals to arrive
+  signal(SIGCHLD, original);
   int result = fgetc(cmd);
   fclose(cmd);
   // Map FreeBSD codes to Linux codes.

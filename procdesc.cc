@@ -476,9 +476,8 @@ TEST_F(PipePdfork, Close) {
 
   EXPECT_OK(close(pd_));
   pd_ = -1;
-  EXPECT_PID_DEAD(pid_);
-
   EXPECT_FALSE(had_signal[SIGCHLD]);
+  EXPECT_PID_DEAD(pid_);
 
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
   int rc = pdwait4_(pd_, &status, 0, NULL);
