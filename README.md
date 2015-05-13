@@ -29,25 +29,15 @@ OS Configuration
 
 The following kernel configuration options are needed to run the tests:
 
- - `CONFIG_64BIT`: Capsicum support is currently only implemented for 64 bit mode
  - `CONFIG_SECURITY_CAPSICUM`: enable the Capsicum framework
  - `CONFIG_PROCDESC`: enable Capsicum process-descriptor functionality
  - `CONFIG_DEBUG_FS`: enable debug filesystem
  - `CONFIG_IP_SCTP`: enable SCTP support
 
-### FreeBSD 10.x
+### FreeBSD (>= 10.x)
 
 The following kernel configuration options are needed so that all tests can run:
 
-  - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
-
-### FreeBSD 9.x
-
-The following kernel configuration options are needed so that all tests can run:
-
-  - `options CAPABILITIES`: Enable capabilities
-  - `options CAPABILITY_MODE`: Enable capability mode
-  - `options PROCDESC`: Enable process descriptors
   - `options P1003_1B_MQUEUE`: Enable POSIX message queues (or `kldload mqueuefs`)
 
 Other Dependencies
