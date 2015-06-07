@@ -532,12 +532,14 @@ static struct sock_filter capmode_filter[] = {
 	ALLOW,
 	FAIL_ECAPMODE,
 
+#ifdef WCLONEFD
 	/* wait4(2) */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(wait4), 0, 4),
 	EXAMINE_ARG(2),  /* options */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, WCLONEFD, 1, 0),
 	FAIL_ECAPMODE,
 	ALLOW,
+#endif
 
 #ifdef __NR_x32_rt_sigaction
 	ALLOW_SYSCALL(x32_rt_sigaction),
