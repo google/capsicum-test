@@ -5,6 +5,7 @@
 
 #include "capsicum.h"
 #include "capsicum-test.h"
+#include "syscalls.h"
 
 // Check an open call works and close the resulting fd.
 #define EXPECT_OPEN_OK(f) do { \
@@ -13,6 +14,12 @@
     close(fd);                 \
   } while (0)
 
+static void CreateFile(const char *filename, const char *contents) {
+  int fd = open(filename, O_CREAT|O_RDWR, 0644);
+  EXPECT_OK(fd);
+  EXPECT_OK(write(fd, contents, strlen(contents)));
+  close(fd);
+}
 
 // Test openat(2) in a variety of sitations to ensure that it obeys Capsicum
 // "strict relative" rules:
@@ -22,6 +29,11 @@
 // 2. When performing strict relative lookups, absolute paths (including
 //    symlinks to absolute paths) are not allowed, nor are paths containing
 //    '..' components.
+//
+// These rules apply when:
+//  - the directory FD is a Capsicum capability
+//  - the process is in capability mode
+//  - the openat(2) operation includes the O_BENEATH flag.
 FORK_TEST(Openat, Relative) {
   int etc = open("/etc/", O_RDONLY);
   EXPECT_OK(etc);
@@ -133,122 +145,154 @@ FORK_TEST(Openat, Relative) {
   close(fd);
 }
 
-TEST(Openat, Subdir) {
-  // Create a couple of nested directories
-  int rc = mkdir("/tmp/cap_topdir", 0755);
-  EXPECT_OK(rc);
-  if (rc < 0 && errno != EEXIST) return;
-  rc = mkdir("/tmp/cap_topdir/cap_subdir", 0755);
-  EXPECT_OK(rc);
-  if (rc < 0 && errno != EEXIST) return;
+#define TOPDIR "/tmp/cap_topdir"
+#define SUBDIR_ABS TOPDIR "/subdir"
+class OpenatTest : public ::testing::Test {
+ public:
+  // Build a collection of files, subdirs and symlinks:
+  //  /tmp/cap_topdir/
+  //                 /topfile
+  //                 /subdir/
+  //                 /subdir/bottomfile
+  //                 /symlink.samedir       -> topfile
+  //                 /symlink.down          -> subdir/bottomfile
+  //                 /symlink.absolute_in   -> /tmp/cap_topdir/topfile
+  //                 /symlink.absolute_out  -> /etc/passwd
+  //                 /symlink.relative_in   -> ../../tmp/cap_topdir/topfile
+  //                 /symlink.relative_out  -> ../../etc/passwd
+  //                 /subdir/symlink.up     -> ../topfile
+  OpenatTest() {
+    // Create a couple of nested directories
+    int rc = mkdir(TOPDIR, 0755);
+    EXPECT_OK(rc);
+    if (rc < 0) EXPECT_EQ(EEXIST, errno);
+    rc = mkdir(SUBDIR_ABS, 0755);
+    EXPECT_OK(rc);
+    if (rc < 0) EXPECT_EQ(EEXIST, errno);
+    // Create normal files in each.
+    CreateFile(TOPDIR "/topfile", "Top-level file");
+    CreateFile(SUBDIR_ABS "/bottomfile", "File in subdirectory");
 
-  int cap_dir = open("/tmp/cap_topdir", O_RDONLY);
-  EXPECT_OK(cap_dir);
-  cap_rights_t r_rl;
-  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP);
-  EXPECT_OK(cap_rights_limit(cap_dir, &r_rl));
+    // Create various symlinks
+    EXPECT_OK(symlink("topfile", TOPDIR "/symlink.samedir"));
+    EXPECT_OK(symlink("subdir/bottomfile", TOPDIR "/symlink.down"));
+    EXPECT_OK(symlink(TOPDIR "/topfile", TOPDIR "/symlink.absolute_in"));
+    EXPECT_OK(symlink("/etc/passwd", TOPDIR "/symlink.absolute_out"));
+    EXPECT_OK(symlink("../.." TOPDIR "/topfile", TOPDIR "/symlink.relative_in"));
+    EXPECT_OK(symlink("../../etc/passwd", TOPDIR "/symlink.relative_out"));
+    EXPECT_OK(symlink("../topfile", SUBDIR_ABS "/symlink.up"));
 
-  // Check that we can't escape the top directory by the cunning
-  // ruse of going via a subdirectory.
-  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
-
-  pid_t child = fork();
-  if (child == 0) {
-    EXPECT_OK(cap_enter());  // Enter capability mode
-    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "cap_subdir/../../etc/passwd", O_RDONLY));
-    exit(HasFailure());
+    // Open directory FDs for those directories and for cwd.
+    dir_fd_ = open(TOPDIR, O_RDONLY);
+    EXPECT_OK(dir_fd_);
+    sub_fd_ = open(SUBDIR_ABS, O_RDONLY);
+    EXPECT_OK(sub_fd_);
+    cwd_ = openat(AT_FDCWD, ".", O_RDONLY);
+    EXPECT_OK(cwd_);
+    // Move into the directory for the test.
+    EXPECT_OK(fchdir(dir_fd_));
   }
-  int status;
-  EXPECT_EQ(child, waitpid(child, &status, 0));
-  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-  EXPECT_EQ(0, rc);
-  // Tidy up.
-  close(cap_dir);
-  rmdir("/tmp/cap_topdir/cap_subdir");
-  rmdir("/tmp/cap_topdir");
-}
+  ~OpenatTest() {
+    fchdir(cwd_);
+    close(cwd_);
+    close(sub_fd_);
+    close(dir_fd_);
+    unlink(SUBDIR_ABS "/symlink.up");
+    unlink(TOPDIR "/symlink.absolute_in");
+    unlink(TOPDIR "/symlink.absolute_out");
+    unlink(TOPDIR "/symlink.relative_in");
+    unlink(TOPDIR "/symlink.relative_out");
+    unlink(TOPDIR "/symlink.down");
+    unlink(TOPDIR "/symlink.samedir");
+    unlink(SUBDIR_ABS "/bottomfile");
+    unlink(TOPDIR "/topfile");
+    rmdir(SUBDIR_ABS);
+    rmdir(TOPDIR);
+  }
 
-#define SYMLINK_DIR "/tmp/cap_openat_symlink"
-TEST(Openat, RelativeSymlink) {
-  // Prepare a directory containing:
-  //  -rw-rw-r--  normal
-  //  lrwxrwxrwx  symlink.absolute_in -> /tmp/cap_openat_symlink/normal
-  //  lrwxrwxrwx  symlink.absolute_out -> /etc/passwd
-  //  lrwxrwxrwx  symlink.normal -> normal
-  //  lrwxrwxrwx  symlink.relative_in -> ../../tmp/cap_openat_symlink/normal
-  //  lrwxrwxrwx  symlink.relative_out -> ../../etc/passwd
-  int rc = mkdir(SYMLINK_DIR, 0755);
-  EXPECT_OK(rc);
-  if (rc < 0 && errno != EEXIST) return;
-  int dir_fd = open(SYMLINK_DIR, O_RDONLY);
-  EXPECT_OK(dir_fd);
-  int cap_dir = dup(dir_fd);
-  EXPECT_OK(cap_dir);
-  cap_rights_t r_rl;
-  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP);
-  EXPECT_OK(cap_rights_limit(cap_dir, &r_rl));
-  int normal = open(SYMLINK_DIR "/normal", O_CREAT|O_RDWR, 0644);
-  EXPECT_OK(normal);
-  const char *contents = "Hello world\n";
-  EXPECT_OK(write(normal, contents, strlen(contents)));
-  close(normal);
+  // Check openat(2) policing that is common across capabilities, capability mode and O_BENEATH.
+  void CheckPolicing(int oflag) {
+    // OK for normal access.
+    EXPECT_OPEN_OK(openat(dir_fd_, "topfile", O_RDONLY|oflag));
+    EXPECT_OPEN_OK(openat(dir_fd_, "subdir/bottomfile", O_RDONLY|oflag));
+    EXPECT_OPEN_OK(openat(sub_fd_, "bottomfile", O_RDONLY|oflag));
+    EXPECT_OPEN_OK(openat(sub_fd_, ".", O_RDONLY|oflag));
 
-  EXPECT_OK(symlink(SYMLINK_DIR "/normal", SYMLINK_DIR "/symlink.absolute_in"));
-  EXPECT_OK(symlink("/etc/passwd", SYMLINK_DIR "/symlink.absolute_out"));
-  EXPECT_OK(symlink("normal", SYMLINK_DIR "/symlink.normal"));
-  EXPECT_OK(symlink("../.." SYMLINK_DIR "/normal", SYMLINK_DIR "/symlink.relative_in"));
-  EXPECT_OK(symlink("../../etc/passwd", SYMLINK_DIR "/symlink.relative_out"));
+    // Can't open paths with ".." in them.
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "subdir/../topfile", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "../topfile", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "../subdir/bottomfile", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "..", O_RDONLY|oflag));
 
+    // Check that we can't escape the top directory by the cunning
+    // ruse of going via a subdirectory.
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "subdir/../../etc/passwd", O_RDONLY|oflag));
+
+    // Should only be able to open symlinks that stay within the directory.
+    EXPECT_OPEN_OK(openat(dir_fd_, "symlink.samedir", O_RDONLY|oflag));
+    EXPECT_OPEN_OK(openat(dir_fd_, "symlink.down", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.absolute_out", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.relative_in", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.relative_out", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "symlink.up", O_RDONLY|oflag));
+
+    // Although recall that O_NOFOLLOW prevents symlink following.
+    EXPECT_SYSCALL_FAIL(ELOOP, openat(dir_fd_, "symlink.samedir", O_RDONLY|O_NOFOLLOW|oflag));
+    EXPECT_SYSCALL_FAIL(ELOOP, openat(dir_fd_, "symlink.down", O_RDONLY|O_NOFOLLOW|oflag));
+  }
+
+ protected:
+  int dir_fd_;
+  int sub_fd_;
+  int cwd_;
+};
+
+TEST_F(OpenatTest, WithCapability) {
   // Any kind of symlink can be opened relative to an ordinary directory FD.
-  EXPECT_OPEN_OK(openat(dir_fd, "symlink.normal", O_RDONLY));
-  EXPECT_OPEN_OK(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
-  EXPECT_OPEN_OK(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
-  EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_in", O_RDONLY));
-  EXPECT_OPEN_OK(openat(dir_fd, "symlink.relative_out", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.samedir", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.down", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.absolute_in", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.absolute_out", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.relative_in", O_RDONLY));
+  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.relative_out", O_RDONLY));
+  EXPECT_OPEN_OK(openat(sub_fd_, "symlink.up", O_RDONLY));
 
-  // Even when not in capability mode, should only be able to open symlinks that
-  // stay within the directory (when relative to a capability dfd).
-  EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
-
-  int child = fork();
-  if (child == 0) {
-    // Child process: run the test in capability mode
-    EXPECT_OK(cap_enter());
-
-    // Only symlink within the directory can be opened relative to an ordinary directory FD.
-    EXPECT_OPEN_OK(openat(dir_fd, "normal", O_RDONLY));
-    EXPECT_OPEN_OK(openat(dir_fd, "symlink.normal", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.absolute_in", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.absolute_out", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.relative_in", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd, "symlink.relative_out", O_RDONLY));
-
-    // Only symlink within the directory can be opened relative to an ordinary directory FD.
-    EXPECT_OPEN_OK(openat(cap_dir, "normal", O_RDONLY));
-    EXPECT_OPEN_OK(openat(cap_dir, "symlink.normal", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_in", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.absolute_out", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_in", O_RDONLY));
-    EXPECT_FAIL_TRAVERSAL(openat(cap_dir, "symlink.relative_out", O_RDONLY));
-    exit(HasFailure());
-  }
-  int status;
-  EXPECT_EQ(child, waitpid(child, &status, 0));
-  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-  EXPECT_EQ(0, rc);
-
-  // Tidy up
-  close(dir_fd);
-  close(cap_dir);
-  unlink(SYMLINK_DIR "/symlink.absolute_in");
-  unlink(SYMLINK_DIR "/symlink.absolute_out");
-  unlink(SYMLINK_DIR "/symlink.normal");
-  unlink(SYMLINK_DIR "/symlink.relative_in");
-  unlink(SYMLINK_DIR "/symlink.relative_out");
-  unlink(SYMLINK_DIR "/normal");
-  rmdir(SYMLINK_DIR);
+  // Now make both DFDs into Capsicum capabilities.
+  cap_rights_t r_rl;
+  cap_rights_init(&r_rl, CAP_READ, CAP_LOOKUP, CAP_FCHDIR);
+  EXPECT_OK(cap_rights_limit(dir_fd_, &r_rl));
+  EXPECT_OK(cap_rights_limit(sub_fd_, &r_rl));
+  CheckPolicing(0);
+  // Use of AT_FDCWD is independent of use of a capability.
+  // Can open paths starting with "/" against a capability dfd, because the dfd is ignored.
 }
+
+FORK_TEST_F(OpenatTest, InCapabilityMode) {
+  EXPECT_OK(cap_enter());  // Enter capability mode
+  CheckPolicing(0);
+
+  // Use of AT_FDCWD is banned in capability mode.
+  EXPECT_CAPMODE(openat(AT_FDCWD, "topfile", O_RDONLY));
+  EXPECT_CAPMODE(openat(AT_FDCWD, "subdir/bottomfile", O_RDONLY));
+  EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
+
+  // Can't open paths starting with "/" in capability mode.
+  EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "/etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "/etc/passwd", O_RDONLY));
+}
+
+#ifdef O_BENEATH
+TEST_F(OpenatTest, WithFlag) {
+  CheckPolicing(O_BENEATH);
+
+  // Check with AT_FDCWD.
+  EXPECT_OPEN_OK(openat(AT_FDCWD, "topfile", O_RDONLY|O_BENEATH));
+  EXPECT_OPEN_OK(openat(AT_FDCWD, "subdir/bottomfile", O_RDONLY|O_BENEATH));
+
+  // Can't open paths starting with "/" with O_BENEATH specified.
+  EXPECT_FAIL_TRAVERSAL(openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_BENEATH));
+  EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "/etc/passwd", O_RDONLY|O_BENEATH));
+  EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "/etc/passwd", O_RDONLY|O_BENEATH));
+}
+#endif
