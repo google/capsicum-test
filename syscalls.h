@@ -237,6 +237,16 @@ static inline int connect_(int sockfd, const struct sockaddr *addr, socklen_t ad
 #define HAVE_PPOLL
 #define HAVE_EXECVEAT
 #define HAVE_SYSCALL
+/*
+ * O_BENEATH is arch-specific, via <asm/fcntl.h>; however we cannot include both that file
+ * and the normal <fcntl.h> as they have some clashing definitions.  Bypass by directly
+ * defining O_BENEATH, using the current proposed x86 value.  (This will therefore not
+ * work for non-x86, and may need changing in future if a different value gets merged.)
+ */
+#ifndef O_BENEATH
+#define O_BENEATH	040000000	/* no / or .. in openat path */
+#endif
+
 
 /* Linux allows anyone to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 0
