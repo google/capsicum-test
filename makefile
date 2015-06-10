@@ -1,4 +1,4 @@
-all: capsicum-test smoketest mini-me mini-me.noexec mini-me.setuid
+all: capsicum-test smoketest mini-me mini-me.noexec mini-me.setuid $(EXTRA_PROGS)
 OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o overhead.o
 
 GTEST_DIR=gtest-1.6.0
@@ -25,7 +25,7 @@ SMOKETEST_OBJECTS=smoketest.o
 smoketest: $(SMOKETEST_OBJECTS) $(LOCAL_LIBS)
 	$(CC) $(CFLAGS) -o $@ $(SMOKETEST_OBJECTS) $(LIBCAPRIGHTS)
 
-test: capsicum-test mini-me mini-me.noexec
+test: capsicum-test mini-me mini-me.noexec mini-me.setuid $(EXTRA_PROGS)
 	./capsicum-test
 gtest-all.o:
 	$(CXX) $(ARCHFLAG) -I$(GTEST_DIR)/include -I$(GTEST_DIR) $(GTEST_FLAGS) -c ${GTEST_DIR}/src/gtest-all.cc
@@ -33,4 +33,4 @@ libgtest.a: gtest-all.o
 	$(AR) -rv libgtest.a gtest-all.o
 
 clean:
-	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec smoketest $(SMOKETEST_OBJECTS) $(OBJECTS) $(LOCAL_CLEAN)
+	rm -rf gtest-all.o libgtest.a capsicum-test mini-me mini-me.noexec smoketest $(SMOKETEST_OBJECTS) $(OBJECTS) $(LOCAL_CLEAN) $(EXTRA_PROGS)

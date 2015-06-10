@@ -48,8 +48,19 @@ endif
 
 endif
 
+# Extra test programs for arch-transition tests
+EXTRA_PROGS=mini-me.32 mini-me.x32 mini-me.64
+
 # Chain on to the master makefile
 include makefile
 
 ./libcaprights.a: $(LIBCAPRIGHTS_OBJS)
 	ar cr $@ $^
+
+# Small static programs of known architectures
+mini-me.32: mini-me.c
+	$(CC) $(CFLAGS) -m32 -static -o $@ $<
+mini-me.x32: mini-me.c
+	$(CC) $(CFLAGS) -mx32 -static -o $@ $<
+mini-me.64: mini-me.c
+	$(CC) $(CFLAGS) -m64 -static -o $@ $<

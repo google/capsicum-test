@@ -575,6 +575,34 @@ TEST(Linux, inotify) {
   unlink("/tmp/cap_inotify");
 }
 
+FORK_TEST(Linux, ArchChange) {
+  const char* progs[] = {"./mini-me.32", "./mini-me.x32", "./mini-me.64"};
+  char* argv_pass[] = {(char*)"to-come", (char*)"--capmode", NULL};
+  char* null_envp[] = {NULL};
+  int fd[3];
+  for (int ii=0; ii<3; ii++) {
+    fd[ii] = open(progs[ii], O_RDONLY);
+    EXPECT_OK(fd[ii]);
+  }
+  for (int ii=0; ii<3; ii++) {
+    // Fork-and-exec a binary of this architecture.
+    pid_t child = fork();
+    if (child == 0) {
+      EXPECT_OK(cap_enter());  // Enter capability mode
+      if (verbose) fprintf(stderr, "[%d] call fexecve(%s, %s)\n",
+                           getpid_(), progs[ii], argv_pass[1]);
+      argv_pass[0] = (char *)progs[ii];
+      int rc = fexecve_(fd[ii], argv_pass, null_envp);
+      fprintf(stderr, "fexecve(%s) returned %d errno %d\n", progs[ii], rc, errno);
+      exit(99);  // Should not reach here.
+    }
+    int status;
+    EXPECT_EQ(child, waitpid(child, &status, 0));
+    int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    EXPECT_EQ(0, rc);
+  }
+}
+
 FORK_TEST(Linux, Namespace) {
   REQUIRE_ROOT();
   pid_t me = getpid_();
