@@ -46,10 +46,11 @@ FORK_TEST_F(Execve, BasicFexecve) {
   EXPECT_TRUE(!"fexecve() should never return");
 }
 
-FORK_TEST_F(Execve, FailInCapMode) {
+FORK_TEST_F(Execve, InCapMode) {
   EXPECT_OK(cap_enter());
-  EXPECT_EQ(-1, fexecve_(exec_fd_, argv_pass, null_envp));
-  EXPECT_EQ(ECAPMODE, errno);
+  EXPECT_OK(fexecve_(exec_fd_, argv_pass, null_envp));
+  // Should not reach here, exec() takes over.
+  EXPECT_TRUE(!"fexecve() should never return");
 }
 
 FORK_TEST_F(Execve, FailWithoutCap) {
