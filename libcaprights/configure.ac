@@ -25,7 +25,8 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_ASSERT
 AC_CHECK_HEADERS([limits.h sys/prctl.h sys/syscall.h linux/seccomp.h linux/capsicum.h])
-AC_CHECK_HEADERS([asm/unistd_64_x32.h])
+dnl Check for header files with arch-specific syscall numbers
+AC_CHECK_HEADERS([asm/unistd_64_x32.h asm/unistd_64_amd64.h asm/unistd_32_ia32.h])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
