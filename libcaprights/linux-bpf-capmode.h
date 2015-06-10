@@ -104,7 +104,9 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_ftruncate64)))
 	ALLOW_SYSCALL(ftruncate64),
 #endif
+	ALLOW_SYSCALL(futex),
 	ALLOW_SYSCALL(futimesat),
+	ALLOW_SYSCALL(get_robust_list),
 	ALLOW_SYSCALL(getdents),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_getdents64)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_getdents64)) || \
@@ -268,6 +270,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(sendto),
 #endif
 
+	ALLOW_SYSCALL(set_robust_list),
 	ALLOW_SYSCALL(setfsgid),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_setfsgid32)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_setfsgid32)) || \
