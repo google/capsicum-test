@@ -73,7 +73,7 @@ FORK_TEST(Fcntl, Basic) {
 }
 
 // Supported fcntl(2) operations:
-//   FreeBSD10         FreeBSD9.1:  Linux3.11:       Rights:            Summary:
+//   FreeBSD10         FreeBSD9.1:  Linux:           Rights:            Summary:
 //   F_DUPFD           F_DUPFD      F_DUPFD          NONE               as dup(2)
 //   F_DUPFD_CLOEXEC                F_DUPFD_CLOEXEC  NONE               as dup(2) with close-on-exec
 //   F_DUP2FD          F_DUP2FD                      NONE               as dup2(2)
@@ -99,6 +99,8 @@ FORK_TEST(Fcntl, Basic) {
 //                                  F_NOTIFY         NOTIFY             generate signal on changes (dnotify)
 //                                  F_GETPIPE_SZ     GETSOCKOPT         get pipe size
 //                                  F_SETPIPE_SZ     SETSOCKOPT         set pipe size
+//                                  F_GET_SEAL       FSTAT              get memfd seals
+//                                  F_ADD_SEAL       FCHMOD             set memfd seal
 // If HAVE_CAP_FCNTLS_LIMIT is defined, then fcntl(2) operations that require
 // CAP_FCNTL (marked with * above) can be further limited with cap_fcntls_limit(2).
 namespace {

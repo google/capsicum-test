@@ -1369,7 +1369,6 @@ TEST(Linux, MemFDDeathTest) {
   if (verbose) fprintf(stderr, "seals are %08x on read-only fd\n", seals_ro);
   int seals_rw = fcntl(memfd_rw, F_GET_SEALS);
   EXPECT_NOTCAPABLE(seals_rw);
-  if (verbose) fprintf(stderr, "seals are %08x on read-write fd, no CAP_FSTAT\n", seals_rw);
 
   // Fail to seal as a writable mapping exists.
   EXPECT_EQ(-1, fcntl(memfd_rw, F_ADD_SEALS, F_SEAL_WRITE));
@@ -1380,6 +1379,13 @@ TEST(Linux, MemFDDeathTest) {
   munmap(p_rw, LEN);
   munmap(p_ro, LEN);
   EXPECT_OK(fcntl(memfd_rw, F_ADD_SEALS, F_SEAL_WRITE));
+
+  seals = fcntl(memfd, F_GET_SEALS);
+  EXPECT_OK(seals);
+  if (verbose) fprintf(stderr, "seals are %08x on base fd\n", seals);
+  seals_ro = fcntl(memfd_ro, F_GET_SEALS);
+  EXPECT_EQ(seals, seals_ro);
+  if (verbose) fprintf(stderr, "seals are %08x on read-only fd\n", seals_ro);
 
   // Remove the CAP_FCHMOD right, can no longer add seals.
   EXPECT_OK(cap_rights_limit(memfd_rw, cap_rights_init(&rights, CAP_MMAP_RW)));
