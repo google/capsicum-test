@@ -34,8 +34,13 @@ typedef unsigned long cap_ioctl_t;
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
-// Failure to open file due to path traversal generates ENOTCAPABLE
-#define E_NO_TRAVERSE ENOTCAPABLE
+// Failure to open file due to path traversal generates ENOTCAPABLE if due to
+// capability mode or EPERM if due to EPERM.
+#define E_NO_TRAVERSE_CAPABILITY ENOTCAPABLE
+#define E_NO_TRAVERSE_O_BENEATH EPERM
+
+// Too many links
+#define E_TOO_MANY_LINKS EMLINK
 
 // TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on accept.
 // FreeBSD does not generate a capability from accept(cap_fd,...).

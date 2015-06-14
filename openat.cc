@@ -81,8 +81,8 @@ FORK_TEST(Openat, Relative) {
   EXPECT_OPEN_OK(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
   EXPECT_OPEN_OK(openat(etc_cap_base, "/etc/passwd", O_RDONLY));
   // Relative lookups that go upward are not allowed.
-  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(etc_cap_ro, "../etc/passwd", O_RDONLY);
+  EXPECT_FAIL_TRAVERSAL(etc_cap_base, "../etc/passwd", O_RDONLY);
 
   // A file opened relative to a capability should itself be a capability.
   int fd = openat(etc_cap_base, "passwd", O_RDONLY);
@@ -120,13 +120,13 @@ FORK_TEST(Openat, Relative) {
 
   // Absolute lookups should fail.
   EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(etc, "/etc/passwd", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_ro, "/etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(etc, "/etc/passwd", O_RDONLY);
+  EXPECT_FAIL_TRAVERSAL(etc_cap_ro, "/etc/passwd", O_RDONLY);
 
   // Lookups containing '..' should fail in capability mode.
-  EXPECT_FAIL_TRAVERSAL(openat(etc, "../etc/passwd", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_ro, "../etc/passwd", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(etc_cap_base, "../etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(etc, "../etc/passwd", O_RDONLY);
+  EXPECT_FAIL_TRAVERSAL(etc_cap_ro, "../etc/passwd", O_RDONLY);
+  EXPECT_FAIL_TRAVERSAL(etc_cap_base, "../etc/passwd", O_RDONLY);
 
   fd = openat(etc, "passwd", O_RDONLY);
   EXPECT_OK(fd);
@@ -219,27 +219,27 @@ class OpenatTest : public ::testing::Test {
     EXPECT_OPEN_OK(openat(sub_fd_, ".", O_RDONLY|oflag));
 
     // Can't open paths with ".." in them.
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "subdir/../topfile", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "../topfile", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "../subdir/bottomfile", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "..", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(dir_fd_, "subdir/../topfile", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(sub_fd_, "../topfile", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(sub_fd_, "../subdir/bottomfile", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(sub_fd_, "..", O_RDONLY|oflag);
 
     // Check that we can't escape the top directory by the cunning
     // ruse of going via a subdirectory.
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "subdir/../../etc/passwd", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(dir_fd_, "subdir/../../etc/passwd", O_RDONLY|oflag);
 
     // Should only be able to open symlinks that stay within the directory.
     EXPECT_OPEN_OK(openat(dir_fd_, "symlink.samedir", O_RDONLY|oflag));
     EXPECT_OPEN_OK(openat(dir_fd_, "symlink.down", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.absolute_out", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.relative_in", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "symlink.relative_out", O_RDONLY|oflag));
-    EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "symlink.up", O_RDONLY|oflag));
+    EXPECT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_out", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_in", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_out", O_RDONLY|oflag);
+    EXPECT_FAIL_TRAVERSAL(sub_fd_, "symlink.up", O_RDONLY|oflag);
 
     // Although recall that O_NOFOLLOW prevents symlink following.
-    EXPECT_SYSCALL_FAIL(ELOOP, openat(dir_fd_, "symlink.samedir", O_RDONLY|O_NOFOLLOW|oflag));
-    EXPECT_SYSCALL_FAIL(ELOOP, openat(dir_fd_, "symlink.down", O_RDONLY|O_NOFOLLOW|oflag));
+    EXPECT_SYSCALL_FAIL(E_TOO_MANY_LINKS, openat(dir_fd_, "symlink.samedir", O_RDONLY|O_NOFOLLOW|oflag));
+    EXPECT_SYSCALL_FAIL(E_TOO_MANY_LINKS, openat(dir_fd_, "symlink.down", O_RDONLY|O_NOFOLLOW|oflag));
   }
 
  protected:
@@ -278,8 +278,8 @@ FORK_TEST_F(OpenatTest, InCapabilityMode) {
   EXPECT_CAPMODE(openat(AT_FDCWD, "/etc/passwd", O_RDONLY));
 
   // Can't open paths starting with "/" in capability mode.
-  EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "/etc/passwd", O_RDONLY));
-  EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "/etc/passwd", O_RDONLY));
+  EXPECT_FAIL_TRAVERSAL(dir_fd_, "/etc/passwd", O_RDONLY);
+  EXPECT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY);
 }
 
 #ifdef O_BENEATH
@@ -291,8 +291,8 @@ TEST_F(OpenatTest, WithFlag) {
   EXPECT_OPEN_OK(openat(AT_FDCWD, "subdir/bottomfile", O_RDONLY|O_BENEATH));
 
   // Can't open paths starting with "/" with O_BENEATH specified.
-  EXPECT_FAIL_TRAVERSAL(openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_BENEATH));
-  EXPECT_FAIL_TRAVERSAL(openat(dir_fd_, "/etc/passwd", O_RDONLY|O_BENEATH));
-  EXPECT_FAIL_TRAVERSAL(openat(sub_fd_, "/etc/passwd", O_RDONLY|O_BENEATH));
+  EXPECT_FAIL_TRAVERSAL(AT_FDCWD, "/etc/passwd", O_RDONLY|O_BENEATH);
+  EXPECT_FAIL_TRAVERSAL(dir_fd_, "/etc/passwd", O_RDONLY|O_BENEATH);
+  EXPECT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY|O_BENEATH);
 }
 #endif

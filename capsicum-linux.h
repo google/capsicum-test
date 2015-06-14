@@ -22,7 +22,11 @@
 #define AT_SYSCALLS_IN_CAPMODE
 
 // Failure to open file due to path traversal generates EPERM
-#define E_NO_TRAVERSE EPERM
+#define E_NO_TRAVERSE_CAPABILITY EPERM
+#define E_NO_TRAVERSE_O_BENEATH EPERM
+
+// Too many links
+#define E_TOO_MANY_LINKS ELOOP
 
 #endif /* __linux__ */
 
