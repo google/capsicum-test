@@ -147,8 +147,10 @@ TEST(Execveat, NoUpwardTraversal) {
   if (child == 0) {
     EXPECT_OK(cap_enter());  // Enter capability mode.
     // Can't execveat() an absolute path, even relative to a dfd.
-    EXPECT_FAIL_TRAVERSAL(execveat(AT_FDCWD, abspath, argv_pass, null_envp, 0));
-    EXPECT_FAIL_TRAVERSAL(execveat(dfd, abspath, argv_pass, null_envp, 0));
+    EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY,
+                        execveat(AT_FDCWD, abspath, argv_pass, null_envp, 0));
+    EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY,
+                        execveat(dfd, abspath, argv_pass, null_envp, 0));
 
     // Can't execveat() a relative path ("../<dir>/./<exe>").
     char *p = cwd + strlen(cwd);
@@ -157,7 +159,8 @@ TEST(Execveat, NoUpwardTraversal) {
     strcat(buffer, ++p);
     strcat(buffer, "/");
     strcat(buffer, EXEC_PROG);
-    EXPECT_FAIL_TRAVERSAL(execveat(dfd, buffer, argv_pass, null_envp, 0));
+    EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY,
+                        execveat(dfd, buffer, argv_pass, null_envp, 0));
     exit(HasFailure() ? 99 : 123);
   }
   int status;
