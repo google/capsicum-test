@@ -152,6 +152,7 @@ void MaybeRunWithThread(Function fn) {
 
 // Expect a system call to fail due to path traversal; exact error
 // code is OS-specific.
+#ifdef O_BENEATH
 #define EXPECT_OPENAT_FAIL_TRAVERSAL(fd, path, flags) \
     do { \
       const int result = openat((fd), (path), (flags)); \
@@ -161,6 +162,13 @@ void MaybeRunWithThread(Function fn) {
         EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
       } \
     } while (0)
+#else
+#define EXPECT_OPENAT_FAIL_TRAVERSAL(fd, path, flags) \
+    do { \
+      const int result = openat((fd), (path), (flags)); \
+      EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
+    } while (0)
+#endif
 
 // Expect a system call to fail with ECAPMODE.
 #define EXPECT_CAPMODE(C) EXPECT_SYSCALL_FAIL(ECAPMODE, C)
