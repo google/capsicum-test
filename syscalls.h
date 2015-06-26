@@ -111,8 +111,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define HAVE_SYSCTL
 #define HAVE_FPATHCONF
 #define HAVE_F_DUP2FD
-/* TODO(FreeBSD): re-enable when pselect(2) is allowed in capability mode */
-/* #define HAVE_PSELECT */
+#define HAVE_PSELECT
 #define HAVE_SCTP
 
 /* FreeBSD only allows root to call mlock[all]/munlock[all] */
