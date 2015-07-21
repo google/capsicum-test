@@ -985,6 +985,33 @@ FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
   close(fd);
 }
 
+TEST(Capability, PipeUnseekable) {
+  int fds[2];
+  EXPECT_OK(pipe(fds));
+
+  // Some programs detect pipes by calling seek() and getting ESPIPE.
+  EXPECT_EQ(-1, lseek(fds[0], 0, SEEK_SET));
+  EXPECT_EQ(ESPIPE, errno);
+
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK);
+  EXPECT_OK(cap_rights_limit(fds[0], &rights));
+
+  EXPECT_EQ(-1, lseek(fds[0], 0, SEEK_SET));
+  EXPECT_EQ(ESPIPE, errno);
+
+  // Remove CAP_SEEK and see if ENOTCAPABLE trumps ESPIPE.
+  cap_rights_init(&rights, CAP_READ, CAP_WRITE);
+  EXPECT_OK(cap_rights_limit(fds[0], &rights));
+  EXPECT_EQ(-1, lseek(fds[0], 0, SEEK_SET));
+  EXPECT_EQ(ENOTCAPABLE, errno);
+  // TODO(drysdale): in practical terms it might be nice if ESPIPE trumped ENOTCAPABLE.
+  // EXPECT_EQ(ESPIPE, errno);
+
+  close(fds[0]);
+  close(fds[1]);
+}
+
 TEST(Capability, NoBypassDAC) {
   REQUIRE_ROOT();
   int fd = open("/tmp/cap_root_owned", O_RDONLY|O_CREAT, 0644);
