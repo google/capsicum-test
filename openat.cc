@@ -155,12 +155,19 @@ class OpenatTest : public ::testing::Test {
   //                 /subdir/
   //                 /subdir/bottomfile
   //                 /symlink.samedir       -> topfile
+  //                 /dsymlink.samedir      -> ./
   //                 /symlink.down          -> subdir/bottomfile
+  //                 /dsymlink.down         -> subdir/
   //                 /symlink.absolute_in   -> /tmp/cap_topdir/topfile
+  //                 /dsymlink.absolute_in  -> /tmp/cap_topdir/
   //                 /symlink.absolute_out  -> /etc/passwd
+  //                 /dsymlink.absolute_out -> /etc/
   //                 /symlink.relative_in   -> ../../tmp/cap_topdir/topfile
+  //                 /dsymlink.relative_in  -> ../../tmp/cap_topdir/
   //                 /symlink.relative_out  -> ../../etc/passwd
+  //                 /dsymlink.relative_out -> ../../etc/
   //                 /subdir/symlink.up     -> ../topfile
+  //                 /subdir/dsymlink.up    -> ../
   OpenatTest() {
     // Create a couple of nested directories
     int rc = mkdir(TOPDIR, 0755);
@@ -173,7 +180,7 @@ class OpenatTest : public ::testing::Test {
     CreateFile(TOPDIR "/topfile", "Top-level file");
     CreateFile(SUBDIR_ABS "/bottomfile", "File in subdirectory");
 
-    // Create various symlinks
+    // Create various symlinks to files.
     EXPECT_OK(symlink("topfile", TOPDIR "/symlink.samedir"));
     EXPECT_OK(symlink("subdir/bottomfile", TOPDIR "/symlink.down"));
     EXPECT_OK(symlink(TOPDIR "/topfile", TOPDIR "/symlink.absolute_in"));
@@ -181,6 +188,15 @@ class OpenatTest : public ::testing::Test {
     EXPECT_OK(symlink("../.." TOPDIR "/topfile", TOPDIR "/symlink.relative_in"));
     EXPECT_OK(symlink("../../etc/passwd", TOPDIR "/symlink.relative_out"));
     EXPECT_OK(symlink("../topfile", SUBDIR_ABS "/symlink.up"));
+
+    // Create various symlinks to directories.
+    EXPECT_OK(symlink("./", TOPDIR "/dsymlink.samedir"));
+    EXPECT_OK(symlink("subdir/", TOPDIR "/dsymlink.down"));
+    EXPECT_OK(symlink(TOPDIR "/", TOPDIR "/dsymlink.absolute_in"));
+    EXPECT_OK(symlink("/etc/", TOPDIR "/dsymlink.absolute_out"));
+    EXPECT_OK(symlink("../.." TOPDIR "/", TOPDIR "/dsymlink.relative_in"));
+    EXPECT_OK(symlink("../../etc/", TOPDIR "/dsymlink.relative_out"));
+    EXPECT_OK(symlink("../", SUBDIR_ABS "/dsymlink.up"));
 
     // Open directory FDs for those directories and for cwd.
     dir_fd_ = open(TOPDIR, O_RDONLY);
@@ -204,6 +220,13 @@ class OpenatTest : public ::testing::Test {
     unlink(TOPDIR "/symlink.relative_out");
     unlink(TOPDIR "/symlink.down");
     unlink(TOPDIR "/symlink.samedir");
+    unlink(SUBDIR_ABS "/dsymlink.up");
+    unlink(TOPDIR "/dsymlink.absolute_in");
+    unlink(TOPDIR "/dsymlink.absolute_out");
+    unlink(TOPDIR "/dsymlink.relative_in");
+    unlink(TOPDIR "/dsymlink.relative_out");
+    unlink(TOPDIR "/dsymlink.down");
+    unlink(TOPDIR "/dsymlink.samedir");
     unlink(SUBDIR_ABS "/bottomfile");
     unlink(TOPDIR "/topfile");
     rmdir(SUBDIR_ABS);
@@ -237,7 +260,15 @@ class OpenatTest : public ::testing::Test {
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_out", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "symlink.up", O_RDONLY|oflag);
 
-    // Although recall that O_NOFOLLOW prevents symlink following.
+    EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.samedir/topfile", O_RDONLY|oflag));
+    EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.down/bottomfile", O_RDONLY|oflag));
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_out/passwd", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_in/topfile", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_out/passwd", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "dsymlink.up/topfile", O_RDONLY|oflag);
+
+    // Although recall that O_NOFOLLOW prevents symlink following in final component.
     EXPECT_SYSCALL_FAIL(E_TOO_MANY_LINKS, openat(dir_fd_, "symlink.samedir", O_RDONLY|O_NOFOLLOW|oflag));
     EXPECT_SYSCALL_FAIL(E_TOO_MANY_LINKS, openat(dir_fd_, "symlink.down", O_RDONLY|O_NOFOLLOW|oflag));
   }
