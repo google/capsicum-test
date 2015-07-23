@@ -6,7 +6,8 @@ ARCHFLAG=-m$(ARCH)
 
 ifeq ($(OS),Linux)
 PROCESSOR:=$(shell uname -p)
-PLATFORM_LIBDIR=lib/$(PROCESSOR)-linux-gnu
+# PLATFORM_LIBDIR=lib/$(PROCESSOR)-linux-gnu
+PLATFORM_LIBDIR?=$(shell gcc -v 2>&1 | grep "Configured with:" | perl -pe 's/.*--libdir=\/usr\/([^\s]+).*/\1/g')
 
 # Override for explicitly specified ARCHFLAG.
 # Use locally compiled libcaprights in this case, on the
