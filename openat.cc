@@ -3,6 +3,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
+#include <string>
+
 #include "capsicum.h"
 #include "capsicum-test.h"
 #include "syscalls.h"
@@ -145,7 +147,7 @@ FORK_TEST(Openat, Relative) {
   close(fd);
 }
 
-#define TOPDIR "/tmp/cap_topdir"
+#define TOPDIR "cap_topdir"
 #define SUBDIR_ABS TOPDIR "/subdir"
 class OpenatTest : public ::testing::Test {
  public:
@@ -168,40 +170,57 @@ class OpenatTest : public ::testing::Test {
   //                 /dsymlink.relative_out -> ../../etc/
   //                 /subdir/symlink.up     -> ../topfile
   //                 /subdir/dsymlink.up    -> ../
+  // (In practice, this is a little more complicated because tmpdir might
+  // not be "/tmp".)
   OpenatTest() {
     // Create a couple of nested directories
-    int rc = mkdir(TOPDIR, 0755);
+    int rc = mkdir(TmpFile(TOPDIR), 0755);
     EXPECT_OK(rc);
     if (rc < 0) EXPECT_EQ(EEXIST, errno);
-    rc = mkdir(SUBDIR_ABS, 0755);
+    rc = mkdir(TmpFile(SUBDIR_ABS), 0755);
     EXPECT_OK(rc);
     if (rc < 0) EXPECT_EQ(EEXIST, errno);
+
+    // Figure out a path prefix (like "../..") that gets us to the root
+    // directory from TmpFile(TOPDIR).
+    const char *p = TmpFile(TOPDIR);  // maybe "/tmp/somewhere/cap_topdir"
+    std::string dots2root = "..";
+    while (*p++ != '\0') {
+      if (*p == '/') {
+        dots2root += "/..";
+      }
+    }
+
     // Create normal files in each.
-    CreateFile(TOPDIR "/topfile", "Top-level file");
-    CreateFile(SUBDIR_ABS "/bottomfile", "File in subdirectory");
+    CreateFile(TmpFile(TOPDIR "/topfile"), "Top-level file");
+    CreateFile(TmpFile(SUBDIR_ABS "/bottomfile"), "File in subdirectory");
 
     // Create various symlinks to files.
-    EXPECT_OK(symlink("topfile", TOPDIR "/symlink.samedir"));
-    EXPECT_OK(symlink("subdir/bottomfile", TOPDIR "/symlink.down"));
-    EXPECT_OK(symlink(TOPDIR "/topfile", TOPDIR "/symlink.absolute_in"));
-    EXPECT_OK(symlink("/etc/passwd", TOPDIR "/symlink.absolute_out"));
-    EXPECT_OK(symlink("../.." TOPDIR "/topfile", TOPDIR "/symlink.relative_in"));
-    EXPECT_OK(symlink("../../etc/passwd", TOPDIR "/symlink.relative_out"));
-    EXPECT_OK(symlink("../topfile", SUBDIR_ABS "/symlink.up"));
+    EXPECT_OK(symlink("topfile", TmpFile(TOPDIR "/symlink.samedir")));
+    EXPECT_OK(symlink("subdir/bottomfile", TmpFile(TOPDIR "/symlink.down")));
+    EXPECT_OK(symlink(TmpFile(TOPDIR "/topfile"), TmpFile(TOPDIR "/symlink.absolute_in")));
+    EXPECT_OK(symlink("/etc/passwd", TmpFile(TOPDIR "/symlink.absolute_out")));
+    std::string dots2top = dots2root + TmpFile(TOPDIR "/topfile");
+    EXPECT_OK(symlink(dots2top.c_str(), TmpFile(TOPDIR "/symlink.relative_in")));
+    std::string dots2passwd = dots2root + "/etc/passwd";
+    EXPECT_OK(symlink(dots2passwd.c_str(), TmpFile(TOPDIR "/symlink.relative_out")));
+    EXPECT_OK(symlink("../topfile", TmpFile(SUBDIR_ABS "/symlink.up")));
 
     // Create various symlinks to directories.
-    EXPECT_OK(symlink("./", TOPDIR "/dsymlink.samedir"));
-    EXPECT_OK(symlink("subdir/", TOPDIR "/dsymlink.down"));
-    EXPECT_OK(symlink(TOPDIR "/", TOPDIR "/dsymlink.absolute_in"));
-    EXPECT_OK(symlink("/etc/", TOPDIR "/dsymlink.absolute_out"));
-    EXPECT_OK(symlink("../.." TOPDIR "/", TOPDIR "/dsymlink.relative_in"));
-    EXPECT_OK(symlink("../../etc/", TOPDIR "/dsymlink.relative_out"));
-    EXPECT_OK(symlink("../", SUBDIR_ABS "/dsymlink.up"));
+    EXPECT_OK(symlink("./", TmpFile(TOPDIR "/dsymlink.samedir")));
+    EXPECT_OK(symlink("subdir/", TmpFile(TOPDIR "/dsymlink.down")));
+    EXPECT_OK(symlink(TmpFile(TOPDIR "/"), TmpFile(TOPDIR "/dsymlink.absolute_in")));
+    EXPECT_OK(symlink("/etc/", TmpFile(TOPDIR "/dsymlink.absolute_out")));
+    std::string dots2cwd = dots2root + tmpdir + "/";
+    EXPECT_OK(symlink(dots2cwd.c_str(), TmpFile(TOPDIR "/dsymlink.relative_in")));
+    std::string dots2etc = dots2root + "/etc/";
+    EXPECT_OK(symlink(dots2etc.c_str(), TmpFile(TOPDIR "/dsymlink.relative_out")));
+    EXPECT_OK(symlink("../", TmpFile(SUBDIR_ABS "/dsymlink.up")));
 
     // Open directory FDs for those directories and for cwd.
-    dir_fd_ = open(TOPDIR, O_RDONLY);
+    dir_fd_ = open(TmpFile(TOPDIR), O_RDONLY);
     EXPECT_OK(dir_fd_);
-    sub_fd_ = open(SUBDIR_ABS, O_RDONLY);
+    sub_fd_ = open(TmpFile(SUBDIR_ABS), O_RDONLY);
     EXPECT_OK(sub_fd_);
     cwd_ = openat(AT_FDCWD, ".", O_RDONLY);
     EXPECT_OK(cwd_);
@@ -213,24 +232,24 @@ class OpenatTest : public ::testing::Test {
     close(cwd_);
     close(sub_fd_);
     close(dir_fd_);
-    unlink(SUBDIR_ABS "/symlink.up");
-    unlink(TOPDIR "/symlink.absolute_in");
-    unlink(TOPDIR "/symlink.absolute_out");
-    unlink(TOPDIR "/symlink.relative_in");
-    unlink(TOPDIR "/symlink.relative_out");
-    unlink(TOPDIR "/symlink.down");
-    unlink(TOPDIR "/symlink.samedir");
-    unlink(SUBDIR_ABS "/dsymlink.up");
-    unlink(TOPDIR "/dsymlink.absolute_in");
-    unlink(TOPDIR "/dsymlink.absolute_out");
-    unlink(TOPDIR "/dsymlink.relative_in");
-    unlink(TOPDIR "/dsymlink.relative_out");
-    unlink(TOPDIR "/dsymlink.down");
-    unlink(TOPDIR "/dsymlink.samedir");
-    unlink(SUBDIR_ABS "/bottomfile");
-    unlink(TOPDIR "/topfile");
-    rmdir(SUBDIR_ABS);
-    rmdir(TOPDIR);
+    unlink(TmpFile(SUBDIR_ABS "/symlink.up"));
+    unlink(TmpFile(TOPDIR "/symlink.absolute_in"));
+    unlink(TmpFile(TOPDIR "/symlink.absolute_out"));
+    unlink(TmpFile(TOPDIR "/symlink.relative_in"));
+    unlink(TmpFile(TOPDIR "/symlink.relative_out"));
+    unlink(TmpFile(TOPDIR "/symlink.down"));
+    unlink(TmpFile(TOPDIR "/symlink.samedir"));
+    unlink(TmpFile(SUBDIR_ABS "/dsymlink.up"));
+    unlink(TmpFile(TOPDIR "/dsymlink.absolute_in"));
+    unlink(TmpFile(TOPDIR "/dsymlink.absolute_out"));
+    unlink(TmpFile(TOPDIR "/dsymlink.relative_in"));
+    unlink(TmpFile(TOPDIR "/dsymlink.relative_out"));
+    unlink(TmpFile(TOPDIR "/dsymlink.down"));
+    unlink(TmpFile(TOPDIR "/dsymlink.samedir"));
+    unlink(TmpFile(SUBDIR_ABS "/bottomfile"));
+    unlink(TmpFile(TOPDIR "/topfile"));
+    rmdir(TmpFile(SUBDIR_ABS));
+    rmdir(TmpFile(TOPDIR));
   }
 
   // Check openat(2) policing that is common across capabilities, capability mode and O_BENEATH.

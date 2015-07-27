@@ -184,6 +184,6 @@ TEST(Ioctl, SubRights) {
   EXPECT_NOTCAPABLE(ioctl(fd, FIOCLEX, &one));
 
   close(fd);
-  unlink("/tmp/cap_fcntl_cmds");
+  unlink(TmpFile("cap_fcntl_cmds"));
 }
 #endif

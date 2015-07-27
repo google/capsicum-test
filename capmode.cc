@@ -26,9 +26,9 @@
 class WithFiles : public ::testing::Test {
  public:
   WithFiles() :
-    fd_file_(open("/tmp/cap_capmode", O_RDWR|O_CREAT, 0644)),
+    fd_file_(open(TmpFile("cap_capmode"), O_RDWR|O_CREAT, 0644)),
     fd_close_(open("/dev/null", O_RDWR)),
-    fd_dir_(open("/tmp", O_RDONLY)),
+    fd_dir_(open(tmpdir, O_RDONLY)),
     fd_socket_(socket(PF_INET, SOCK_DGRAM, 0)),
     fd_tcp_socket_(socket(PF_INET, SOCK_STREAM, 0)) {
     EXPECT_OK(fd_file_);
@@ -43,7 +43,7 @@ class WithFiles : public ::testing::Test {
     if (fd_dir_ >= 0) close(fd_dir_);
     if (fd_close_ >= 0) close(fd_close_);
     if (fd_file_ >= 0) close(fd_file_);
-    unlink("/tmp/cap_capmode");
+    unlink(TmpFile("cap_capmode"));
   }
  protected:
   int fd_file_;
@@ -62,35 +62,35 @@ FORK_TEST_F(WithFiles, DisallowedFileSyscalls) {
   EXPECT_EQ(1, (int)mode);
 
   // System calls that are not permitted in capability mode.
-  EXPECT_CAPMODE(access("/tmp/cap_capmode_access", F_OK));
-  EXPECT_CAPMODE(acct("/tmp/cap_capmode_acct"));
-  EXPECT_CAPMODE(chdir("/tmp/cap_capmode_chdir"));
+  EXPECT_CAPMODE(access(TmpFile("cap_capmode_access"), F_OK));
+  EXPECT_CAPMODE(acct(TmpFile("cap_capmode_acct")));
+  EXPECT_CAPMODE(chdir(TmpFile("cap_capmode_chdir")));
 #ifdef HAVE_CHFLAGS
-  EXPECT_CAPMODE(chflags("/tmp/cap_capmode_chflags", UF_NODUMP));
+  EXPECT_CAPMODE(chflags(TmpFile("cap_capmode_chflags"), UF_NODUMP));
 #endif
-  EXPECT_CAPMODE(chmod("/tmp/cap_capmode_chmod", 0644));
-  EXPECT_CAPMODE(chown("/tmp/cap_capmode_chown", -1, -1));
-  EXPECT_CAPMODE(chroot("/tmp/cap_capmode_chroot"));
-  EXPECT_CAPMODE(creat("/tmp/cap_capmode_creat", 0644));
+  EXPECT_CAPMODE(chmod(TmpFile("cap_capmode_chmod"), 0644));
+  EXPECT_CAPMODE(chown(TmpFile("cap_capmode_chown"), -1, -1));
+  EXPECT_CAPMODE(chroot(TmpFile("cap_capmode_chroot")));
+  EXPECT_CAPMODE(creat(TmpFile("cap_capmode_creat"), 0644));
   EXPECT_CAPMODE(fchdir(fd_dir_));
 #ifdef HAVE_GETFSSTAT
   struct statfs statfs;
   EXPECT_CAPMODE(getfsstat(&statfs, sizeof(statfs), MNT_NOWAIT));
 #endif
-  EXPECT_CAPMODE(link("/tmp/foo", "/tmp/bar"));
+  EXPECT_CAPMODE(link(TmpFile("foo"), TmpFile("bar")));
   struct stat sb;
-  EXPECT_CAPMODE(lstat("/tmp/cap_capmode_lstat", &sb));
-  EXPECT_CAPMODE(mknod("/tmp/capmode_mknod", 0644, 0));
+  EXPECT_CAPMODE(lstat(TmpFile("cap_capmode_lstat"), &sb));
+  EXPECT_CAPMODE(mknod(TmpFile("capmode_mknod"), 0644, 0));
   EXPECT_CAPMODE(bogus_mount_());
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
   char buf[64];
-  EXPECT_CAPMODE(readlink("/tmp/cap_capmode_readlink", buf, sizeof(buf)));
+  EXPECT_CAPMODE(readlink(TmpFile("cap_capmode_readlink"), buf, sizeof(buf)));
 #ifdef HAVE_REVOKE
-  EXPECT_CAPMODE(revoke("/tmp/cap_capmode_revoke"));
+  EXPECT_CAPMODE(revoke(TmpFile("cap_capmode_revoke")));
 #endif
-  EXPECT_CAPMODE(stat("/tmp/cap_capmode_stat", &sb));
-  EXPECT_CAPMODE(symlink("/tmp/cap_capmode_symlink_from", "/tmp/cap_capmode_symlink_to"));
-  EXPECT_CAPMODE(unlink("/tmp/cap_capmode_unlink"));
+  EXPECT_CAPMODE(stat(TmpFile("cap_capmode_stat"), &sb));
+  EXPECT_CAPMODE(symlink(TmpFile("cap_capmode_symlink_from"), TmpFile("cap_capmode_symlink_to")));
+  EXPECT_CAPMODE(unlink(TmpFile("cap_capmode_unlink")));
   EXPECT_CAPMODE(umount2("/not_mounted", 0));
 }
 
@@ -385,10 +385,10 @@ FORK_TEST(Capmode, AllowedPipeSyscalls) {
 }
 
 TEST(Capmode, AllowedAtSyscalls) {
-  int rc = mkdir("/tmp/cap_at_syscalls", 0755);
+  int rc = mkdir(TmpFile("cap_at_syscalls"), 0755);
   EXPECT_OK(rc);
   if (rc < 0 && errno != EEXIST) return;
-  int dfd = open("/tmp/cap_at_syscalls", O_RDONLY);
+  int dfd = open(TmpFile("cap_at_syscalls"), O_RDONLY);
   EXPECT_OK(dfd);
 
   int file = openat(dfd, "testfile", O_RDONLY|O_CREAT, 0644);
@@ -435,11 +435,11 @@ TEST(Capmode, AllowedAtSyscalls) {
 
   // Tidy up.
   close(dfd);
-  rmdir("/tmp/cap_at_syscalls/subdir");
-  unlink("/tmp/cap_at_syscalls/symlink");
-  unlink("/tmp/cap_at_syscalls/linky");
-  unlink("/tmp/cap_at_syscalls/testfile");
-  rmdir("/tmp/cap_at_syscalls");
+  rmdir(TmpFile("cap_at_syscalls/subdir"));
+  unlink(TmpFile("cap_at_syscalls/symlink"));
+  unlink(TmpFile("cap_at_syscalls/linky"));
+  unlink(TmpFile("cap_at_syscalls/testfile"));
+  rmdir(TmpFile("cap_at_syscalls"));
 }
 
 TEST(Capmode, Abort) {

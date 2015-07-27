@@ -13,7 +13,7 @@
 #include "capsicum-test.h"
 
 TEST(Socket, UnixDomain) {
-  const char* socketName = "/tmp/capsicum-test.socket";
+  const char* socketName = TmpFile("capsicum-test.socket");
   unlink(socketName);
   cap_rights_t r_rw;
   cap_rights_init(&r_rw, CAP_READ, CAP_WRITE);

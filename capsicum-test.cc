@@ -9,9 +9,23 @@
 #include <string>
 
 bool verbose = false;
+const char *tmpdir = "/tmp";
 bool force_mt = false;
 bool force_nofork = false;
 uid_t other_uid = 0;
+
+namespace {
+std::map<std::string, std::string> tmp_paths;
+}
+
+const char *TmpFile(const char *p) {
+  std::string pathname(p);
+  if (tmp_paths.find(pathname) == tmp_paths.end()) {
+    std::string fullname = std::string(tmpdir) + "/" + pathname;
+    tmp_paths[pathname] = fullname;
+  }
+  return tmp_paths[pathname].c_str();
+}
 
 char ProcessState(int pid) {
 #ifdef __linux__

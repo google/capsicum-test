@@ -8,7 +8,7 @@
 #include "capsicum-test.h"
 
 TEST(CapabilityPair, sendfile) {
-  int in_fd = open("/tmp/cap_sendfile_in", O_CREAT|O_RDWR, 0644);
+  int in_fd = open(TmpFile("cap_sendfile_in"), O_CREAT|O_RDWR, 0644);
   EXPECT_OK(write(in_fd, "1234", 4));
   // Output fd for sendfile must be a stream socket in FreeBSD.
   int sock_fds[2];
@@ -44,7 +44,7 @@ TEST(CapabilityPair, sendfile) {
   close(in_fd);
   close(sock_fds[0]);
   close(sock_fds[1]);
-  unlink("/tmp/cap_sendfile_in");
+  unlink(TmpFile("cap_sendfile_in"));
 }
 
 #ifdef HAVE_TEE

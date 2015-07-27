@@ -27,8 +27,8 @@ int InitFDSet(fd_set* fset, int *fds, int fdcount) {
 
 }  // namespace
 
-FORK_TEST_ON(Select, LotsOFileDescriptors, "/tmp/cap_select") {
-  int fd = open("/tmp/cap_select", O_RDWR | O_CREAT, 0644);
+FORK_TEST_ON(Select, LotsOFileDescriptors, TmpFile("cap_select")) {
+  int fd = open(TmpFile("cap_select"), O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
 
@@ -96,8 +96,8 @@ FORK_TEST_ON(Select, LotsOFileDescriptors, "/tmp/cap_select") {
 #endif
 }
 
-FORK_TEST_ON(Poll, LotsOFileDescriptors, "/tmp/cap_poll") {
-  int fd = open("/tmp/cap_poll", O_RDWR | O_CREAT, 0644);
+FORK_TEST_ON(Poll, LotsOFileDescriptors, TmpFile("cap_poll")) {
+  int fd = open(TmpFile("cap_poll"), O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
 

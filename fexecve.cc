@@ -116,16 +116,16 @@ FORK_TEST(Fexecve, ExecveFailure) {
   EXPECT_EQ(ECAPMODE, errno);
 }
 
-FORK_TEST_ON(Fexecve, CapModeScriptFail, "/tmp/cap_sh_script") {
+FORK_TEST_ON(Fexecve, CapModeScriptFail, TmpFile("cap_sh_script")) {
   // First, build an executable shell script
-  int fd = open("/tmp/cap_sh_script", O_RDWR|O_CREAT, 0755);
+  int fd = open(TmpFile("cap_sh_script"), O_RDWR|O_CREAT, 0755);
   EXPECT_OK(fd);
   const char* contents = "#!/bin/sh\nexit 99\n";
   EXPECT_OK(write(fd, contents, strlen(contents)));
   close(fd);
 
   // Open the script file, with CAP_FEXECVE rights.
-  fd = open("/tmp/cap_sh_script", O_RDONLY);
+  fd = open(TmpFile("cap_sh_script"), O_RDONLY);
   cap_rights_t rights;
   cap_rights_init(&rights, CAP_FEXECVE, CAP_READ, CAP_SEEK);
   EXPECT_OK(cap_rights_limit(fd, &rights));

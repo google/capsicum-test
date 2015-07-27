@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 extern bool verbose;
+extern const char *tmpdir;  // "/tmp" by default
 extern bool force_mt;
 extern bool force_nofork;
 extern uid_t other_uid;
@@ -52,6 +53,11 @@ void MaybeRunWithThread(Function fn) {
     pthread_join(subthread, NULL);
   }
 }
+
+// Return the absolute path of a filename in the temp directory
+// with the given pathname.  For the default "/tmp" temp directory,
+// this is just "/tmp/<pathname>".
+const char *TmpFile(const char *pathname);
 
 // Run the given test function in a forked process, so that trapdoor
 // entry doesn't affect other tests, and watch out for hung processes.

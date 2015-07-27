@@ -95,8 +95,8 @@ FORK_TEST(Capability, BasicInterception) {
   if (cap_fd2 >= 0) close(cap_fd2);
 }
 
-FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, "/tmp/cap_openat_testfile") {
-  int dir = open("/tmp", O_RDONLY);
+FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, TmpFile("cap_openat_testfile")) {
+  int dir = open(tmpdir, O_RDONLY);
   EXPECT_OK(dir);
 
   cap_enter();
@@ -123,8 +123,8 @@ FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, "/tmp/cap_openat_testfile") {
   close(dir);
 }
 
-FORK_TEST_ON(Capability, FileInSync, "/tmp/cap_file_sync") {
-  int fd = open("/tmp/cap_file_sync", O_RDWR|O_CREAT, 0644);
+FORK_TEST_ON(Capability, FileInSync, TmpFile("cap_file_sync")) {
+  int fd = open(TmpFile("cap_file_sync"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
   const char* message = "Hello capability world";
   EXPECT_OK(write(fd, message, strlen(message)));
@@ -162,8 +162,8 @@ FORK_TEST_ON(Capability, FileInSync, "/tmp/cap_file_sync") {
 
 // Create a capability on /tmp that does not allow CAP_WRITE,
 // and check that this restriction is inherited through openat().
-FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
-  int dir = open("/tmp", O_RDONLY);
+FORK_TEST_ON(Capability, Inheritance, TmpFile("cap_openat_write_testfile")) {
+  int dir = open(tmpdir, O_RDONLY);
   EXPECT_OK(dir);
 
   cap_rights_t r_rl;
@@ -242,8 +242,8 @@ FORK_TEST_ON(Capability, Inheritance, "/tmp/cap_openat_write_testfile") {
   }                                                       \
 } while (0)
 
-FORK_TEST_ON(Capability, Mmap, "/tmp/cap_mmap_operations") {
-  int fd = open("/tmp/cap_mmap_operations", O_RDWR | O_CREAT, 0644);
+FORK_TEST_ON(Capability, Mmap, TmpFile("cap_mmap_operations")) {
+  int fd = open(TmpFile("cap_mmap_operations"), O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
 
@@ -417,8 +417,8 @@ static void TryFileOps(int fd, cap_rights_t rights) {
   EXPECT_OK(close(cap_fd));
 }
 
-FORK_TEST_ON(Capability, Operations, "/tmp/cap_fd_operations") {
-  int fd = open("/tmp/cap_fd_operations", O_RDWR | O_CREAT, 0644);
+FORK_TEST_ON(Capability, Operations, TmpFile("cap_fd_operations")) {
+  int fd = open(TmpFile("cap_fd_operations"), O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
 
@@ -693,12 +693,12 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
 }
 
 void DirOperationsTest(int extra) {
-  int rc = mkdir("/tmp/cap_dirops", 0755);
+  int rc = mkdir(TmpFile("cap_dirops"), 0755);
   EXPECT_OK(rc);
   if (rc < 0 && errno != EEXIST) return;
-  int dfd = open("/tmp/cap_dirops", O_RDONLY | O_DIRECTORY | extra);
+  int dfd = open(TmpFile("cap_dirops"), O_RDONLY | O_DIRECTORY | extra);
   EXPECT_OK(dfd);
-  int tmpfd = open("/tmp", O_RDONLY | O_DIRECTORY);
+  int tmpfd = open(tmpdir, O_RDONLY | O_DIRECTORY);
   EXPECT_OK(tmpfd);
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
@@ -756,7 +756,7 @@ static void TryReadWrite(int cap_fd) {
   EXPECT_EQ(ENOTCAPABLE, errno);
 }
 
-FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
+FORK_TEST_ON(Capability, SocketTransfer, TmpFile("cap_fd_transfer")) {
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
 
@@ -804,7 +804,7 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
     exit(0);
   }
 
-  int fd = open("/tmp/cap_fd_transfer", O_RDWR | O_CREAT, 0644);
+  int fd = open(TmpFile("cap_fd_transfer"), O_RDWR | O_CREAT, 0644);
   EXPECT_OK(fd);
   if (fd < 0) return;
   int cap_fd = dup(fd);
@@ -835,7 +835,7 @@ FORK_TEST_ON(Capability, SocketTransfer, "/tmp/cap_fd_transfer") {
 }
 
 TEST(Capability, SyscallAt) {
-  int rc = mkdir("/tmp/cap_at_topdir", 0755);
+  int rc = mkdir(TmpFile("cap_at_topdir"), 0755);
   EXPECT_OK(rc);
   if (rc < 0 && errno != EEXIST) return;
 
@@ -850,7 +850,7 @@ TEST(Capability, SyscallAt) {
   cap_rights_t r_no_mknod;
   cap_rights_init(&r_no_mknod, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
 
-  int dfd = open("/tmp/cap_at_topdir", O_RDONLY);
+  int dfd = open(TmpFile("cap_at_topdir"), O_RDONLY);
   EXPECT_OK(dfd);
   int cap_dfd_all = dup(dfd);
   EXPECT_OK(cap_dfd_all);
@@ -870,32 +870,32 @@ TEST(Capability, SyscallAt) {
 
   // Need CAP_MKDIRAT to mkdirat(2).
   EXPECT_NOTCAPABLE(mkdirat(cap_dfd_no_mkdir, "cap_subdir", 0755));
-  rmdir("/tmp/cap_at_topdir/cap_subdir");
+  rmdir(TmpFile("cap_at_topdir/cap_subdir"));
   EXPECT_OK(mkdirat(cap_dfd_all, "cap_subdir", 0755));
 
   // Need CAP_UNLINKAT to unlinkat(dfd, name, AT_REMOVEDIR).
   EXPECT_NOTCAPABLE(unlinkat(cap_dfd_no_unlink, "cap_subdir", AT_REMOVEDIR));
   EXPECT_OK(unlinkat(cap_dfd_all, "cap_subdir", AT_REMOVEDIR));
-  rmdir("/tmp/cap_at_topdir/cap_subdir");
+  rmdir(TmpFile("cap_at_topdir/cap_subdir"));
 
   // Need CAP_MKFIFOAT to mkfifoat(2).
   EXPECT_NOTCAPABLE(mkfifoat(cap_dfd_no_mkfifo, "cap_fifo", 0755));
-  unlink("/tmp/cap_at_topdir/cap_fifo");
+  unlink(TmpFile("cap_at_topdir/cap_fifo"));
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
-  unlink("/tmp/cap_at_topdir/cap_fifo");
+  unlink(TmpFile("cap_at_topdir/cap_fifo"));
 
   if (getuid() == 0) {
     // Need CAP_MKNODAT to mknodat(2) a device
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_device", S_IFCHR|0755, makedev(99, 123)));
-    unlink("/tmp/cap_at_topdir/cap_device");
+    unlink(TmpFile("cap_at_topdir/cap_device"));
     EXPECT_OK(mknodat(cap_dfd_all, "cap_device", S_IFCHR|0755, makedev(99, 123)));
-    unlink("/tmp/cap_at_topdir/cap_device");
+    unlink(TmpFile("cap_at_topdir/cap_device"));
 
     // Need CAP_MKFIFOAT to mknodat(2) for a FIFO.
     EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
-    unlink("/tmp/cap_at_topdir/cap_fifo");
+    unlink(TmpFile("cap_at_topdir/cap_fifo"));
     EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
-    unlink("/tmp/cap_at_topdir/cap_fifo");
+    unlink(TmpFile("cap_at_topdir/cap_fifo"));
   } else {
     TEST_SKIPPED("requires root (partial)");
   }
@@ -908,11 +908,11 @@ TEST(Capability, SyscallAt) {
   close(dfd);
 
   // Tidy up.
-  rmdir("/tmp/cap_at_topdir");
+  rmdir(TmpFile("cap_at_topdir"));
 }
 
-FORK_TEST_ON(Capability, ExtendedAttributes, "/tmp/cap_extattr") {
-  int fd = open("/tmp/cap_extattr", O_RDONLY|O_CREAT, 0644);
+FORK_TEST_ON(Capability, ExtendedAttributes, TmpFile("cap_extattr")) {
+  int fd = open(TmpFile("cap_extattr"), O_RDONLY|O_CREAT, 0644);
   EXPECT_OK(fd);
 
   char buffer[1024];
@@ -1014,7 +1014,7 @@ TEST(Capability, PipeUnseekable) {
 
 TEST(Capability, NoBypassDAC) {
   REQUIRE_ROOT();
-  int fd = open("/tmp/cap_root_owned", O_RDONLY|O_CREAT, 0644);
+  int fd = open(TmpFile("cap_root_owned"), O_RDONLY|O_CREAT, 0644);
   EXPECT_OK(fd);
   cap_rights_t rights;
   cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_FCHMOD, CAP_FSTAT);
@@ -1039,5 +1039,5 @@ TEST(Capability, NoBypassDAC) {
   EXPECT_OK(fstat(fd, &info));
   EXPECT_EQ((mode_t)(S_IFREG|0644), info.st_mode);
   close(fd);
-  unlink("/tmp/cap_root_owned");
+  unlink(TmpFile("cap_root_owned"));
 }

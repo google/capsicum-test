@@ -327,7 +327,7 @@ TEST(Linux, epoll) {
 }
 
 TEST(Linux, fstatat) {
-  int fd = open("/tmp/cap_fstatat", O_CREAT|O_RDWR, 0644);
+  int fd = open(TmpFile("cap_fstatat"), O_CREAT|O_RDWR, 0644);
   EXPECT_OK(fd);
   unsigned char buffer[] = {1, 2, 3, 4};
   EXPECT_OK(write(fd, buffer, sizeof(buffer)));
@@ -348,7 +348,7 @@ TEST(Linux, fstatat) {
   close(cap_rf);
   close(fd);
 
-  int dir = open("/tmp", O_RDONLY);
+  int dir = open(tmpdir, O_RDONLY);
   EXPECT_OK(dir);
   int dir_rf = dup(dir);
   EXPECT_OK(dir_rf);
@@ -365,7 +365,7 @@ TEST(Linux, fstatat) {
   close(dir_rf);
   close(dir);
 
-  unlink("/tmp/cap_fstatat");
+  unlink(TmpFile("cap_fstatat"));
 }
 
 // fanotify support may not be available at compile-time
@@ -409,11 +409,11 @@ TEST(Linux, fanotify) {
   EXPECT_OK(cap_fd_not);
   EXPECT_OK(cap_rights_limit(cap_fd_not, &r_rwsnotify));
 
-  int rc = mkdir("/tmp/cap_notify", 0755);
+  int rc = mkdir(TmpFile("cap_notify"), 0755);
   EXPECT_TRUE(rc == 0 || errno == EEXIST);
-  int dfd = open("/tmp/cap_notify", O_RDONLY);
+  int dfd = open(TmpFile("cap_notify"), O_RDONLY);
   EXPECT_OK(dfd);
-  int fd = open("/tmp/cap_notify/file", O_CREAT|O_RDWR, 0644);
+  int fd = open(TmpFile("cap_notify/file"), O_CREAT|O_RDWR, 0644);
   close(fd);
   int cap_dfd = dup(dfd);
   EXPECT_OK(cap_dfd);
@@ -451,8 +451,8 @@ TEST(Linux, fanotify) {
   if (child == 0) {
     // Child: Perform activity in the directory under notify.
     sleep(1);
-    unlink("/tmp/cap_notify/temp");
-    int fd = open("/tmp/cap_notify/temp", O_CREAT|O_RDWR, 0644);
+    unlink(TmpFile("cap_notify/temp"));
+    int fd = open(TmpFile("cap_notify/temp"), O_CREAT|O_RDWR, 0644);
     close(fd);
     exit(0);
   }
@@ -509,9 +509,9 @@ TEST(Linux, fanotify) {
   close(cap_dfd_rs);
   close(cap_dfd);
   close(dfd);
-  unlink("/tmp/cap_notify/file");
-  unlink("/tmp/cap_notify/temp");
-  rmdir("/tmp/cap_notify");
+  unlink(TmpFile("cap_notify/file"));
+  unlink(TmpFile("cap_notify/temp"));
+  rmdir(TmpFile("cap_notify"));
   close(cap_fd_not);
   close(cap_fd_poll);
   close(cap_fd_rw);
@@ -547,9 +547,9 @@ TEST(Linux, inotify) {
   EXPECT_OK(cap_fd_all);
   EXPECT_OK(cap_rights_limit(cap_fd_all, &r_rwsnotify));
 
-  int fd = open("/tmp/cap_inotify", O_CREAT|O_RDWR, 0644);
-  EXPECT_NOTCAPABLE(inotify_add_watch(cap_fd_rw, "/tmp/cap_inotify", IN_ACCESS|IN_MODIFY));
-  int wd = inotify_add_watch(i_fd, "/tmp/cap_inotify", IN_ACCESS|IN_MODIFY);
+  int fd = open(TmpFile("cap_inotify"), O_CREAT|O_RDWR, 0644);
+  EXPECT_NOTCAPABLE(inotify_add_watch(cap_fd_rw, TmpFile("cap_inotify"), IN_ACCESS|IN_MODIFY));
+  int wd = inotify_add_watch(i_fd, TmpFile("cap_inotify"), IN_ACCESS|IN_MODIFY);
   EXPECT_OK(wd);
 
   unsigned char buffer[] = {1, 2, 3, 4};
@@ -572,7 +572,7 @@ TEST(Linux, inotify) {
   close(cap_fd_wo);
   close(cap_fd_ro);
   close(i_fd);
-  unlink("/tmp/cap_inotify");
+  unlink(TmpFile("cap_inotify"));
 }
 
 FORK_TEST(Linux, ArchChange) {
@@ -1047,7 +1047,7 @@ TEST(Linux, CapModeWithBPF) {
   pid_t child = fork();
   EXPECT_OK(child);
   if (child == 0) {
-    int fd = open("/tmp/cap_bpf_capmode", O_CREAT|O_RDWR, 0644);
+    int fd = open(TmpFile("cap_bpf_capmode"), O_CREAT|O_RDWR, 0644);
     cap_rights_t rights;
     cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_FSYNC);
     EXPECT_OK(cap_rights_limit(fd, &rights));
@@ -1069,7 +1069,7 @@ TEST(Linux, CapModeWithBPF) {
     // fchmod is allowed by Capsicum, but failed by BPF.
     EXPECT_SYSCALL_FAIL(ENOMEM, fchmod(fd, 0644));
     // open is allowed by BPF, but failed by Capsicum
-    EXPECT_SYSCALL_FAIL(ECAPMODE, open("/tmp/cap_bpf_capmode", O_RDONLY));
+    EXPECT_SYSCALL_FAIL(ECAPMODE, open(TmpFile("cap_bpf_capmode"), O_RDONLY));
     // fstat is failed by both BPF and Capsicum; tie-break is on errno
     struct stat buf;
     EXPECT_SYSCALL_FAIL(ENOEXEC, fstat(fd, &buf));
@@ -1081,11 +1081,11 @@ TEST(Linux, CapModeWithBPF) {
   EXPECT_EQ(child, waitpid(child, &status, 0));
   EXPECT_TRUE(WIFSIGNALED(status));
   EXPECT_EQ(SIGSYS, WTERMSIG(status));
-  unlink("/tmp/cap_bpf_capmode");
+  unlink(TmpFile("cap_bpf_capmode"));
 }
 
 TEST(Linux, AIO) {
-  int fd = open("/tmp/cap_aio", O_CREAT|O_RDWR, 0644);
+  int fd = open(TmpFile("cap_aio"), O_CREAT|O_RDWR, 0644);
   EXPECT_OK(fd);
 
   cap_rights_t r_rs;
@@ -1154,7 +1154,7 @@ TEST(Linux, AIO) {
   close(cap_wo);
   close(cap_ro);
   close(fd);
-  unlink("/tmp/cap_aio");
+  unlink(TmpFile("cap_aio"));
 }
 
 #ifndef KCMP_FILE
@@ -1263,7 +1263,7 @@ FORK_TEST(Linux, ProcessClocks) {
 }
 
 TEST(Linux, SetLease) {
-  int fd_all = open("/tmp/cap_lease", O_CREAT|O_RDWR, 0644);
+  int fd_all = open(TmpFile("cap_lease"), O_CREAT|O_RDWR, 0644);
   EXPECT_OK(fd_all);
   int fd_rw = dup(fd_all);
   EXPECT_OK(fd_rw);
@@ -1287,7 +1287,7 @@ TEST(Linux, SetLease) {
 
   close(fd_all);
   close(fd_rw);
-  unlink("/tmp/cap_lease");
+  unlink(TmpFile("cap_lease"));
 }
 
 int getrandom_(void *buf, size_t buflen, unsigned int flags) {

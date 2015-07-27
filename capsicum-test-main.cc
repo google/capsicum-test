@@ -11,6 +11,13 @@ int main(int argc, char* argv[]) {
   for (int ii = 1; ii < argc; ii++) {
     if (strcmp(argv[ii], "-v") == 0) {
       verbose = true;
+    } else if (strcmp(argv[ii], "-T") == 0) {
+      ii++;
+      assert(ii < argc);
+      tmpdir = argv[ii];
+      struct stat info;
+      stat(tmpdir, &info);
+      assert(S_ISDIR(info.st_mode));
     } else if (strcmp(argv[ii], "-t") == 0) {
       force_mt = true;
     } else if (strcmp(argv[ii], "-F") == 0) {

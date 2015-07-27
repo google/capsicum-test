@@ -151,7 +151,7 @@ int CheckFcntl(unsigned long long right, int caps[FCNTL_NUM_RIGHTS], int cmd, lo
 
 TEST(Fcntl, Commands) {
   InitRights();
-  int fd = open("/tmp/cap_fcntl_cmds", O_RDWR|O_CREAT, 0644);
+  int fd = open(TmpFile("cap_fcntl_cmds"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
   write(fd, "TEST", 4);
   int sock = socket(PF_LOCAL, SOCK_STREAM, 0);
@@ -208,11 +208,11 @@ TEST(Fcntl, Commands) {
   }
   close(sock);
   close(fd);
-  unlink("/tmp/cap_fcntl_cmds");
+  unlink(TmpFile("cap_fcntl_cmds"));
 }
 
 TEST(Fcntl, WriteLock) {
-  int fd = open("/tmp/cap_fcntl_readlock", O_RDWR|O_CREAT, 0644);
+  int fd = open(TmpFile("cap_fcntl_readlock"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
   write(fd, "TEST", 4);
 
@@ -255,12 +255,12 @@ TEST(Fcntl, WriteLock) {
 
   close(cap);
   close(fd);
-  unlink("/tmp/cap_fcntl_readlock");
+  unlink(TmpFile("cap_fcntl_readlock"));
 }
 
 #ifdef HAVE_CAP_FCNTLS_LIMIT
 TEST(Fcntl, SubRightNormalFD) {
-  int fd = open("/tmp/cap_fcntl_subrightnorm", O_RDWR|O_CREAT, 0644);
+  int fd = open(TmpFile("cap_fcntl_subrightnorm"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
 
   // Restrict the fcntl(2) subrights of a normal FD.
@@ -283,11 +283,11 @@ TEST(Fcntl, SubRightNormalFD) {
   EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL|CAP_FCNTL_SETFL));
 
   close(fd);
-  unlink("/tmp/cap_fcntl_subrightnorm");
+  unlink(TmpFile("cap_fcntl_subrightnorm"));
 }
 
 TEST(Fcntl, PreserveSubRights) {
-  int fd = open("/tmp/cap_fcntl_subrightpreserve", O_RDWR|O_CREAT, 0644);
+  int fd = open(TmpFile("cap_fcntl_subrightpreserve"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
 
   cap_rights_t rights;
@@ -316,11 +316,11 @@ TEST(Fcntl, PreserveSubRights) {
   EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
 
   close(fd);
-  unlink("/tmp/cap_fcntl_subrightpreserve");
+  unlink(TmpFile("cap_fcntl_subrightpreserve"));
 }
 
 TEST(Fcntl, FLSubRights) {
-  int fd = open("/tmp/cap_fcntl_subrights", O_RDWR|O_CREAT, 0644);
+  int fd = open(TmpFile("cap_fcntl_subrights"), O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);
   write(fd, "TEST", 4);
   cap_rights_t rights;
@@ -358,7 +358,7 @@ TEST(Fcntl, FLSubRights) {
   EXPECT_NOTCAPABLE(fcntl(fd, F_SETFL, fd_flag));
 
   close(fd);
-  unlink("/tmp/cap_fcntl_subrights");
+  unlink(TmpFile("cap_fcntl_subrights"));
 }
 
 TEST(Fcntl, OWNSubRights) {
