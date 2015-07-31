@@ -58,6 +58,9 @@ include makefile
 	ar cr $@ $^
 
 # Small static programs of known architectures
+# These may require additional packages to be installed; for example, for Debian:
+#  - libc6-dev-i386 provides 32-bit headers for a 64-bit system
+#  - libc6-dev-x32 provides headers for the x32 ABI.
 mini-me.32: mini-me.c
 	$(CC) $(CFLAGS) -m32 -static -o $@ $<
 mini-me.x32: mini-me.c
