@@ -10,6 +10,7 @@
 
 bool verbose = false;
 const char *tmpdir = "/tmp";
+bool tmpdir_on_tmpfs = false;
 bool force_mt = false;
 bool force_nofork = false;
 uid_t other_uid = 0;

@@ -162,7 +162,9 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
   EXPECT_OK(sync_file_range(fd_file_, 0, 1, 0));
 #endif
 #ifdef HAVE_READAHEAD
-  EXPECT_OK(readahead(fd_file_, 0, 1));
+  if (!tmpdir_on_tmpfs) {  // tmpfs doesn't support readahead(2)
+    EXPECT_OK(readahead(fd_file_, 0, 1));
+  }
 #endif
 }
 

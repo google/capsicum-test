@@ -1279,12 +1279,13 @@ TEST(Linux, SetLease) {
   EXPECT_NOTCAPABLE(fcntl(fd_rw, F_SETLEASE, F_WRLCK));
   EXPECT_NOTCAPABLE(fcntl(fd_rw, F_GETLEASE));
 
-  EXPECT_OK(fcntl(fd_all, F_SETLEASE, F_WRLCK));
-  EXPECT_EQ(F_WRLCK, fcntl(fd_all, F_GETLEASE));
+  if (!tmpdir_on_tmpfs) {  // tmpfs doesn't support leases
+    EXPECT_OK(fcntl(fd_all, F_SETLEASE, F_WRLCK));
+    EXPECT_EQ(F_WRLCK, fcntl(fd_all, F_GETLEASE));
 
-  EXPECT_OK(fcntl(fd_all, F_SETLEASE, F_UNLCK, 0));
-  EXPECT_EQ(F_UNLCK, fcntl(fd_all, F_GETLEASE));
-
+    EXPECT_OK(fcntl(fd_all, F_SETLEASE, F_UNLCK, 0));
+    EXPECT_EQ(F_UNLCK, fcntl(fd_all, F_GETLEASE));
+  }
   close(fd_all);
   close(fd_rw);
   unlink(TmpFile("cap_lease"));

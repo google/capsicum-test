@@ -14,6 +14,7 @@
 
 extern bool verbose;
 extern const char *tmpdir;  // "/tmp" by default
+extern bool tmpdir_on_tmpfs;
 extern bool force_mt;
 extern bool force_nofork;
 extern uid_t other_uid;
