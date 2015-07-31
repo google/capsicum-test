@@ -575,14 +575,18 @@ TEST(Linux, inotify) {
   unlink(TmpFile("cap_inotify"));
 }
 
-FORK_TEST(Linux, ArchChange) {
+TEST(Linux, ArchChange) {
   const char* progs[] = {"./mini-me.32", "./mini-me.x32", "./mini-me.64"};
   char* argv_pass[] = {(char*)"to-come", (char*)"--capmode", NULL};
   char* null_envp[] = {NULL};
   int fd[3];
   for (int ii=0; ii<3; ii++) {
     fd[ii] = open(progs[ii], O_RDONLY);
-    EXPECT_OK(fd[ii]);
+    if (fd[ii] < 0) {
+      TEST_SKIPPED("different-architecture programs unavailable");
+      for (int jj=0; jj < ii; jj++) close(fd[jj]);
+      return;
+    }
   }
   for (int ii=0; ii<3; ii++) {
     // Fork-and-exec a binary of this architecture.
@@ -600,6 +604,7 @@ FORK_TEST(Linux, ArchChange) {
     EXPECT_EQ(child, waitpid(child, &status, 0));
     int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     EXPECT_EQ(0, rc);
+    close(fd[ii]);
   }
 }
 
