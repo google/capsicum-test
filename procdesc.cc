@@ -625,7 +625,9 @@ TEST(Pdfork, PdkillOtherSignal) {
     // Child: watch for SIGUSR1 forever.
     had_signal.clear();
     signal(SIGUSR1, handle_signal);
-    while (!had_signal[SIGUSR1]) sleep(1);
+    while (!had_signal[SIGUSR1]) {
+      usleep(100000);
+    }
     exit(123);
   }
   sleep(1);
