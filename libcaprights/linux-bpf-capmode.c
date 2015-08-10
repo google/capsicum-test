@@ -3,7 +3,6 @@
 #define _GNU_SOURCE  /* to get O_* constants */
 #include "config.h"
 #include <errno.h>
-#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -15,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <linux/audit.h>
+#include <linux/fcntl.h>
 #include <linux/filter.h>
 #include <linux/net.h>
 #include <linux/seccomp.h>
