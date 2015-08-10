@@ -345,4 +345,9 @@ TEST_F(OpenatTest, WithFlag) {
   EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "/etc/passwd", O_RDONLY|O_BENEATH);
   EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY|O_BENEATH);
 }
+
+FORK_TEST_F(OpenatTest, WithFlagInCapabilityMode) {
+  EXPECT_OK(cap_enter());  // Enter capability mode
+  CheckPolicing(O_BENEATH);
+}
 #endif
