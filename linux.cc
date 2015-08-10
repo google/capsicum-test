@@ -957,6 +957,18 @@ TEST(Linux, DeadNSInit2) {
   }
 }
 
+FORK_TEST(Linux, CheckHighWord) {
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  int rc = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+  EXPECT_OK(rc);
+  EXPECT_EQ(1, rc);  // no_new_privs = 1
+
+  // Set some of the high 32-bits of argument zero.
+  uint64_t big_cmd = PR_GET_NO_NEW_PRIVS | 0x100000000LL;
+  EXPECT_CAPMODE(syscall(__NR_prctl, big_cmd, 0, 0, 0, 0));
+}
+
 FORK_TEST(Linux, PrctlOpenatBeneath) {
   // Set no_new_privs = 1
   EXPECT_OK(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
