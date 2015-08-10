@@ -187,9 +187,11 @@ static struct sock_fprog capmode_fprog = {
 #ifdef UNUSED
 static void print_filter(struct sock_fprog *bpf) {
 	int pc;
-	for (pc = 1; pc <= bpf->len; pc++) {
-		struct sock_filter *filter = &(bpf->filter[pc-1]);
-		printf(" [%d] = code=%04x, jt=%u, jf=%u, k=%d\n",
+	printf(" line  OP   JT   JF   K\n");
+	printf("=================================\n");
+	for (pc = 0; pc < bpf->len; pc++) {
+		struct sock_filter *filter = &(bpf->filter[pc]);
+		printf(" %04d: 0x%02x 0x%02x 0x%02x 0x%08x\n",
 			pc, filter->code, filter->jt, filter->jf, filter->k);
 	}
 }
