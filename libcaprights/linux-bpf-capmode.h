@@ -470,8 +470,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_arch_prctl)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_arch_prctl)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_arch_prctl)))
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(arch_prctl), 0, 14),
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(arch_prctl), 0, 13),
 	EXAMINE_ARGHI(0),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
 	FAIL_ECAPMODE,
