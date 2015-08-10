@@ -112,8 +112,11 @@ int main(int argc, char *argv[]) {
 
     /* open disallowed? */
     rc = open("/etc/passwd", O_RDONLY);
-    fprintf(stderr, "  [%d] open('/etc/passwd/) -> rc=%d, errno=%d\n", getpid_(), rc, errno);
+    fprintf(stderr, "  [%d] open('/etc/passwd') -> rc=%d, errno=%d\n", getpid_(), rc, errno);
     if (rc != -1) fprintf(stderr, "*** open() unexpectedly succeeded\n");
+#ifdef ECAPMODE
+    if (errno != ECAPMODE) fprintf(stderr, "*** open() failed with errno %d not ECAPMODE\n", errno);
+#endif
     exit(0);
   }
   rc = wait4(child, &status, 0, NULL);
