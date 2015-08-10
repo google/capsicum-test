@@ -197,7 +197,7 @@ static void print_filter(struct sock_fprog *bpf) {
 
 int seccomp_(unsigned int op, unsigned int flags, struct sock_fprog *filter) {
 	errno = 0;
-	return syscall(__NR_seccomp, op, flags, filter);
+	return syscall(__NR_seccomp, op, flags, filter, 0, 0, 0);
 }
 
 int cap_enter() {
