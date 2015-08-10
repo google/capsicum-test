@@ -402,7 +402,10 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_socketcall)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_socketcall)))
 	/* socketcall is a multiplexor equivalent to various other syscalls */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(socketcall), 0, 38),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(socketcall), 0, 41),
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(0),  /* call */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYS_SOCKET, 0, 1),
 	ALLOW,
@@ -467,8 +470,11 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_arch_prctl)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_arch_prctl)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_arch_prctl)))
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(arch_prctl), 0, 11),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(arch_prctl), 0, 14),
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(0),  /* code */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_GET_FS, 0, 1),
 	ALLOW,
@@ -485,7 +491,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	/* tgkill(2)/kill(2): check arg[0] vs current tgid. */
 	/* First check info is available */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(tgkill), 1, 0),
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(kill), 0, 10),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(kill), 0, 13),
 	BPF_STMT(BPF_LD+BPF_W+BPF_LEN, 0),  /* A <- data len */
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
 		offsetof(struct seccomp_data, tgid) + sizeof(pid_t),
@@ -493,6 +499,9 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
 		offsetof(struct seccomp_data, tid) + sizeof(pid_t),
 		1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
 	FAIL_ECAPMODE,
 	EXAMINE_ARG(0),  /* A <- specified pid */
 	BPF_STMT(BPF_MISC+BPF_TAX, 0),  /* X <- A */
@@ -505,7 +514,10 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #endif
 
 	/* mmap(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap), 0, 6),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap), 0, 9),
+	EXAMINE_ARGHI(3),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(3),  /* flags */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
 	ALLOW,
@@ -517,7 +529,10 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_mmap2)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_mmap2)))
 	/* mmap2(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap2), 0, 6),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap2), 0, 9),
+	EXAMINE_ARGHI(3),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(3),  /* flags */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
 	ALLOW,
@@ -527,9 +542,15 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #endif
 
 	/* openat(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(openat), 0, 7),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(openat), 0, 13),
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(0),  /* dfd */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),
+	FAIL_ECAPMODE,
+	EXAMINE_ARGHI(2),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
 	FAIL_ECAPMODE,
 	EXAMINE_ARG(2),  /* flags */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_OPENAT_FLAGS), 0, 1),
@@ -538,10 +559,13 @@ static struct sock_filter SYSCALL_FILTER[] = {
 
 	/* prctl(2) */
 #ifdef PR_GET_OPENAT_BENEATH
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(prctl), 0, 36),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(prctl), 0, 39),
 #else
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(prctl), 0, 34),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(prctl), 0, 37),
 #endif
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(0),  /* option */
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, PR_CAPBSET_READ, 0, 1),
 	ALLOW,
@@ -583,7 +607,10 @@ static struct sock_filter SYSCALL_FILTER[] = {
 
 #ifdef WCLONEFD
 	/* wait4(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(wait4), 0, 4),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(wait4), 0, 7),
+	EXAMINE_ARGHI(2),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
 	EXAMINE_ARG(2),  /* options */
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, WCLONEFD, 1, 0),
 	FAIL_ECAPMODE,
