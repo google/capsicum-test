@@ -6,25 +6,31 @@ ARCHFLAG=-m$(ARCH)
 
 ifeq ($(OS),Linux)
 PROCESSOR:=$(shell uname -p)
-PLATFORM_LIBDIR=lib/$(PROCESSOR)-linux-gnu
+
+ifneq ($(wildcard /usr/lib/$(PROCESSOR)-linux-gnu),)
+# Can use standard Debian location for static libraries.
+PLATFORM_LIBDIR=/usr/lib/$(PROCESSOR)-linux-gnu
+else
+# Attempt to determine library location from gcc configuration.
+PLATFORM_LIBDIR=$(shell gcc -v 2>&1 | grep "Configured with:" | sed 's/.*--libdir=\(\/usr\/[^ ]*\).*/\1/g')
+endif
 
 # Override for explicitly specified ARCHFLAG.
 # Use locally compiled libcaprights in this case, on the
 # assumption that any installed version is 64-bit.
 ifeq ($(ARCHFLAG),-m32)
 PROCESSOR=i386
-PLATFORM_LIBDIR=lib/i386-linux-gnu
+PLATFORM_LIBDIR=/usr/lib32
 LIBCAPRIGHTS=./libcaprights.a
 endif
 ifeq ($(ARCHFLAG),-mx32)
 PROCESSOR=x32
-PLATFORM_LIBDIR=libx32
+PLATFORM_LIBDIR=/usr/libx32
 LIBCAPRIGHTS=./libcaprights.a
 endif
 
 # Detect presence of libsctp in normal Debian location
-ifeq ($(wildcard /usr/$(PLATFORM_LIBDIR)/libsctp.a),)
-else
+ifneq ($(wildcard $(PLATFORM_LIBDIR)/libsctp.a),)
 LIBSCTP=-lsctp
 CXXFLAGS=-DHAVE_SCTP
 endif
@@ -37,8 +43,8 @@ LIBCAPRIGHTS_OBJS=libcaprights/capsicum.o libcaprights/linux-bpf-capmode.o libca
 LOCAL_CLEAN=$(LOCAL_LIBS) $(LIBCAPRIGHTS_OBJS)
 else
 # Detect installed libcaprights static library.
-ifneq ($(wildcard /usr/$(PLATFORM_LIBDIR)/libcaprights.a),)
-LIBCAPRIGHTS=/usr/$(PLATFORM_LIBDIR)/libcaprights.a
+ifneq ($(wildcard $(PLATFORM_LIBDIR)/libcaprights.a),)
+LIBCAPRIGHTS=$(PLATFORM_LIBDIR)/libcaprights.a
 else
 ifneq ($(wildcard /usr/lib/libcaprights.a),)
 LIBCAPRIGHTS=/usr/lib/libcaprights.a
