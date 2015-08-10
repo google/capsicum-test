@@ -179,7 +179,7 @@ static struct sock_fprog capmode_fprog = {
 #else
 /* If only a single arch is available, just run the base filter */
 static struct sock_fprog capmode_fprog = {
-	.len = capmode_filter_len,
+	.len = COUNT_OF(capmode_filter),
 	.filter = capmode_filter
 };
 #endif
