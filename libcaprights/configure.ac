@@ -6,6 +6,10 @@ m4_define([libcaprights_major_version], [0])
 m4_define([libcaprights_minor_version], [1])
 m4_define([libcaprights_micro_version], [4])
 
+m4_define([libcaprights_major_version], [0])
+m4_define([libcaprights_minor_version], [1])
+m4_define([libcaprights_micro_version], [3])
+
 AC_PREREQ([2.69])
 AC_INIT([libcaprights],[libcaprights_major_version.libcaprights_minor_version.libcaprights_micro_version])
 AC_CONFIG_SRCDIR([capsicum.c])
