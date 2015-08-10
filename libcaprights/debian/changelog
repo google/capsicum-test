@@ -1,3 +1,11 @@
+libcaprights (0.1.4-1) UNRELEASED; urgency=low
+
+  * Allow futex calls.
+  * Allow openat(.. O_BENEATH).
+  * Check high 32-bits of arguments are zero.
+
+ -- David Drysdale <drysdale@google.com>  Mon, 10 Aug 2015 11:22:12 +0100
+
 libcaprights (0.1.3-1) UNRELEASED; urgency=low
 
   * Convert to clonefd-based implementation of process descriptors.
