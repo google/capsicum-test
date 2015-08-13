@@ -1,9 +1,11 @@
 #include <sys/types.h>
+#ifdef __linux__
 #include <sys/vfs.h>
+#include <linux/magic.h>
+#endif
 #include <ctype.h>
 #include <errno.h>
 #include <pwd.h>
-#include <linux/magic.h>
 #include <iostream>
 #include "gtest/gtest.h"
 #include "capsicum-test.h"
@@ -47,10 +49,13 @@ int main(int argc, char* argv[]) {
       other_uid = info.st_uid;
     }
   }
+
+#ifdef __linux__
   // Check whether our temporary directory is on a tmpfs volume.
   struct statfs fsinfo;
   statfs(tmpdir, &fsinfo);
   tmpdir_on_tmpfs = (fsinfo.f_type == TMPFS_MAGIC);
+#endif
 
   int rc = RUN_ALL_TESTS();
   ShowSkippedTests(std::cerr);
