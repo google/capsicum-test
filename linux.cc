@@ -957,6 +957,7 @@ TEST(Linux, DeadNSInit2) {
   }
 }
 
+#ifdef __x86_64__
 FORK_TEST(Linux, CheckHighWord) {
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
@@ -968,6 +969,7 @@ FORK_TEST(Linux, CheckHighWord) {
   uint64_t big_cmd = PR_GET_NO_NEW_PRIVS | 0x100000000LL;
   EXPECT_CAPMODE(syscall(__NR_prctl, big_cmd, 0, 0, 0, 0));
 }
+#endif
 
 FORK_TEST(Linux, PrctlOpenatBeneath) {
   // Set no_new_privs = 1
