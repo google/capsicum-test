@@ -849,6 +849,10 @@ TEST(Capability, SyscallAt) {
   cap_rights_init(&r_no_mkfifo, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
   cap_rights_t r_no_mknod;
   cap_rights_init(&r_no_mknod, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
+  cap_rights_t r_create;
+  cap_rights_init(&r_create, CAP_READ, CAP_LOOKUP, CAP_CREATE);
+  cap_rights_t r_bind;
+  cap_rights_init(&r_bind, CAP_READ, CAP_LOOKUP, CAP_BIND);
 
   int dfd = open(TmpFile("cap_at_topdir"), O_RDONLY);
   EXPECT_OK(dfd);
@@ -867,6 +871,12 @@ TEST(Capability, SyscallAt) {
   int cap_dfd_no_mknod = dup(dfd);
   EXPECT_OK(cap_dfd_no_mknod);
   EXPECT_OK(cap_rights_limit(cap_dfd_no_mknod, &r_no_mknod));
+  int cap_dfd_create = dup(dfd);
+  EXPECT_OK(cap_dfd_create);
+  EXPECT_OK(cap_rights_limit(cap_dfd_create, &r_create));
+  int cap_dfd_bind = dup(dfd);
+  EXPECT_OK(cap_dfd_bind);
+  EXPECT_OK(cap_rights_limit(cap_dfd_bind, &r_bind));
 
   // Need CAP_MKDIRAT to mkdirat(2).
   EXPECT_NOTCAPABLE(mkdirat(cap_dfd_no_mkdir, "cap_subdir", 0755));
@@ -883,6 +893,22 @@ TEST(Capability, SyscallAt) {
   unlink(TmpFile("cap_at_topdir/cap_fifo"));
   EXPECT_OK(mkfifoat(cap_dfd_all, "cap_fifo", 0755));
   unlink(TmpFile("cap_at_topdir/cap_fifo"));
+
+#ifdef HAVE_MKNOD_REG
+  // Need CAP_CREATE to create a regular file with mknodat(2).
+  EXPECT_NOTCAPABLE(mknodat(cap_dfd_all, "cap_regular", S_IFREG|0755, 0));
+  unlink(TmpFile("cap_at_topdir/cap_regular"));
+  EXPECT_OK(mknodat(cap_dfd_create, "cap_regular", S_IFREG|0755, 0));
+  unlink(TmpFile("cap_at_topdir/cap_regular"));
+#endif
+
+#ifdef HAVE_MKNOD_SOCKET
+  // Need CAP_BIND to create a UNIX domain socket with mknodat(2).
+  EXPECT_NOTCAPABLE(mknodat(cap_dfd_all, "cap_socket", S_IFSOCK|0755, 0));
+  unlink(TmpFile("cap_at_topdir/cap_socket"));
+  EXPECT_OK(mknodat(cap_dfd_bind, "cap_socket", S_IFSOCK|0755, 0));
+  unlink(TmpFile("cap_at_topdir/cap_socket"));
+#endif
 
   if (getuid() == 0) {
     // Need CAP_MKNODAT to mknodat(2) a device
@@ -905,6 +931,8 @@ TEST(Capability, SyscallAt) {
   close(cap_dfd_no_mkfifo);
   close(cap_dfd_no_mkdir);
   close(cap_dfd_no_unlink);
+  close(cap_dfd_create);
+  close(cap_dfd_bind);
   close(dfd);
 
   // Tidy up.

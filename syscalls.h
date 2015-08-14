@@ -236,6 +236,8 @@ static inline int connect_(int sockfd, const struct sockaddr *addr, socklen_t ad
 #define HAVE_PPOLL
 #define HAVE_EXECVEAT
 #define HAVE_SYSCALL
+#define HAVE_MKNOD_REG
+#define HAVE_MKNOD_SOCKET
 /*
  * O_BENEATH is arch-specific, via <asm/fcntl.h>; however we cannot include both that file
  * and the normal <fcntl.h> as they have some clashing definitions.  Bypass by directly
