@@ -55,7 +55,12 @@ endif
 endif
 
 # Extra test programs for arch-transition tests
+ifneq ($(wildcard /usr/include/gnu/stubs-x32.h),)
 EXTRA_PROGS=mini-me.32 mini-me.x32 mini-me.64
+else
+# x32 support is not provided by the distribution
+EXTRA_PROGS=mini-me.32 mini-me.64
+endif
 
 # Chain on to the master makefile
 include makefile
