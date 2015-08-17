@@ -576,19 +576,26 @@ TEST(Linux, inotify) {
 }
 
 TEST(Linux, ArchChange) {
-  const char* progs[] = {"./mini-me.32", "./mini-me.x32", "./mini-me.64"};
+  const char* prog_candidates[] = {"./mini-me.32", "./mini-me.x32", "./mini-me.64"};
+  const char* progs[] = {NULL, NULL, NULL};
   char* argv_pass[] = {(char*)"to-come", (char*)"--capmode", NULL};
   char* null_envp[] = {NULL};
-  int fd[3];
-  for (int ii=0; ii<3; ii++) {
-    fd[ii] = open(progs[ii], O_RDONLY);
-    if (fd[ii] < 0) {
-      TEST_SKIPPED("different-architecture programs unavailable");
-      for (int jj=0; jj < ii; jj++) close(fd[jj]);
-      return;
+  int fds[3];
+  int count = 0;
+
+  for (int ii = 0; ii < 3; ii++) {
+    fds[count] = open(prog_candidates[ii], O_RDONLY);
+    if (fds[count] >= 0) {
+      progs[count] = prog_candidates[ii];
+      count++;
     }
   }
-  for (int ii=0; ii<3; ii++) {
+  if (count == 0) {
+    TEST_SKIPPED("no different-architecture programs available");
+    return;
+  }
+
+  for (int ii = 0; ii < count; ii++) {
     // Fork-and-exec a binary of this architecture.
     pid_t child = fork();
     if (child == 0) {
@@ -596,7 +603,7 @@ TEST(Linux, ArchChange) {
       if (verbose) fprintf(stderr, "[%d] call fexecve(%s, %s)\n",
                            getpid_(), progs[ii], argv_pass[1]);
       argv_pass[0] = (char *)progs[ii];
-      int rc = fexecve_(fd[ii], argv_pass, null_envp);
+      int rc = fexecve_(fds[ii], argv_pass, null_envp);
       fprintf(stderr, "fexecve(%s) returned %d errno %d\n", progs[ii], rc, errno);
       exit(99);  // Should not reach here.
     }
@@ -604,7 +611,7 @@ TEST(Linux, ArchChange) {
     EXPECT_EQ(child, waitpid(child, &status, 0));
     int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     EXPECT_EQ(0, rc);
-    close(fd[ii]);
+    close(fds[ii]);
   }
 }
 
