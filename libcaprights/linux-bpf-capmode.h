@@ -242,6 +242,11 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(recvmsg),
 #endif
 	ALLOW_SYSCALL(renameat),
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_restart_syscall)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_restart_syscall)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_restart_syscall)))
+	ALLOW_SYSCALL(restart_syscall),
+#endif
 	ALLOW_SYSCALL(rt_sigaction),
 	ALLOW_SYSCALL(rt_sigpending),
 	ALLOW_SYSCALL(rt_sigprocmask),
