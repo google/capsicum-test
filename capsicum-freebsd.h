@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 /* FreeBSD definitions. */
+#include <errno.h>
 #include <sys/param.h>
 #include <sys/capability.h>
 #include <sys/procdesc.h>
@@ -34,10 +35,15 @@ typedef unsigned long cap_ioctl_t;
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
 
+#ifdef ENOTBENEATH
+#define E_NO_TRAVERSE_CAPABILITY ENOTBENEATH
+#define E_NO_TRAVERSE_O_BENEATH ENOTBENEATH
+#else
 // Failure to open file due to path traversal generates ENOTCAPABLE if due to
 // capability mode or EPERM if due to EPERM.
 #define E_NO_TRAVERSE_CAPABILITY ENOTCAPABLE
 #define E_NO_TRAVERSE_O_BENEATH EPERM
+#endif
 
 // Too many links
 #define E_TOO_MANY_LINKS EMLINK

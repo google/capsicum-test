@@ -5,6 +5,7 @@
 /************************************************************
  * Linux Capsicum Functionality.
  ************************************************************/
+#include <errno.h>
 #include <sys/procdesc.h>
 #include <sys/capsicum.h>
 
@@ -22,8 +23,13 @@
 #define AT_SYSCALLS_IN_CAPMODE
 
 // Failure to open file due to path traversal generates EPERM
+#ifdef ENOTBENEATH
+#define E_NO_TRAVERSE_CAPABILITY ENOTBENEATH
+#define E_NO_TRAVERSE_O_BENEATH ENOTBENEATH
+#else
 #define E_NO_TRAVERSE_CAPABILITY EPERM
 #define E_NO_TRAVERSE_O_BENEATH EPERM
+#endif
 
 // Too many links
 #define E_TOO_MANY_LINKS ELOOP
