@@ -32,7 +32,96 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr)), /* load syscall# */
 	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, SYSCALL_NUM_MASK), /* mask off x32 bit if present */
 
-	/* Allowed syscalls */
+	/* Allowed syscalls: start with most common calls */
+	ALLOW_SYSCALL(futex),
+	ALLOW_SYSCALL(poll),
+	ALLOW_SYSCALL(read),
+	ALLOW_SYSCALL(write),
+	ALLOW_SYSCALL(readv),
+	ALLOW_SYSCALL(writev),
+	ALLOW_SYSCALL(close),
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_recvmsg)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_recvmsg)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_recvmsg)))
+	ALLOW_SYSCALL(recvmsg),
+#endif
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_recvfrom)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_recvfrom)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_recvfrom)))
+	ALLOW_SYSCALL(recvfrom),
+#endif
+	ALLOW_SYSCALL(madvise),
+	ALLOW_SYSCALL(gettid),
+	ALLOW_SYSCALL(fstat),
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_fstat64)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fstat64)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fstat64)))
+	ALLOW_SYSCALL(fstat64),
+#endif
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_fstatat64)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fstatat64)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fstatat64)))
+	ALLOW_SYSCALL(fstatat64),
+#endif
+	ALLOW_SYSCALL(fcntl),
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_fcntl64)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fcntl64)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fcntl64)))
+	ALLOW_SYSCALL(fcntl64),
+#endif
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_sendto)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_sendto)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_sendto)))
+	ALLOW_SYSCALL(sendto),
+#endif
+	/* mmap(2) */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap), 0, 9),
+	EXAMINE_ARGHI(3),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(3),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_MAP_FLAGS), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_mmap2)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_mmap2)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_mmap2)))
+	/* mmap2(2) */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap2), 0, 9),
+	EXAMINE_ARGHI(3),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(3),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_MAP_FLAGS), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+#endif
+
+	/* openat(2) */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(openat), 0, 13),
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(0),  /* dfd */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),
+	FAIL_ECAPMODE,
+	EXAMINE_ARGHI(2),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(2),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_OPENAT_FLAGS), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+
+	ALLOW_SYSCALL(lseek),
+
+
+	/* Allowed syscalls: alphabetic list of remainder */
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_accept)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_accept)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_accept)))
@@ -62,7 +151,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_clone4)))
 	ALLOW_SYSCALL(clone4),
 #endif
-	ALLOW_SYSCALL(close),
 	ALLOW_SYSCALL(dup),
 	ALLOW_SYSCALL(dup2),
 	ALLOW_SYSCALL(dup3),
@@ -83,12 +171,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(fchown32),
 #endif
 	ALLOW_SYSCALL(fchownat),
-	ALLOW_SYSCALL(fcntl),
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_fcntl64)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fcntl64)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fcntl64)))
-	ALLOW_SYSCALL(fcntl64),
-#endif
 	ALLOW_SYSCALL(fdatasync),
 	ALLOW_SYSCALL(fgetxattr),
 	ALLOW_SYSCALL(finit_module),
@@ -97,17 +179,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(fork),
 	ALLOW_SYSCALL(fremovexattr),
 	ALLOW_SYSCALL(fsetxattr),
-	ALLOW_SYSCALL(fstat),
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_fstat64)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fstat64)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fstat64)))
-	ALLOW_SYSCALL(fstat64),
-#endif
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_fstatat64)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fstatat64)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fstatat64)))
-	ALLOW_SYSCALL(fstatat64),
-#endif
 	ALLOW_SYSCALL(fstatfs),
 	ALLOW_SYSCALL(fsync),
 	ALLOW_SYSCALL(ftruncate),
@@ -116,7 +187,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_ftruncate64)))
 	ALLOW_SYSCALL(ftruncate64),
 #endif
-	ALLOW_SYSCALL(futex),
 	ALLOW_SYSCALL(futimesat),
 	ALLOW_SYSCALL(get_robust_list),
 	ALLOW_SYSCALL(getdents),
@@ -170,7 +240,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_getsockopt)))
 	ALLOW_SYSCALL(getsockopt),
 #endif
-	ALLOW_SYSCALL(gettid),
 	ALLOW_SYSCALL(gettimeofday),
 	ALLOW_SYSCALL(getuid),
 	ALLOW_SYSCALL(ioctl),
@@ -180,8 +249,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_listen)))
 	ALLOW_SYSCALL(listen),
 #endif
-	ALLOW_SYSCALL(lseek),
-	ALLOW_SYSCALL(madvise),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_memfd_create)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_memfd_create)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_memfd_create)))
@@ -219,28 +286,15 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #endif
 	ALLOW_SYSCALL(pipe),
 	ALLOW_SYSCALL(pipe2),
-	ALLOW_SYSCALL(poll),
 	ALLOW_SYSCALL(ppoll),
 	ALLOW_SYSCALL(pread64),
 	ALLOW_SYSCALL(preadv),
 	ALLOW_SYSCALL(pselect6),
 	ALLOW_SYSCALL(pwrite64),
 	ALLOW_SYSCALL(pwritev),
-	ALLOW_SYSCALL(read),
 	ALLOW_SYSCALL(readahead),
 	ALLOW_SYSCALL(readlinkat),
-	ALLOW_SYSCALL(readv),
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_recvfrom)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_recvfrom)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_recvfrom)))
-	ALLOW_SYSCALL(recvfrom),
-#endif
 	ALLOW_SYSCALL(recvmmsg),
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_recvmsg)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_recvmsg)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_recvmsg)))
-	ALLOW_SYSCALL(recvmsg),
-#endif
 	ALLOW_SYSCALL(renameat),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_restart_syscall)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_restart_syscall)) || \
@@ -280,11 +334,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_sendmsg)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_sendmsg)))
 	ALLOW_SYSCALL(sendmsg),
-#endif
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_sendto)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_sendto)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_sendto)))
-	ALLOW_SYSCALL(sendto),
 #endif
 
 	ALLOW_SYSCALL(set_robust_list),
@@ -466,8 +515,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(utimensat),
 	ALLOW_SYSCALL(vfork),
 	ALLOW_SYSCALL(vmsplice),
-	ALLOW_SYSCALL(write),
-	ALLOW_SYSCALL(writev),
 
 	/* Special syscalls */
 
@@ -516,50 +563,6 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #else
 	/* kill(2): want to check for current tid, but can't. */
 #endif
-
-	/* mmap(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap), 0, 9),
-	EXAMINE_ARGHI(3),
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
-	FAIL_ECAPMODE,
-	EXAMINE_ARG(3),  /* flags */
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
-	ALLOW,
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_MAP_FLAGS), 0, 1),
-	FAIL_ECAPMODE,
-	ALLOW,
-
-#if ((SYSCALL_PREFIX == 0 && defined(__NR_mmap2)) || \
-     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_mmap2)) || \
-     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_mmap2)))
-	/* mmap2(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap2), 0, 9),
-	EXAMINE_ARGHI(3),
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
-	FAIL_ECAPMODE,
-	EXAMINE_ARG(3),  /* flags */
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
-	ALLOW,
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_MAP_FLAGS), 0, 1),
-	FAIL_ECAPMODE,
-	ALLOW,
-#endif
-
-	/* openat(2) */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(openat), 0, 13),
-	EXAMINE_ARGHI(0),
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
-	FAIL_ECAPMODE,
-	EXAMINE_ARG(0),  /* dfd */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),
-	FAIL_ECAPMODE,
-	EXAMINE_ARGHI(2),
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
-	FAIL_ECAPMODE,
-	EXAMINE_ARG(2),  /* flags */
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_OPENAT_FLAGS), 0, 1),
-	FAIL_ECAPMODE,
-	ALLOW,
 
 	/* prctl(2) */
 #ifdef PR_GET_OPENAT_BENEATH
