@@ -39,6 +39,27 @@
  ************************************************************/
 #include "capsicum-rights.h"
 
+/*
+ * Cope with systems (e.g. FreeBSD 10.x) where CAP_RENAMEAT hasn't been split out.
+ *  (src, dest): RENAMEAT, LINKAT => RENAMEAT_SOURCE, RENAMEAT_TARGET
+ */
+#ifndef CAP_RENAMEAT_SOURCE
+#define CAP_RENAMEAT_SOURCE CAP_RENAMEAT
+#endif
+#ifndef CAP_RENAMEAT_TARGET
+#define CAP_RENAMEAT_TARGET CAP_LINKAT
+#endif
+/*
+ * Cope with systems (e.g. FreeBSD 10.x) where CAP_RENAMEAT hasn't been split out.
+ *  (src, dest): 0, LINKAT => LINKAT_SOURCE, LINKAT_TARGET
+ */
+#ifndef CAP_LINKAT_SOURCE
+#define CAP_LINKAT_SOURCE CAP_LOOKUP
+#endif
+#ifndef CAP_LINKAT_TARGET
+#define CAP_LINKAT_TARGET CAP_LINKAT
+#endif
+
 #ifdef CAP_PREAD
 /* Existence of CAP_PREAD implies new-style CAP_SEEK semantics */
 #define CAP_SEEK_ASWAS 0

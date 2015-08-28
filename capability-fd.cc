@@ -622,15 +622,22 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   CHECK_RIGHT_RESULT(rc, rights, CAP_FUTIMES, CAP_LOOKUP);
   EXPECT_OK(unlinkat(dirfd, "cap_futimesat", 0));
 
-#ifdef CAP_LINKAT
+  // For linkat(2), need:
+  //  - CAP_LINKAT_SOURCE on source
+  //  - CAP_LINKAT_TARGET on destination.
   rc = openat(dirfd, "cap_linkat_src", O_CREAT, 0600);
   EXPECT_OK(rc);
   EXPECT_OK(close(rc));
+
   rc = linkat(dirfd, "cap_linkat_src", dfd_cap, "cap_linkat_dst", 0);
-  CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT, CAP_LOOKUP);
-  EXPECT_OK(unlinkat(dirfd, "cap_linkat_src", 0));
+  CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT_TARGET);
   if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
-#endif
+
+  rc = linkat(dfd_cap, "cap_linkat_src", dirfd, "cap_linkat_dst", 0);
+  CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT_SOURCE);
+  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
+
+  EXPECT_OK(unlinkat(dirfd, "cap_linkat_src", 0));
 
   rc = mkdirat(dfd_cap, "cap_mkdirat", 0700);
   CHECK_RIGHT_RESULT(rc, rights, CAP_MKDIRAT, CAP_LOOKUP);
@@ -648,35 +655,37 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
     if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mknodat", 0));
   }
 
-#ifdef CAP_RENAMEAT
-  // For renameat(2), need CAP_RENAMEAT on source, CAP_LINKAT on destination.
+  // For renameat(2), need:
+  //  - CAP_RENAMEAT_SOURCE on source
+  //  - CAP_RENAMEAT_TARGET on destination.
   rc = openat(dirfd, "cap_renameat_src", O_CREAT, 0600);
   EXPECT_OK(rc);
   EXPECT_OK(close(rc));
-  rc = renameat(dirfd, "cap_renameat_src", dfd_cap, "cap_renameat_dst");
-  CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT);
-  if (rc >= 0) {
-    EXPECT_OK(unlinkat(dirfd, "cap_renameat_dst", 0));
-  } else {
-    EXPECT_OK(unlinkat(dirfd, "cap_renameat_src", 0));
-  }
-  rc = openat(dirfd, "cap_renameat_src", O_CREAT, 0600);
-  EXPECT_OK(rc);
-  EXPECT_OK(close(rc));
-  rc = renameat(dfd_cap, "cap_renameat_src", dirfd, "cap_renameat_dst");
-  CHECK_RIGHT_RESULT(rc, rights, CAP_RENAMEAT);
-  if (rc >= 0) {
-    EXPECT_OK(unlinkat(dirfd, "cap_renameat_dst", 0));
-  } else {
-    EXPECT_OK(unlinkat(dirfd, "cap_renameat_src", 0));
-  }
-#endif
 
-#ifdef CAP_SYMLINKAT
+  rc = renameat(dirfd, "cap_renameat_src", dfd_cap, "cap_renameat_dst");
+  CHECK_RIGHT_RESULT(rc, rights, CAP_RENAMEAT_TARGET);
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_dst", 0));
+  } else {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_src", 0));
+  }
+
+  rc = openat(dirfd, "cap_renameat_src", O_CREAT, 0600);
+  EXPECT_OK(rc);
+  EXPECT_OK(close(rc));
+
+  rc = renameat(dfd_cap, "cap_renameat_src", dirfd, "cap_renameat_dst");
+  CHECK_RIGHT_RESULT(rc, rights, CAP_RENAMEAT_SOURCE);
+
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_dst", 0));
+  } else {
+    EXPECT_OK(unlinkat(dirfd, "cap_renameat_src", 0));
+  }
+
   rc = symlinkat("test", dfd_cap, "cap_symlinkat");
   CHECK_RIGHT_RESULT(rc, rights, CAP_SYMLINKAT, CAP_LOOKUP);
   if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_symlinkat", 0));
-#endif
 
   rc = openat(dirfd, "cap_unlinkat", O_CREAT, 0600);
   EXPECT_OK(rc);
@@ -703,10 +712,8 @@ void DirOperationsTest(int extra) {
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
-#ifdef CAP_LINKAT
-  TRY_DIR_OPS(dfd, CAP_LINKAT);
-  TRY_DIR_OPS(dfd, CAP_LINKAT, CAP_LOOKUP);
-#endif
+  TRY_DIR_OPS(dfd, CAP_LINKAT_SOURCE);
+  TRY_DIR_OPS(dfd, CAP_LINKAT_TARGET);
   TRY_DIR_OPS(dfd, CAP_CREATE, CAP_READ, CAP_LOOKUP);
   TRY_DIR_OPS(dfd, CAP_CREATE, CAP_WRITE, CAP_LOOKUP);
   TRY_DIR_OPS(dfd, CAP_CREATE, CAP_READ, CAP_WRITE, CAP_LOOKUP);
@@ -723,14 +730,12 @@ void DirOperationsTest(int extra) {
   TRY_DIR_OPS(dfd, CAP_MKDIRAT, CAP_LOOKUP);
   TRY_DIR_OPS(dfd, CAP_MKFIFOAT, CAP_LOOKUP);
   TRY_DIR_OPS(dfd, CAP_MKNODAT, CAP_LOOKUP);
-#ifdef CAP_SYMLINKAT
   TRY_DIR_OPS(dfd, CAP_SYMLINKAT, CAP_LOOKUP);
-#endif
   TRY_DIR_OPS(dfd, CAP_UNLINKAT, CAP_LOOKUP);
-#ifdef CAP_RENAMEAT
-  // Rename needs CAP_RENAMEAT on source directory and CAP_LINKAT on destination directory.
-  TRY_DIR_OPS(dfd, CAP_RENAMEAT, CAP_UNLINKAT, CAP_LOOKUP);
-#endif
+  // Rename needs CAP_RENAMEAT_SOURCE on source directory and
+  // CAP_RENAMEAT_TARGET on destination directory.
+  TRY_DIR_OPS(dfd, CAP_RENAMEAT_SOURCE, CAP_UNLINKAT, CAP_LOOKUP);
+  TRY_DIR_OPS(dfd, CAP_RENAMEAT_TARGET, CAP_UNLINKAT, CAP_LOOKUP);
 
   EXPECT_OK(unlinkat(tmpfd, "cap_dirops", AT_REMOVEDIR));
   EXPECT_OK(close(tmpfd));
