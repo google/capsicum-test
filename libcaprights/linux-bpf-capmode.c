@@ -15,191 +15,331 @@
 #include <sys/syscall.h>
 #include <linux/audit.h>
 #include <linux/fcntl.h>
-#include <linux/filter.h>
 #include <linux/net.h>
 #include <linux/seccomp.h>
 #include <linux/unistd.h>
 #include <linux/wait.h>
 #include <asm/prctl.h>
-#ifdef HAVE_ASM_UNISTD_64_AMD64_H
-#include <asm/unistd_64_amd64.h>  /* defines __NR_amd64_<name> values */
-#endif
-#ifdef HAVE_ASM_UNISTD_64_X32_H
-#include <asm/unistd_64_x32.h>  /* defines __NR_x32_<name> values */
-#endif
-#ifdef HAVE_ASM_UNISTD_32_IA32_H
-#include <asm/unistd_32_ia32.h>  /* defines __NR_ia32_<name> values */
+
+#include <seccomp.h>  /* requires libseccomp, Debian package libseccomp-dev */
+
+
+#ifndef VALID_MAP_FLAGS
+#define VALID_MAP_FLAGS (MAP_SHARED|MAP_PRIVATE|MAP_32BIT|MAP_FIXED|MAP_HUGETLB|MAP_NONBLOCK|MAP_NORESERVE|MAP_POPULATE|MAP_STACK)
 #endif
 
-/* Macros for BPF generation */
-
-#define COUNT_OF(x) (sizeof(x)/sizeof(0[x]))
-
-/*
- * x32 ABI syscalls have a high bit set; remove this in all comparisons, so that
- * the a filter built for x86_64 (but including the __NR_x32_* additional
- * values) can be used for both x86_64 and x32 ABI programs.
- */
-#ifdef  __X32_SYSCALL_BIT
-#define SYSCALL_NUM_MASK	(~__X32_SYSCALL_BIT)
+#ifndef VALID_OPENAT_FLAGS
+#ifdef O_BENEATH
+#define VALID_OPENAT_FLAGS (O_WRONLY|O_RDWR|O_CREAT|O_EXCL|O_TRUNC|O_APPEND|FASYNC|O_CLOEXEC|O_DIRECT|O_DIRECTORY|O_LARGEFILE|O_NOATIME|O_NOCTTY|O_NOFOLLOW|O_NONBLOCK|O_SYNC|O_BENEATH)
 #else
-#define SYSCALL_NUM_MASK	(~0)
+#define VALID_OPENAT_FLAGS (O_WRONLY|O_RDWR|O_CREAT|O_EXCL|O_TRUNC|O_APPEND|FASYNC|O_CLOEXEC|O_DIRECT|O_DIRECTORY|O_LARGEFILE|O_NOATIME|O_NOCTTY|O_NOFOLLOW|O_NONBLOCK|O_SYNC)
+#endif
 #endif
 
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define EXAMINE_ARG(n)							\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64))
-#define EXAMINE_ARGHI(n)							\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64) + sizeof(__u32))
+#define ALLOW_SYSCALL(name) \
+	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(name), 0); \
+	if (rc != 0) return -1;
+
+static int add_seccomp(void) {
+	scmp_filter_ctx ctx = NULL;
+	int rc;
+
+	ctx = seccomp_init(SCMP_ACT_ERRNO(ECAPMODE));
+	if (ctx == NULL)
+		return -1;
+
+	/* Allowed syscalls: start with most common calls */
+	ALLOW_SYSCALL(futex);
+	ALLOW_SYSCALL(poll);
+	ALLOW_SYSCALL(read);
+	ALLOW_SYSCALL(write);
+	ALLOW_SYSCALL(readv);
+	ALLOW_SYSCALL(writev);
+	ALLOW_SYSCALL(close);
+	ALLOW_SYSCALL(recvmsg);
+	ALLOW_SYSCALL(recvfrom);
+	ALLOW_SYSCALL(madvise);
+	ALLOW_SYSCALL(gettid);
+	ALLOW_SYSCALL(fstat);
+	ALLOW_SYSCALL(fstat64);
+	ALLOW_SYSCALL(fstatat64);
+	ALLOW_SYSCALL(fcntl);
+	ALLOW_SYSCALL(fcntl64);
+	ALLOW_SYSCALL(sendto);
+#ifdef OMIT
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap), 0, 9),
+	EXAMINE_ARGHI(3),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(3),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_MAP_FLAGS), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(mmap2), 0, 9),
+	EXAMINE_ARGHI(3),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(3),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, MAP_ANONYMOUS, 0, 1),
+	ALLOW,
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_MAP_FLAGS), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+
+	/* openat(2) */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(openat), 0, 13),
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(0),  /* dfd */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),
+	FAIL_ECAPMODE,
+	EXAMINE_ARGHI(2),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(2),  /* flags */
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, ~(VALID_OPENAT_FLAGS), 0, 1),
+	FAIL_ECAPMODE,
+	ALLOW,
+#endif
+	ALLOW_SYSCALL(lseek);
+
+	/* Allowed syscalls: alphabetic list of remainder */
+	ALLOW_SYSCALL(accept);
+	ALLOW_SYSCALL(accept4);
+	ALLOW_SYSCALL(brk);
+	ALLOW_SYSCALL(cap_rights_get);
+	ALLOW_SYSCALL(cap_rights_limit);
+	ALLOW_SYSCALL(clock_getres);
+	ALLOW_SYSCALL(clock_gettime);
+	ALLOW_SYSCALL(clone);
+	ALLOW_SYSCALL(clone4);
+	ALLOW_SYSCALL(dup);
+	ALLOW_SYSCALL(dup2);
+	ALLOW_SYSCALL(dup3);
+	ALLOW_SYSCALL(execveat);
+	ALLOW_SYSCALL(exit);
+	ALLOW_SYSCALL(exit_group);
+	ALLOW_SYSCALL(faccessat);
+	ALLOW_SYSCALL(fchmod);
+	ALLOW_SYSCALL(fchmodat);
+	ALLOW_SYSCALL(fchown);
+	ALLOW_SYSCALL(fchown32);
+	ALLOW_SYSCALL(fchownat);
+	ALLOW_SYSCALL(fdatasync);
+	ALLOW_SYSCALL(fgetxattr);
+	ALLOW_SYSCALL(finit_module);
+	ALLOW_SYSCALL(flistxattr);
+	ALLOW_SYSCALL(flock);
+	ALLOW_SYSCALL(fork);
+	ALLOW_SYSCALL(fremovexattr);
+	ALLOW_SYSCALL(fsetxattr);
+	ALLOW_SYSCALL(fstatfs);
+	ALLOW_SYSCALL(fsync);
+	ALLOW_SYSCALL(ftruncate);
+	ALLOW_SYSCALL(ftruncate64);
+	ALLOW_SYSCALL(futimesat);
+	ALLOW_SYSCALL(get_robust_list);
+	ALLOW_SYSCALL(getdents);
+	ALLOW_SYSCALL(getdents64);
+	ALLOW_SYSCALL(getegid);
+	ALLOW_SYSCALL(geteuid);
+	ALLOW_SYSCALL(getgid);
+	ALLOW_SYSCALL(getgroups);
+	ALLOW_SYSCALL(getitimer);
+	ALLOW_SYSCALL(getpeername);
+	ALLOW_SYSCALL(getpgid);
+	ALLOW_SYSCALL(getpgrp);
+	ALLOW_SYSCALL(getpid);
+	ALLOW_SYSCALL(getppid);
+	ALLOW_SYSCALL(getpriority);
+	ALLOW_SYSCALL(getrandom);
+	ALLOW_SYSCALL(getresgid);
+	ALLOW_SYSCALL(getresgid32);
+	ALLOW_SYSCALL(getresuid);
+	ALLOW_SYSCALL(getresuid32);
+	ALLOW_SYSCALL(getrlimit);
+	ALLOW_SYSCALL(getrusage);
+	ALLOW_SYSCALL(getsid);
+	ALLOW_SYSCALL(getsockname);
+	ALLOW_SYSCALL(getsockopt);
+	ALLOW_SYSCALL(gettimeofday);
+	ALLOW_SYSCALL(getuid);
+	ALLOW_SYSCALL(ioctl);
+	ALLOW_SYSCALL(linkat);
+	ALLOW_SYSCALL(listen);
+	ALLOW_SYSCALL(memfd_create);
+	ALLOW_SYSCALL(mincore);
+	ALLOW_SYSCALL(mkdirat);
+	ALLOW_SYSCALL(mknodat);
+	ALLOW_SYSCALL(mlock);
+	ALLOW_SYSCALL(mlockall);
+	ALLOW_SYSCALL(mprotect);
+	ALLOW_SYSCALL(mq_getsetattr);
+	ALLOW_SYSCALL(mq_notify);
+	ALLOW_SYSCALL(mq_timedreceive);
+	ALLOW_SYSCALL(mq_timedsend);
+	ALLOW_SYSCALL(msync);
+	ALLOW_SYSCALL(munlock);
+	ALLOW_SYSCALL(munlockall);
+	ALLOW_SYSCALL(munmap);
+	ALLOW_SYSCALL(nanosleep);
+	ALLOW_SYSCALL(newfstatat);
+	ALLOW_SYSCALL(_newselect);
+	ALLOW_SYSCALL(oldfstat);
+	ALLOW_SYSCALL(pipe);
+	ALLOW_SYSCALL(pipe2);
+	ALLOW_SYSCALL(ppoll);
+	ALLOW_SYSCALL(pread64);
+	ALLOW_SYSCALL(preadv);
+	ALLOW_SYSCALL(pselect6);
+	ALLOW_SYSCALL(pwrite64);
+	ALLOW_SYSCALL(pwritev);
+	ALLOW_SYSCALL(readahead);
+	ALLOW_SYSCALL(readlinkat);
+	ALLOW_SYSCALL(recvmmsg);
+	ALLOW_SYSCALL(renameat);
+	ALLOW_SYSCALL(restart_syscall);
+	ALLOW_SYSCALL(rt_sigaction);
+	ALLOW_SYSCALL(rt_sigpending);
+	ALLOW_SYSCALL(rt_sigprocmask);
+	ALLOW_SYSCALL(rt_sigqueueinfo);
+	ALLOW_SYSCALL(rt_sigreturn);
+	ALLOW_SYSCALL(rt_sigsuspend);
+	ALLOW_SYSCALL(rt_sigtimedwait);
+	ALLOW_SYSCALL(rt_tgsigqueueinfo);
+	ALLOW_SYSCALL(sched_get_priority_max);
+	ALLOW_SYSCALL(sched_get_priority_min);
+	ALLOW_SYSCALL(sched_getparam);
+	ALLOW_SYSCALL(sched_getscheduler);
+	ALLOW_SYSCALL(sched_rr_get_interval);
+	ALLOW_SYSCALL(sched_setparam);
+	ALLOW_SYSCALL(sched_setscheduler);
+	ALLOW_SYSCALL(sched_yield);
+	ALLOW_SYSCALL(seccomp);
+	ALLOW_SYSCALL(select);
+	ALLOW_SYSCALL(sendfile);
+	ALLOW_SYSCALL(sendfile64);
+	ALLOW_SYSCALL(sendmmsg);
+	ALLOW_SYSCALL(sendmsg);
+	ALLOW_SYSCALL(set_robust_list);
+	ALLOW_SYSCALL(setfsgid);
+	ALLOW_SYSCALL(setfsgid32);
+	ALLOW_SYSCALL(setfsuid);
+	ALLOW_SYSCALL(setfsuid32);
+	ALLOW_SYSCALL(setgid);
+	ALLOW_SYSCALL(setgid32);
+	ALLOW_SYSCALL(setitimer);
+	ALLOW_SYSCALL(setpriority);
+	ALLOW_SYSCALL(setregid);
+	ALLOW_SYSCALL(setregid32);
+	ALLOW_SYSCALL(setresgid);
+	ALLOW_SYSCALL(setresgid32);
+	ALLOW_SYSCALL(setresuid);
+	ALLOW_SYSCALL(setresuid32);
+	ALLOW_SYSCALL(setreuid);
+	ALLOW_SYSCALL(setreuid32);
+	ALLOW_SYSCALL(setrlimit);
+	ALLOW_SYSCALL(setsid);
+	ALLOW_SYSCALL(setsockopt);
+	ALLOW_SYSCALL(setuid);
+	ALLOW_SYSCALL(setuid32);
+	ALLOW_SYSCALL(set_thread_area);
+	ALLOW_SYSCALL(shutdown);
+	ALLOW_SYSCALL(sigaltstack);
+	ALLOW_SYSCALL(sigaction);
+	ALLOW_SYSCALL(signal);
+	ALLOW_SYSCALL(signalfd);
+	ALLOW_SYSCALL(signalfd4);
+	ALLOW_SYSCALL(sigpending);
+	ALLOW_SYSCALL(sigprocmask);
+	ALLOW_SYSCALL(sigreturn);
+	ALLOW_SYSCALL(sigsuspend);
+	ALLOW_SYSCALL(socket);
+	ALLOW_SYSCALL(socketpair);
+	ALLOW_SYSCALL(symlinkat);
+	ALLOW_SYSCALL(sync);
+	ALLOW_SYSCALL(syncfs);
+	ALLOW_SYSCALL(sync_file_range);
+	ALLOW_SYSCALL(umask);
+	ALLOW_SYSCALL(uname);
+	ALLOW_SYSCALL(unlinkat);
+	ALLOW_SYSCALL(unshare);
+	ALLOW_SYSCALL(utimensat);
+	ALLOW_SYSCALL(vfork);
+	ALLOW_SYSCALL(vmsplice);
+
+	/* Special syscalls */
+	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(arch_prctl), 4,
+			      SCMP_A0(SCMP_CMP_EQ, ARCH_GET_FS),
+			      SCMP_A0(SCMP_CMP_EQ, ARCH_GET_GS),
+			      SCMP_A0(SCMP_CMP_EQ, ARCH_SET_FS),
+			      SCMP_A0(SCMP_CMP_EQ, ARCH_SET_GS));
+	if (rc != 0) return -1;
+
+	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(prctl),
+#ifdef PR_GET_OPENAT_BENEATH
+			      1 +
+#endif
+			      16,
+#ifdef PR_GET_OPENAT_BENEATH
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_OPENAT_BENEATH),
+#endif
+			      SCMP_A0(SCMP_CMP_EQ, PR_CAPBSET_READ),
+			      SCMP_A0(SCMP_CMP_EQ, PR_CAPBSET_DROP),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_DUMPABLE),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_ENDIAN),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_FPEMU),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_KEEPCAPS),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_NAME),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_NO_NEW_PRIVS),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_PDEATHSIG),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_SECCOMP),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_SECUREBITS),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_TIMERSLACK),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_TIMING),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_TSC),
+			      SCMP_A0(SCMP_CMP_EQ, PR_GET_UNALIGN),
+			      SCMP_A0(SCMP_CMP_EQ, PR_MCE_KILL_GET));
+	if (rc != 0) return -1;
+
+#ifdef WCLONEFD
+	/* wait4(2) */
+	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(wait4), 1,
+			      SCMP_A2(SCMP_CMP_MASKED_EQ, WCLONEFD, WCLONEFD));
+	if (rc != 0) return -1;
+#endif
+
+#ifdef OMIT_AND_SECCOMP_DATA_TID_PRESENT
+	/* tgkill(2)/kill(2): check arg[0] vs current tgid. */
+	/* First check info is available */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(tgkill), 1, 0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(kill), 0, 13),
+	BPF_STMT(BPF_LD+BPF_W+BPF_LEN, 0),  /* A <- data len */
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
+		offsetof(struct seccomp_data, tgid) + sizeof(pid_t),
+		0, 1),
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K,
+		offsetof(struct seccomp_data, tid) + sizeof(pid_t),
+		1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARGHI(0),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),
+	FAIL_ECAPMODE,
+	EXAMINE_ARG(0),  /* A <- specified pid */
+	BPF_STMT(BPF_MISC+BPF_TAX, 0),  /* X <- A */
+	EXAMINE_TGID,  /* A <- actual tgid */
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
+	ALLOW,
+	FAIL_ECAPMODE,
 #else
-#define EXAMINE_ARG(n)							\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64) + sizeof(_u32))
-#define EXAMINE_ARGHI(n)							\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args) + n * sizeof(__u64)))
+	/* kill(2): want to check for current tid, but can't. */
 #endif
 
-#define ALLOW	\
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
-#define ALLOW_SYSCALL_NUM(num)	\
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (num & SYSCALL_NUM_MASK), 0, 1),	\
-	ALLOW
-#define ALLOW_SYSCALL(name)		ALLOW_SYSCALL_NUM(SYSCALL_NUM(name))
-#define SYSCALL_X32_NUM(name)		(__NR_x32_##name & SYSCALL_NUM_MASK)
-#define ALLOW_X32_SYSCALL(name)	ALLOW_SYSCALL_NUM(SYSCALL_X32_NUM(name))
-#define FAIL_ECAPMODE	\
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO | (ECAPMODE & 0xFFFF))
-#define FAIL_SYSCALL(name)	\
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(name), 0, 1),	\
-	FAIL_ECAPMODE
-#ifdef SECCOMP_DATA_TID_PRESENT
-/* Build environment includes .tgid and .tid fields in seccomp_data */
-#define EXAMINE_TGID	\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, tgid))
-#define EXAMINE_TID	\
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, tid))
-#endif
-
-/*
- * Create a filter for our base architecture by including the filter header
- * with the following macros set:
- *   - SYSCALL_NUM(name) : use constants of form __NR_<name>
- *   - SYSCALL_PREFIX : use 0 to indicate no prefix
- *   - SYSCALL_ARCH : current build architecture
- *   - SYSCALL_FILTER : capmode_filter
- */
-#if defined(__i386__)
-#define BASE_ARCH	AUDIT_ARCH_I386
-#elif defined(__x86_64__)
-/* Note: x86_64 also includes x32 ABI */
-#define BASE_ARCH	AUDIT_ARCH_X86_64
-#else
-#error "Platform does not support seccomp filter yet"
-#endif
-
-/*
- * Provide definition of:
- *   static struct sock_filter capmode_filter[];
- */
-#define SYSCALL_ARCH		BASE_ARCH
-#define SYSCALL_NUM(name)	(__NR_##name & SYSCALL_NUM_MASK)
-#define SYSCALL_PREFIX		0
-#define SYSCALL_FILTER		capmode_filter
-#include "linux-bpf-capmode.h"
-#undef SYSCALL_ARCH
-#undef SYSCALL_NUM
-#undef SYSCALL_PREFIX
-#undef SYSCALL_FILTER
-
-/* Now see if we can build a filter for the alternate architecture. */
-
-#if defined(__i386__)
-/* Building on 32-bit, see if we have definitions for amd64 syscall numbers */
-#define ALT_ARCH	AUDIT_ARCH_X86_64
-#ifdef HAVE_ASM_UNISTD_64_AMD64_H
-#define SYSCALL_NUM(name)	(__NR_amd64_##name & SYSCALL_NUM_MASK)
-#define SYSCALL_PREFIX		1
-#define HAVE_ALTFILTER
-#endif
-#elif defined(__x86_64__)
-/* Building on 64-bit or x32, see if we have definitions for ia32/i386 syscall numbers */
-#define ALT_ARCH	AUDIT_ARCH_I386
-#ifdef HAVE_ASM_UNISTD_64_AMD64_H
-#define SYSCALL_NUM(name)	(__NR_ia32_##name & SYSCALL_NUM_MASK)
-#define SYSCALL_PREFIX		2
-#define HAVE_ALTFILTER
-#endif
-#endif
-
-#ifdef HAVE_ALTFILTER
-/*
- * Create a filter for our alternate architecture by including the filter header
- * with the following macros set:
- *      build arch:             amd64                       i386
- *  SYSCALL_NUM(name)      __NR_ia32_<name>            __NR_amd64_<name>
- *  SYSCALL_PREFIX             2 (=>ia32)                  1 (=>amd64)
- *  SYSCALL_ARCH            AUDIT_ARCH_I386            AUDIT_ARCH_X86_64
- *  SYSCALL_FILTER          capmode_altfilter          capmode_altfilter
- */
-
-/*
- * Provide definition of:
- *   static struct sock_filter capmode_altfilter[];
- */
-#define SYSCALL_ARCH		ALT_ARCH
-#define SYSCALL_FILTER		capmode_altfilter
-#include "linux-bpf-capmode.h"
-#undef SYSCALL_ARCH
-#undef SYSCALL_NUM
-#undef SYSCALL_PREFIX
-#undef SYSCALL_FILTER
-#endif
-
-#ifdef HAVE_ALTFILTER
-/* With two possible architectures in play, need to select appropriately. */
-static struct sock_filter capmode_combifilter[3+COUNT_OF(capmode_filter)+COUNT_OF(capmode_altfilter)] = {
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, arch)), /* load arch */
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, BASE_ARCH, 1, 0),
-	BPF_JUMP(BPF_JMP+BPF_JA, COUNT_OF(capmode_filter), 0, 0),
-	/* capmode_filter contents */
-	/* capmode_altfilter contents */
-};
-static void __attribute__((constructor)) _filter_init(void) {
-	int ii;
-	int offset = 3;
-	for (ii = 0; ii < COUNT_OF(capmode_filter); ii++)
-		capmode_combifilter[offset + ii] = capmode_filter[ii];
-	offset += COUNT_OF(capmode_filter);
-	for (ii = 0; ii < COUNT_OF(capmode_altfilter); ii++)
-		capmode_combifilter[offset + ii] = capmode_altfilter[ii];
-}
-static struct sock_fprog capmode_fprog = {
-	.len = (3 + COUNT_OF(capmode_filter) + COUNT_OF(capmode_altfilter)),
-	.filter = capmode_combifilter
-};
-#else
-/* If only a single arch is available, just run the base filter */
-static struct sock_fprog capmode_fprog = {
-	.len = COUNT_OF(capmode_filter),
-	.filter = capmode_filter
-};
-#endif
-
-#ifdef UNUSED
-static void print_filter(struct sock_fprog *bpf) {
-	int pc;
-	printf(" line  OP   JT   JF   K\n");
-	printf("=================================\n");
-	for (pc = 0; pc < bpf->len; pc++) {
-		struct sock_filter *filter = &(bpf->filter[pc]);
-		printf(" %04d: 0x%02x 0x%02x 0x%02x 0x%08x\n",
-			pc, filter->code, filter->jt, filter->jf, filter->k);
-	}
-}
-#endif
-
-int seccomp_(unsigned int op, unsigned int flags, struct sock_fprog *filter) {
-	errno = 0;
-	return syscall(__NR_seccomp, op, flags, filter, 0, 0, 0);
+	return 0;
 }
 
 int cap_enter() {
@@ -209,9 +349,7 @@ int cap_enter() {
 	rc = prctl(PR_SET_OPENAT_BENEATH, 1 , PR_SET_OPENAT_BENEATH_TSYNC, 0, 0);
 	if (rc < 0) return rc;
 #endif
-	return seccomp_(SECCOMP_SET_MODE_FILTER,
-			SECCOMP_FILTER_FLAG_TSYNC,
-			&capmode_fprog);
+	return add_seccomp();
 }
 
 int cap_getmode(unsigned int *mode) {
