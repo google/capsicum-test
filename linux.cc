@@ -1317,6 +1317,49 @@ TEST(Linux, SetLease) {
   unlink(TmpFile("cap_lease"));
 }
 
+TEST(Linux, InvalidRightsSyscall) {
+  int fd = open(TmpFile("cap_invalid_rights"), O_RDONLY|O_CREAT, 0644);
+  EXPECT_OK(fd);
+
+  cap_rights_t rights;
+  cap_rights_init(&rights, CAP_READ, CAP_WRITE, CAP_FCHMOD, CAP_FSTAT);
+
+  // Use the raw syscall throughout.
+  EXPECT_EQ(0, syscall(__NR_cap_rights_limit, fd, &rights, 0, 0, NULL, 0));
+
+  // Directly access the syscall, and find all unseemly manner of use for it.
+  //  - Invalid flags
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, 0, 0, NULL, 1));
+  EXPECT_EQ(EINVAL, errno);
+  //  - Specify an fcntl subright, but no CAP_FCNTL set
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, CAP_FCNTL_GETFL, 0, NULL, 0));
+  EXPECT_EQ(EINVAL, errno);
+  //  - Specify an ioctl subright, but no CAP_IOCTL set
+  unsigned int ioctl1 = 1;
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, 0, 1, &ioctl1, 0));
+  EXPECT_EQ(EINVAL, errno);
+  //  - N ioctls, but null pointer passed
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, 0, 1, NULL, 0));
+  EXPECT_EQ(EINVAL, errno);
+  //  - Invalid nioctls
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, 0, -2, NULL, 0));
+  EXPECT_EQ(EINVAL, errno);
+  //  - Null primary rights
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, NULL, 0, 0, NULL, 0));
+  EXPECT_EQ(EFAULT, errno);
+  //  - Invalid index bitmask
+  rights.cr_rights[0] |= 3ULL << 57;
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, 0, 0, NULL, 0));
+  EXPECT_EQ(EINVAL, errno);
+  //  - Invalid version
+  rights.cr_rights[0] |= 2ULL << 62;
+  EXPECT_EQ(-1, syscall(__NR_cap_rights_limit, fd, &rights, 0, 0, NULL, 0));
+  EXPECT_EQ(EINVAL, errno);
+
+  close(fd);
+  unlink(TmpFile("cap_invalid_rights"));
+}
+
 int getrandom_(void *buf, size_t buflen, unsigned int flags) {
 #ifdef __NR_getrandom
   return syscall(__NR_getrandom, buf, buflen, flags);
