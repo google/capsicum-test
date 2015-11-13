@@ -102,7 +102,7 @@ TEST(Ioctl, PreserveSubRights) {
   nioctls = cap_ioctls_get(fd, ioctls, 16);
   EXPECT_OK(nioctls);
   EXPECT_EQ(0, nioctls);
-  EXPECT_NOTCAPABLE(cap_ioctls_limit(fd, &ioctl_nread, 1));
+  EXPECT_EQ(-1, cap_ioctls_limit(fd, &ioctl_nread, 1));
 
   close(fd);
 }

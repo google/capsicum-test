@@ -313,7 +313,7 @@ TEST(Fcntl, PreserveSubRights) {
   EXPECT_OK(cap_rights_limit(fd, &rights));
   EXPECT_OK(cap_fcntls_get(fd, &fcntls));
   EXPECT_EQ((cap_fcntl_t)0, fcntls);
-  EXPECT_NOTCAPABLE(cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
+  EXPECT_EQ(-1, cap_fcntls_limit(fd, CAP_FCNTL_GETFL));
 
   close(fd);
   unlink(TmpFile("cap_fcntl_subrightpreserve"));
