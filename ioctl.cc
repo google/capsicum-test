@@ -184,6 +184,29 @@ TEST(Ioctl, SubRights) {
   EXPECT_NOTCAPABLE(ioctl(fd, FIOCLEX, &one));
 
   close(fd);
-  unlink(TmpFile("cap_fcntl_cmds"));
 }
+
+TEST(Ioctl, ManySubRights) {
+  int fd = open("/etc/passwd", O_RDONLY);
+  EXPECT_OK(fd);
+
+  const int nioctls = 150000;
+  cap_ioctl_t* ioctls = (cap_ioctl_t*)calloc(nioctls, sizeof(cap_ioctl_t));
+  for (int ii = 0; ii < nioctls; ii++) {
+    ioctls[ii] = ii + 1;
+  }
+
+  cap_rights_t rights_ioctl;
+  cap_rights_init(&rights_ioctl, CAP_IOCTL);
+  EXPECT_OK(cap_rights_limit(fd, &rights_ioctl));
+
+  EXPECT_OK(cap_ioctls_limit(fd, ioctls, nioctls));
+  // Limit to a subset; if this takes a long time then there's an
+  // O(N^2) implementation of the ioctl list comparison.
+  EXPECT_OK(cap_ioctls_limit(fd, ioctls, nioctls - 1));
+
+  close(fd);
+}
+
+
 #endif
