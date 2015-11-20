@@ -45,6 +45,10 @@ typedef unsigned long cap_ioctl_t;
 #define E_NO_TRAVERSE_O_BENEATH EPERM
 #endif
 
+// FreeBSD limits the number of ioctls in cap_ioctls_limit to 256
+#define HAVE_CAP_IOCTLS_LIMIT
+#define CAP_IOCTLS_LIMIT 256
+
 // Too many links
 #define E_TOO_MANY_LINKS EMLINK
 
