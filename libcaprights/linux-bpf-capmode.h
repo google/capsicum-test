@@ -249,6 +249,11 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_listen)))
 	ALLOW_SYSCALL(listen),
 #endif
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_membarrier)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_membarrier)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_membarrier)))
+	ALLOW_SYSCALL(membarrier),
+#endif
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_memfd_create)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_memfd_create)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_memfd_create)))
@@ -258,6 +263,11 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(mkdirat),
 	ALLOW_SYSCALL(mknodat),
 	ALLOW_SYSCALL(mlock),
+#if ((SYSCALL_PREFIX == 0 && defined(__NR_mlock2)) || \
+     (SYSCALL_PREFIX == 1 && defined(__NR_amd64_mlock2)) || \
+     (SYSCALL_PREFIX == 2 && defined(__NR_ia32_mlock2)))
+	ALLOW_SYSCALL(mlock2),
+#endif
 	ALLOW_SYSCALL(mlockall),
 	ALLOW_SYSCALL(mprotect),
 	ALLOW_SYSCALL(mq_getsetattr),
