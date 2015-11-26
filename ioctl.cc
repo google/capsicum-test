@@ -186,13 +186,13 @@ TEST(Ioctl, SubRights) {
   close(fd);
 }
 
-#ifdef HAVE_CAP_IOCTLS_LIMIT
+#ifdef CAP_IOCTLS_LIMIT_MAX
 TEST(Ioctl, TooManySubRights) {
   int fd = open("/etc/passwd", O_RDONLY);
   EXPECT_OK(fd);
 
-  cap_ioctl_t ioctls[CAP_IOCTLS_LIMIT + 1];
-  for (int ii = 0; ii <= CAP_IOCTLS_LIMIT; ii++) {
+  cap_ioctl_t ioctls[CAP_IOCTLS_LIMIT_MAX + 1];
+  for (int ii = 0; ii <= CAP_IOCTLS_LIMIT_MAX; ii++) {
     ioctls[ii] = ii + 1;
   }
 
@@ -201,9 +201,9 @@ TEST(Ioctl, TooManySubRights) {
   EXPECT_OK(cap_rights_limit(fd, &rights_ioctl));
 
   // Can only limit to a certain number of ioctls
-  EXPECT_EQ(-1, cap_ioctls_limit(fd, ioctls, CAP_IOCTLS_LIMIT + 1));
+  EXPECT_EQ(-1, cap_ioctls_limit(fd, ioctls, CAP_IOCTLS_LIMIT_MAX + 1));
   EXPECT_EQ(EINVAL, errno);
-  EXPECT_OK(cap_ioctls_limit(fd, ioctls, CAP_IOCTLS_LIMIT));
+  EXPECT_OK(cap_ioctls_limit(fd, ioctls, CAP_IOCTLS_LIMIT_MAX));
 
   close(fd);
 }
