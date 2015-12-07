@@ -38,3 +38,6 @@ system.dns
 system.grp
 system.pwd
 system.random
+nvlist_*_test.log
+nvlist_*_test.trs
+nvlist_*_test

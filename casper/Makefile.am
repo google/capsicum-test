@@ -5,8 +5,8 @@ CFLAGS = --pedantic -Wall -O2 -g -I . -I src
 lib_LTLIBRARIES = libnv.la libcapsicum.la
 noinst_LIBRARIES = libpjdlog.a libcasper.a libgtest.a
 sbin_PROGRAMS = casperd casper.dns casper.grp casper.pwd casper.random # casper.sysctl
-noinst_PROGRAMS = casper-test
-TESTS = test-wrapper.sh
+noinst_PROGRAMS = casper-test nvlist_add_test nvlist_exists_test nvlist_free_test nvlist_get_test nvlist_move_test nvlist_send_recv_test
+TESTS = test-wrapper.sh nvlist_add_test nvlist_exists_test nvlist_free_test nvlist_get_test nvlist_move_test nvlist_send_recv_test
 EXTRA_DIST = test-wrapper.sh etc debian
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/local.h src/sys_endian.h
@@ -92,5 +92,26 @@ libgtest_a_CXXFLAGS = -I gtest-1.6.0/include -I gtest-1.6.0 -DGTEST_USE_OWN_TR1_
 casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc
 casper_test_LDADD  = libcapsicum.la libnv.la libpjdlog.a libgtest.a -lpthread
 casper_test_CXXFLAGS = -std=c++11 -Wall -g -I gtest-1.6.0/include -I gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
+
+nvlist_add_test_SOURCES = tests/nvlist_add_test.c
+nvlist_add_test_LDADD = libnv.la
+nvlist_add_test_CFLAGS = -Wall -g -I src/libnv
+nvlist_exists_test_SOURCES = tests/nvlist_exists_test.c
+nvlist_exists_test_LDADD = libnv.la
+nvlist_exists_test_CFLAGS = -Wall -g -I src/libnv
+nvlist_free_test_SOURCES = tests/nvlist_free_test.c
+nvlist_free_test_LDADD = libnv.la
+nvlist_free_test_CFLAGS = -Wall -g -I src/libnv
+nvlist_get_test_SOURCES = tests/nvlist_get_test.c
+nvlist_get_test_LDADD = libnv.la
+nvlist_get_test_CFLAGS = -Wall -g -I src/libnv
+nvlist_move_test_SOURCES = tests/nvlist_move_test.c
+nvlist_move_test_LDADD = libnv.la
+nvlist_move_test_CFLAGS = -Wall -g -I src/libnv
+nvlist_send_recv_test_SOURCES = tests/nvlist_send_recv_test.c
+nvlist_send_recv_test_LDADD = libnv.la
+nvlist_send_recv_test_CFLAGS = -Wall -g -I src/libnv
+
+
 
 dist_man_MANS = src/libnv/libnv.3 src/libcapsicum/libcapsicum.3
