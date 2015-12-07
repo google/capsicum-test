@@ -89,7 +89,7 @@ libgtest_a_SOURCES = gtest-1.6.0/src/gtest-all.cc \
   gtest-1.6.0/include/gtest/internal/gtest-type-util.h
 libgtest_a_CXXFLAGS = -I gtest-1.6.0/include -I gtest-1.6.0 -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
-casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc
+casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc tests/nv_tests.cc tests/dnv_tests.cc tests/nv_array_tests.cc tests/atf-fake.h
 casper_test_LDADD  = libcapsicum.la libnv.la libpjdlog.a libgtest.a -lpthread
 casper_test_CXXFLAGS = -std=c++11 -Wall -g -I gtest-1.6.0/include -I gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcapsicum -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
