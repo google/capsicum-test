@@ -84,7 +84,7 @@ TEST_F(CasperPwdTest, GetPwNam) {
   EXPECT_EQ(0, rc);
   EXPECT_NE(nullptr, pwd);
   EXPECT_EQ(passwds_[lowest_uid_], std::string(pwd->pw_name));
-  EXPECT_EQ(lowest_uid_, pwd->pw_uid);
+  EXPECT_EQ(lowest_uid_, (int)pwd->pw_uid);
 }
 
 TEST_F(CasperPwdTest, GetGrUid) {
@@ -99,6 +99,6 @@ TEST_F(CasperPwdTest, GetGrUid) {
   EXPECT_EQ(0, rc);
   EXPECT_NE(nullptr, pwd);
   EXPECT_EQ(passwds_[lowest_uid_], std::string(pwd->pw_name));
-  EXPECT_EQ(lowest_uid_, pwd->pw_uid);
+  EXPECT_EQ(lowest_uid_, (int)pwd->pw_uid);
 }
 

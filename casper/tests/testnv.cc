@@ -88,7 +88,7 @@ TEST_P(NVListTest, Basic) {
   void *data = nvlist_pack(list, &size2);
   EXPECT_EQ(size, size2);
 
-  nvlist_t *list3 = nvlist_unpack(data, size2);
+  nvlist_t *list3 = nvlist_unpack(data, size2, 0);
   free(data);
 
   // Unpacked data should have the same content.
@@ -141,7 +141,7 @@ TEST(NVList, SocketSend) {
   pid_t child = fork();
   if (child == 0) {
     // Child: wait to receive an nvlist.
-    nvlist_t *list2 = nvlist_recv(fds[0]);
+    nvlist_t *list2 = nvlist_recv(fds[0], 0);
     if (verbose) {
       fprintf(stderr, "child: received nvlist:\n");
       nvlist_dump(list2, fileno(stderr));
@@ -149,7 +149,7 @@ TEST(NVList, SocketSend) {
     EXPECT_TRUE(nvlist_exists_string(list2, "field1"));
     EXPECT_EQ("value1", std::string(nvlist_get_string(list2, "field1")));
     EXPECT_TRUE(nvlist_exists_number(list2, "field2"));
-    EXPECT_EQ(42, nvlist_get_number(list2, "field2"));
+    EXPECT_EQ(42, (int)nvlist_get_number(list2, "field2"));
     EXPECT_TRUE(nvlist_exists_binary(list2, "field3"));
     EXPECT_TRUE(nvlist_exists_descriptor(list2, "field4"));
     int fd2 = nvlist_get_descriptor(list2, "field4");
@@ -193,7 +193,7 @@ TEST(NVList, SocketXfer) {
     int fd = open("/etc/passwd", O_RDONLY);
     int fd2 = open("/etc/passwd", O_RDONLY);
     EXPECT_LE(0, fd);
-    nvlist_t *list2 = nvlist_recv(fds[0]);
+    nvlist_t *list2 = nvlist_recv(fds[0], 0);
     if (verbose) {
       fprintf(stderr, "child: received nvlist:\n");
       nvlist_dump(list2, fileno(stderr));
@@ -215,11 +215,11 @@ TEST(NVList, SocketXfer) {
   nvlist_add_number(list, "field2", 42);
 
   // Send/recv it via the socket.
-  list = nvlist_xfer(fds[1], list);
+  list = nvlist_xfer(fds[1], list, 0);
   EXPECT_NE(nullptr, list);
   if (list) {
     EXPECT_TRUE(nvlist_exists_number(list, "rc"));
-    EXPECT_EQ(0, nvlist_get_number(list, "rc"));
+    EXPECT_EQ(0, (int)nvlist_get_number(list, "rc"));
     EXPECT_TRUE(nvlist_exists_descriptor(list, "rspfd"));
     int fd = nvlist_take_descriptor(list, "rspfd");
     EXPECT_LT(0, fd);

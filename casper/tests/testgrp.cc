@@ -81,7 +81,7 @@ TEST_F(CasperGrpTest, GetGrNam) {
   EXPECT_EQ(0, rc);
   EXPECT_NE(nullptr, grp);
   EXPECT_EQ(groups_[lowest_gid_], std::string(grp->gr_name));
-  EXPECT_EQ(lowest_gid_, grp->gr_gid);
+  EXPECT_EQ(lowest_gid_, (int)grp->gr_gid);
 }
 
 TEST_F(CasperGrpTest, GetGrGid) {
@@ -96,5 +96,5 @@ TEST_F(CasperGrpTest, GetGrGid) {
   EXPECT_EQ(0, rc);
   EXPECT_NE(nullptr, grp);
   EXPECT_EQ(groups_[lowest_gid_], std::string(grp->gr_name));
-  EXPECT_EQ(lowest_gid_, grp->gr_gid);
+  EXPECT_EQ(lowest_gid_, (int)grp->gr_gid);
 }
