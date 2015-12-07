@@ -72,4 +72,8 @@ size_t strlcpy(char *dst, const char* src, size_t siz);
 #define _ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 #endif
 
+#ifndef	__DECONST
+#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#endif
+
 #endif

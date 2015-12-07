@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "nv.h"
 #include "nv_impl.h"
@@ -43,7 +44,10 @@ ftype									\
 dnvlist_get_##type(const nvlist_t *nvl, const char *name, ftype defval)	\
 {									\
 									\
-	return (dnvlist_getf_##type(nvl, defval, "%s", name));		\
+	if (nvlist_exists_##type(nvl, name))				\
+		return (nvlist_get_##type(nvl, name));			\
+	else								\
+		return (defval);					\
 }
 
 DNVLIST_GET(bool, bool)
@@ -58,89 +62,15 @@ const void *
 dnvlist_get_binary(const nvlist_t *nvl, const char *name, size_t *sizep,
     const void *defval, size_t defsize)
 {
-
-	return (dnvlist_getf_binary(nvl, sizep, defval, defsize, "%s", name));
-}
-
-#define	DNVLIST_GETF(ftype, type)					\
-ftype									\
-dnvlist_getf_##type(const nvlist_t *nvl, ftype defval,			\
-    const char *namefmt, ...)						\
-{									\
-	va_list nameap;							\
-	ftype value;							\
-									\
-	va_start(nameap, namefmt);					\
-	value = dnvlist_getv_##type(nvl, defval, namefmt, nameap);	\
-	va_end(nameap);							\
-									\
-	return (value);							\
-}
-
-DNVLIST_GETF(bool, bool)
-DNVLIST_GETF(uint64_t, number)
-DNVLIST_GETF(const char *, string)
-DNVLIST_GETF(const nvlist_t *, nvlist)
-DNVLIST_GETF(int, descriptor)
-
-#undef	DNVLIST_GETF
-
-const void *
-dnvlist_getf_binary(const nvlist_t *nvl, size_t *sizep, const void *defval,
-    size_t defsize, const char *namefmt, ...)
-{
-	va_list nameap;
 	const void *value;
 
-	va_start(nameap, namefmt);
-	value = dnvlist_getv_binary(nvl, sizep, defval, defsize, namefmt,
-	    nameap);
-	va_end(nameap);
-
-	return (value);
-}
-
-#define	DNVLIST_GETV(ftype, type)					\
-ftype									\
-dnvlist_getv_##type(const nvlist_t *nvl, ftype defval,			\
-    const char *namefmt, va_list nameap)				\
-{									\
-	va_list cnameap;						\
-	ftype value;							\
-									\
-	va_copy(cnameap, nameap);					\
-	if (nvlist_existsv_##type(nvl, namefmt, cnameap))		\
-		value = nvlist_getv_##type(nvl, namefmt, nameap);	\
-	else								\
-		value = defval;						\
-	va_end(cnameap);						\
-	return (value);							\
-}
-
-DNVLIST_GETV(bool, bool)
-DNVLIST_GETV(uint64_t, number)
-DNVLIST_GETV(const char *, string)
-DNVLIST_GETV(const nvlist_t *, nvlist)
-DNVLIST_GETV(int, descriptor)
-
-#undef	DNVLIST_GETV
-
-const void *
-dnvlist_getv_binary(const nvlist_t *nvl, size_t *sizep, const void *defval,
-    size_t defsize, const char *namefmt, va_list nameap)
-{
-	va_list cnameap;
-	const void *value;
-
-	va_copy(cnameap, nameap);
-	if (nvlist_existsv_binary(nvl, namefmt, cnameap)) {
-		value = nvlist_getv_binary(nvl, sizep, namefmt, nameap);
-	} else {
+	if (nvlist_exists_binary(nvl, name))
+		value = nvlist_get_binary(nvl, name, sizep);
+	else {
 		if (sizep != NULL)
 			*sizep = defsize;
 		value = defval;
 	}
-	va_end(cnameap);
 	return (value);
 }
 
@@ -149,7 +79,10 @@ ftype									\
 dnvlist_take_##type(nvlist_t *nvl, const char *name, ftype defval)	\
 {									\
 									\
-	return (dnvlist_takef_##type(nvl, defval, "%s", name));		\
+	if (nvlist_exists_##type(nvl, name))				\
+		return (nvlist_take_##type(nvl, name));			\
+	else								\
+		return (defval);					\
 }
 
 DNVLIST_TAKE(bool, bool)
@@ -164,88 +97,15 @@ void *
 dnvlist_take_binary(nvlist_t *nvl, const char *name, size_t *sizep,
     void *defval, size_t defsize)
 {
-
-	return (dnvlist_takef_binary(nvl, sizep, defval, defsize, "%s", name));
-}
-
-#define	DNVLIST_TAKEF(ftype, type)					\
-ftype									\
-dnvlist_takef_##type(nvlist_t *nvl, ftype defval,			\
-    const char *namefmt, ...)						\
-{									\
-	va_list nameap;							\
-	ftype value;							\
-									\
-	va_start(nameap, namefmt);					\
-	value = dnvlist_takev_##type(nvl, defval, namefmt, nameap);	\
-	va_end(nameap);							\
-									\
-	return (value);							\
-}
-
-DNVLIST_TAKEF(bool, bool)
-DNVLIST_TAKEF(uint64_t, number)
-DNVLIST_TAKEF(char *, string)
-DNVLIST_TAKEF(nvlist_t *, nvlist)
-DNVLIST_TAKEF(int, descriptor)
-
-#undef	DNVLIST_TAKEF
-
-void *
-dnvlist_takef_binary(nvlist_t *nvl, size_t *sizep, void *defval,
-    size_t defsize, const char *namefmt, ...)
-{
-	va_list nameap;
 	void *value;
 
-	va_start(nameap, namefmt);
-	value = dnvlist_takev_binary(nvl, sizep, defval, defsize, namefmt,
-	    nameap);
-	va_end(nameap);
-
-	return (value);
-}
-
-#define	DNVLIST_TAKEV(ftype, type)					\
-ftype									\
-dnvlist_takev_##type(nvlist_t *nvl, ftype defval, const char *namefmt,	\
-    va_list nameap)							\
-{									\
-	va_list cnameap;						\
-	ftype value;							\
-									\
-	va_copy(cnameap, nameap);					\
-	if (nvlist_existsv_##type(nvl, namefmt, cnameap))		\
-		value = nvlist_takev_##type(nvl, namefmt, nameap);	\
-	else								\
-		value = defval;						\
-	va_end(cnameap);						\
-	return (value);							\
-}
-
-DNVLIST_TAKEV(bool, bool)
-DNVLIST_TAKEV(uint64_t, number)
-DNVLIST_TAKEV(char *, string)
-DNVLIST_TAKEV(nvlist_t *, nvlist)
-DNVLIST_TAKEV(int, descriptor)
-
-#undef	DNVLIST_TAKEV
-
-void *
-dnvlist_takev_binary(nvlist_t *nvl, size_t *sizep, void *defval,
-    size_t defsize, const char *namefmt, va_list nameap)
-{
-	va_list cnameap;
-	void *value;
-
-	va_copy(cnameap, nameap);
-	if (nvlist_existsv_binary(nvl, namefmt, cnameap)) {
-		value = nvlist_takev_binary(nvl, sizep, namefmt, nameap);
-	} else {
+	if (nvlist_exists_binary(nvl, name))
+		value = nvlist_take_binary(nvl, name, sizep);
+	else {
 		if (sizep != NULL)
 			*sizep = defsize;
 		value = defval;
 	}
-	va_end(cnameap);
 	return (value);
 }
+

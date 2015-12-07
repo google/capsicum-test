@@ -56,6 +56,8 @@
 #define	PJDLOG_ABORT(...)		abort()
 #endif
 
+#define	PKG_MAX_SIZE	1
+
 static int
 msghdr_add_fd(struct cmsghdr *cmsg, int fd)
 {
@@ -282,26 +284,24 @@ cred_recv(int sock, uid_t *uid, gid_t *gid, int *ngroups, gid_t *groups)
 	return (0);
 }
 
-int
-fd_send(int sock, const int *fds, size_t nfds)
+static int
+fd_package_send(int sock, const int *fds, size_t nfds)
 {
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
 	struct iovec iov;
-	uint8_t dummy;
 	unsigned int i;
 	int serrno, ret;
+	uint8_t dummy;
 
-	if (nfds == 0 || fds == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
+	PJDLOG_ASSERT(sock >= 0);
+	PJDLOG_ASSERT(fds != NULL);
+	PJDLOG_ASSERT(nfds > 0);
 
 	bzero(&msg, sizeof(msg));
-	bzero(&iov, sizeof(iov));
 
 	/*
-	 * XXX: Send one byte along with the control message.
+	 * XXX: Look into cred_send function for more details.
 	 */
 	dummy = 0;
 	iov.iov_base = &dummy;
@@ -309,25 +309,6 @@ fd_send(int sock, const int *fds, size_t nfds)
 
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-
-#ifndef SENDMSG_N_FDS
-	/* Send one FD at a time */
-	msg.msg_controllen = CMSG_SPACE(sizeof(int));
-	msg.msg_control = calloc(1, msg.msg_controllen);
-	if (msg.msg_control == NULL)
-		return (-1);
-
-	ret = -1;
-	for (i = 0; i < nfds; i++) {
-		cmsg = CMSG_FIRSTHDR(&msg);
-		if (msghdr_add_fd(cmsg, fds[i]) == -1)
-			goto end;
-		if (msg_send(sock, &msg) == -1)
-			goto end;
-	}
-
-#else
-        /* Send all FDs at once */
 	msg.msg_controllen = nfds * CMSG_SPACE(sizeof(int));
 	msg.msg_control = calloc(1, msg.msg_controllen);
 	if (msg.msg_control == NULL)
@@ -343,7 +324,7 @@ fd_send(int sock, const int *fds, size_t nfds)
 
 	if (msg_send(sock, &msg) == -1)
 		goto end;
-#endif
+
 	ret = 0;
 end:
 	serrno = errno;
@@ -352,68 +333,34 @@ end:
 	return (ret);
 }
 
-int
-fd_recv(int sock, int *fds, size_t nfds)
+static int
+fd_package_recv(int sock, int *fds, size_t nfds)
 {
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
-	struct iovec iov;
 	unsigned int i;
 	int serrno, ret;
-	unsigned char buffer[4];
-	void *cdata = NULL;
+	struct iovec iov;
+        uint8_t dummy;
 
-	if (nfds == 0 || fds == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
+	PJDLOG_ASSERT(sock >= 0);
+	PJDLOG_ASSERT(nfds > 0);
+	PJDLOG_ASSERT(fds != NULL);
 
-	bzero(&iov, sizeof(iov));
-	iov.iov_base = buffer;
-	iov.iov_len = sizeof(buffer);
-
-#ifndef SENDMSG_N_FDS
-	/* Receive one FD at a time */
-	cdata = calloc(1, CMSG_SPACE(sizeof(int)));
-	if (cdata == NULL)
-		return (-1);
-
-	ret = 0;
-	for (i = 0; i < nfds; i++) {
-		int fd;
-		bzero(&msg, sizeof(msg));
-		msg.msg_iov = &iov;
-		msg.msg_iovlen = 1;
-		msg.msg_control = cdata;
-		msg.msg_controllen = CMSG_SPACE(sizeof(int));
-		if (msg_recv(sock, &msg) == -1)
-			ret = -1;
-		cmsg = CMSG_FIRSTHDR(&msg);
-		if (cmsg == NULL)
-			ret = -1;
-		fd = msghdr_get_fd(cmsg);
-		if (fd < 0)
-			ret = -1;
-		/* Close received descriptors on error */
-		if (ret == -1)
-			close(fd);
-		else
-			fds[i] = fd;
-	}
-	if (ret == -1) {
-		errno = EINVAL;
-		goto end;
-	}
-
-#else
-	/* Receive all FDs at once */
+        i = 0;
 	bzero(&msg, sizeof(msg));
+	bzero(&iov, sizeof(iov));
+
+	/*
+	 * XXX: Look into cred_send function for more details.
+	 */
+	iov.iov_base = &dummy;
+	iov.iov_len = sizeof(dummy);
+
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-
 	msg.msg_controllen = nfds * CMSG_SPACE(sizeof(int));
-	cdata = calloc(1, msg.msg_controllen);
-	msg.msg_control = cdata;
+	msg.msg_control = calloc(1, msg.msg_controllen);
 	if (msg.msg_control == NULL)
 		return (-1);
 
@@ -445,13 +392,70 @@ fd_recv(int sock, int *fds, size_t nfds)
 		errno = EINVAL;
 		goto end;
 	}
-#endif
 
 	ret = 0;
 end:
 	serrno = errno;
-	free(cdata);
+	free(msg.msg_control);
 	errno = serrno;
+	return (ret);
+}
+
+int
+fd_recv(int sock, int *fds, size_t nfds)
+{
+	unsigned int i, step, j;
+	int ret, serrno;
+
+	if (nfds == 0 || fds == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = i = step = 0;
+	while (i < nfds) {
+		if (PKG_MAX_SIZE < nfds - i)
+			step = PKG_MAX_SIZE;
+		else
+			step = nfds - i;
+		ret = fd_package_recv(sock, fds + i, step);
+		if (ret != 0) {
+			/* Close all received descriptors. */
+			serrno = errno;
+			for (j = 0; j < i; j++)
+				close(fds[j]);
+			errno = serrno;
+			break;
+		}
+		i += step;
+	}
+
+	return (ret);
+}
+
+int
+fd_send(int sock, const int *fds, size_t nfds)
+{
+	unsigned int i, step;
+	int ret;
+
+	if (nfds == 0 || fds == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = i = step = 0;
+	while (i < nfds) {
+		if (PKG_MAX_SIZE < nfds - i)
+			step = PKG_MAX_SIZE;
+		else
+			step = nfds - i;
+		ret = fd_package_send(sock, fds + i, step);
+		if (ret != 0)
+			break;
+		i += step;
+	}
+
 	return (ret);
 }
 
