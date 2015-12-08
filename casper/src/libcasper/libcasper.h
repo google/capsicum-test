@@ -39,32 +39,92 @@ struct nvlist;
 typedef struct nvlist nvlist_t;
 #endif
 
-#define	PARENT_FILENO		3
-#define	EXECUTABLE_FILENO	4
-#define	PROC_FILENO		5
+#ifndef	_CAP_CHANNEL_T_DECLARED
+#define	_CAP_CHANNEL_T_DECLARED
+struct cap_channel;
 
-struct service;
-struct service_connection;
+typedef struct cap_channel cap_channel_t;
+#endif
 
-typedef int service_limit_func_t(const nvlist_t *, const nvlist_t *);
-typedef int service_command_func_t(const char *cmd, const nvlist_t *,
-    nvlist_t *, nvlist_t *);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-struct service_connection *service_connection_add(struct service *service,
-    int sock, const nvlist_t *limits);
-void service_connection_remove(struct service *service,
-    struct service_connection *sconn);
-int service_connection_clone(struct service *service,
-    struct service_connection *sconn);
-struct service_connection *service_connection_first(struct service *service);
-struct service_connection *service_connection_next(struct service_connection *sconn);
-cap_channel_t *service_connection_get_chan(const struct service_connection *sconn);
-int service_connection_get_sock(const struct service_connection *sconn);
-const nvlist_t *service_connection_get_limits(const struct service_connection *sconn);
-void service_connection_set_limits(struct service_connection *sconn,
-    nvlist_t *limits);
+/*
+ * The function opens unrestricted communication channel to Casper,
+ * using the specified UNIX socket path (use NULL for default).
+ */
+cap_channel_t *cap_init_sock(const char *sockpath);
 
-int service_start(const char *name, int sock, service_limit_func_t *limitfunc,
-    service_command_func_t *commandfunc, int argc, char *argv[]);
+/*
+ * The function opens unrestricted communication channel to Casper,
+ * using the default socket path.
+ */
+cap_channel_t *cap_init(void);
+
+/*
+ * The function creates cap_channel_t based on the given socket.
+ */
+cap_channel_t *cap_wrap(int sock);
+
+/*
+ * The function returns communication socket and frees cap_channel_t.
+ */
+int	cap_unwrap(cap_channel_t *chan);
+
+/*
+ * The function clones the given capability.
+ */
+cap_channel_t *cap_clone(const cap_channel_t *chan);
+
+/*
+ * The function closes the given capability.
+ */
+void	cap_close(cap_channel_t *chan);
+
+/*
+ * The function returns socket descriptor associated with the given
+ * cap_channel_t for use with select(2)/kqueue(2)/etc.
+ */
+int	cap_sock(const cap_channel_t *chan);
+
+/*
+ * The function limits the given capability.
+ * It always destroys 'limits' on return.
+ */
+int	cap_limit_set(const cap_channel_t *chan, nvlist_t *limits);
+
+/*
+ * The function returns current limits of the given capability.
+ */
+int	cap_limit_get(const cap_channel_t *chan, nvlist_t **limitsp);
+
+#ifdef TODO
+/*
+ * The function registers a service within provided Casper's capability.
+ * It will run with the same privileges the process has at the time of
+ * calling this function.
+ */
+int	cap_service_register(cap_channel_t *chan, const char *name,
+	    cap_func_t *func);
+#endif
+
+/*
+ * Function sends nvlist over the given capability.
+ */
+int	cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl);
+/*
+ * Function receives nvlist over the given capability.
+ */
+  nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
+/*
+ * Function sends the given nvlist, destroys it and receives new nvlist in
+ * response over the given capability.
+ */
+  nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCASPER_H_ */

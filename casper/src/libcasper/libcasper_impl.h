@@ -34,6 +34,10 @@
 
 #include "libcasper.h"
 
+#define	CASPER_SOCKPATH	"/var/run/casper"
+
+bool	fd_is_valid(int fd);
+
 struct service;
 struct service_connection;
 
@@ -42,5 +46,34 @@ struct service * service_alloc(const char *name,
 void service_free(struct service *service);
 
 void service_message(struct service *service, struct service_connection *sconn);
+
+
+#define	PARENT_FILENO		3
+#define	EXECUTABLE_FILENO	4
+#define	PROC_FILENO		5
+
+struct service;
+struct service_connection;
+
+typedef int service_limit_func_t(const nvlist_t *, const nvlist_t *);
+typedef int service_command_func_t(const char *cmd, const nvlist_t *,
+    nvlist_t *, nvlist_t *);
+
+struct service_connection *service_connection_add(struct service *service,
+    int sock, const nvlist_t *limits);
+void service_connection_remove(struct service *service,
+    struct service_connection *sconn);
+int service_connection_clone(struct service *service,
+    struct service_connection *sconn);
+struct service_connection *service_connection_first(struct service *service);
+struct service_connection *service_connection_next(struct service_connection *sconn);
+cap_channel_t *service_connection_get_chan(const struct service_connection *sconn);
+int service_connection_get_sock(const struct service_connection *sconn);
+const nvlist_t *service_connection_get_limits(const struct service_connection *sconn);
+void service_connection_set_limits(struct service_connection *sconn,
+    nvlist_t *limits);
+
+int service_start(const char *name, int sock, service_limit_func_t *limitfunc,
+    service_command_func_t *commandfunc, int argc, char *argv[]);
 
 #endif	/* !_LIBCASPER_IMPL_H_ */
