@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2015 Mariusz Zaborski <oshogbo at FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -29,9 +30,15 @@
  * $FreeBSD$
  */
 
-#ifndef	_CAP_RANDOM_H_
-#define	_CAP_RANDOM_H_
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
-int cap_random_buf(cap_channel_t *chan, void *buf, size_t nbytes);
+#include "libcasper_impl.h"
 
-#endif	/* !_CAP_RANDOM_H_ */
+bool
+fd_is_valid(int fd)
+{
+
+	return (fcntl(fd, F_GETFL) != -1 || errno != EBADF);
+}

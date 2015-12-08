@@ -26,15 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/lib/libcapsicum/libcapsicum_grp.h 258838 2013-12-02 08:21:28Z pjd $
  */
 
-#ifndef	_LIBCAPSICUM_GRP_H_
-#define	_LIBCAPSICUM_GRP_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef	_CAP_GRP_H_
+#define	_CAP_GRP_H_
 
 struct group *cap_getgrent(cap_channel_t *chan);
 struct group *cap_getgrnam(cap_channel_t *chan, const char *name);
@@ -58,8 +54,4 @@ int cap_grp_limit_fields(cap_channel_t *chan, const char * const *fields,
 int cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
     size_t nnames, gid_t *gids, size_t ngids);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* !_LIBCAPSICUM_GRP_H_ */
+#endif	/* !_CAP_GRP_H_ */

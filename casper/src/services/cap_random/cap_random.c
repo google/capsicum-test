@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 The FreeBSD Foundation
+ * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -28,17 +28,20 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
+
+#include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <libcapsicum.h>
 #include <libcasper.h>
-#include <nv.h>
-#include <pjdlog.h>
+#include <libcasper_service.h>
 
-#include "local.h"
+#include "cap_random.h"
 
 #define	MAXSIZE	(1024 * 1024)
 
@@ -85,8 +88,8 @@ cap_random_buf(cap_channel_t *chan, void *buf, size_t nbytes)
  */
 
 static int
-random_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
-    nvlist_t *nvlout)
+random_command(const char *cmd, const nvlist_t *limits __unused,
+    nvlist_t *nvlin, nvlist_t *nvlout)
 {
 	void *data;
 	size_t size;
@@ -111,14 +114,4 @@ random_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (0);
 }
 
-int
-main(int argc, char *argv[])
-{
-
-	/*
-	 * TODO: Sandbox this.
-	 */
-
-	return (service_start("system.random", PARENT_FILENO, NULL,
-	    random_command, argc, argv));
-}
+CREATE_SERVICE("system.random", NULL, random_command);

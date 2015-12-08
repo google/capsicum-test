@@ -29,12 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_LIBCAPSICUM_PWD_H_
-#define	_LIBCAPSICUM_PWD_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef	_CAP_PWD_H_
+#define	_CAP_PWD_H_
 
 struct passwd *cap_getpwent(cap_channel_t *chan);
 struct passwd *cap_getpwnam(cap_channel_t *chan, const char *login);
@@ -58,8 +54,4 @@ int cap_pwd_limit_fields(cap_channel_t *chan, const char * const *fields,
 int cap_pwd_limit_users(cap_channel_t *chan, const char * const *names,
     size_t nnames, uid_t *uids, size_t nuids);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* !_LIBCAPSICUM_PWD_H_ */
+#endif	/* !_CAP_PWD_H_ */

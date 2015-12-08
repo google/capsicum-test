@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2012-2013 The FreeBSD Foundation
+ * Copyright (c) 2015 Mariusz Zaborski <oshogbo at FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -32,6 +33,8 @@
 #ifndef	_LIBCASPER_H_
 #define	_LIBCASPER_H_
 
+#include <sys/types.h>
+
 #ifndef	_NVLIST_T_DECLARED
 #define	_NVLIST_T_DECLARED
 struct nvlist;
@@ -46,21 +49,17 @@ struct cap_channel;
 typedef struct cap_channel cap_channel_t;
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
- * The function opens unrestricted communication channel to Casper,
- * using the specified UNIX socket path (use NULL for default).
- */
-cap_channel_t *cap_init_sock(const char *sockpath);
-
-/*
- * The function opens unrestricted communication channel to Casper,
- * using the default socket path.
+ * The functions opens unrestricted communication channel to Casper.
  */
 cap_channel_t *cap_init(void);
+
+/*
+ * The functions to communicate with service.
+ */
+cap_channel_t	*cap_service_open(const cap_channel_t *chan, const char *name);
+int		 cap_service_limit(const cap_channel_t *chan,
+		    const char * const *names, size_t nnames);
 
 /*
  * The function creates cap_channel_t based on the given socket.
@@ -99,16 +98,6 @@ int	cap_limit_set(const cap_channel_t *chan, nvlist_t *limits);
  */
 int	cap_limit_get(const cap_channel_t *chan, nvlist_t **limitsp);
 
-#ifdef TODO
-/*
- * The function registers a service within provided Casper's capability.
- * It will run with the same privileges the process has at the time of
- * calling this function.
- */
-int	cap_service_register(cap_channel_t *chan, const char *name,
-	    cap_func_t *func);
-#endif
-
 /*
  * Function sends nvlist over the given capability.
  */
@@ -116,15 +105,11 @@ int	cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl);
 /*
  * Function receives nvlist over the given capability.
  */
-  nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
+nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
 /*
  * Function sends the given nvlist, destroys it and receives new nvlist in
  * response over the given capability.
  */
-  nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags);
-
-#ifdef __cplusplus
-}
-#endif
+nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags);
 
 #endif	/* !_LIBCASPER_H_ */

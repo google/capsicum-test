@@ -25,10 +25,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD: head/lib/libcapsicum/libcapsicum.3 264466 2014-04-14 18:14:09Z gjb $
+.\" $FreeBSD$
 .\"
-.Dd May 2, 2015
-.Dt LIBCAPSICUM 3
+.Dd November 24, 2015
+.Dt LIBCASPER 3
 .Os
 .Sh NAME
 .Nm cap_init ,
@@ -45,9 +45,9 @@
 .Nm cap_service_open
 .Nd "library for handling application capabilities"
 .Sh LIBRARY
-.Lb libcapsicum
+.Lb libcasper
 .Sh SYNOPSIS
-.In libcapsicum.h
+.In libcasper.h
 .In nv.h
 .Ft "cap_channel_t *"
 .Fn cap_init "void"
@@ -71,24 +71,18 @@
 .Fn cap_recv_nvlist "const cap_channel_t *chan" "int flags"
 .Ft "nvlist_t *"
 .Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl" "int flags"
-.In libcapsicum_service.h
 .Ft "cap_channel_t *"
 .Fn cap_service_open "const cap_channel_t *chan" "const char *name"
 .Sh DESCRIPTION
 The
 .Nm libcapsicum
-library allows to manage application capabilities through the
-.Xr casperd 8
-daemon.
+library allows to manage application capabilities through the casper process.
 .Pp
 The application capability (represented by the
 .Vt cap_channel_t
-type) is a communication channel between the caller and the
-.Xr casperd 8
+type) is a communication channel between the caller and the casper process
 daemon or an instance of one of its services.
-A capability to the
-.Xr casperd 8
-daemon obtained with the
+A capability to the casper process obtained with the
 .Fn cap_init
 function allows to create capabilities to casper's services via the
 .Fn cap_service_open
@@ -96,9 +90,7 @@ function.
 .Pp
 The
 .Fn cap_init
-function opens capability to the
-.Xr casperd 8
-daemon.
+function opens capability to the casper process.
 .Pp
 The
 .Fn cap_wrap
@@ -231,9 +223,8 @@ and
 .Fn cap_unwrap
 functions always succeed.
 .Sh EXAMPLES
-The following example first opens capability to the
-.Xr casperd 8
-daemon, then using this capability creates new capability to the
+The following example first opens capability to the casper then using this
+capability creates new capability to the
 .Nm system.dns
 casper service and uses the latter capability to resolve IP address.
 .Bd -literal
@@ -243,10 +234,10 @@ const char *ipstr = "127.0.0.1";
 struct in_addr ip;
 struct hostent *hp;
 
-/* Open capability to the Casper daemon. */
+/* Open capability to the Casper. */
 capcas = cap_init();
 if (capcas == NULL)
-	err(1, "Unable to contact Casper daemon");
+	err(1, "Unable to contact Casper");
 
 /* Enter capability mode sandbox. */
 if (cap_enter() < 0 && errno != ENOSYS)
@@ -290,11 +281,15 @@ printf("Name associated with %s is %s.\\n", ipstr, hp->h_name);
 .Xr inet_aton 3 ,
 .Xr nv 3 ,
 .Xr capsicum 4 ,
-.Xr unix 4 ,
-.Xr casperd 8
+.Xr unix 4
 .Sh AUTHORS
 The
-.Nm libcapsicum
+.Nm libcasper
 library was implemented by
-.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+.An Pawel Jakub Dawidek Aq Mt pawel at dawidek.net
 under sponsorship from the FreeBSD Foundation.
+The
+.Nm libcasper
+new architecture was implemented by
+.An Mariusz Zaborski Aq Mt oshogbo at FreeBSD.org
+.

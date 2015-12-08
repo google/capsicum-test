@@ -28,16 +28,22 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/nv.h>
+
+#include <assert.h>
 #include <errno.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <libcapsicum.h>
 #include <libcasper.h>
-#include <nv.h>
-#include <pjdlog.h>
+#include <libcasper_service.h>
+
+#include "cap_pwd.h"
 
 static struct passwd gpwd;
 static char *gbuffer;
@@ -100,19 +106,15 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 		return (error);
 	pwd->pw_uid = (uid_t)nvlist_get_number(nvl, "pw_uid");
 	pwd->pw_gid = (gid_t)nvlist_get_number(nvl, "pw_gid");
-#ifdef HAVE_PASSWD_PW_CHANGE
 	pwd->pw_change = (time_t)nvlist_get_number(nvl, "pw_change");
-#endif
 	error = passwd_unpack_string(nvl, "pw_passwd", &pwd->pw_passwd, &buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
-#ifdef HAVE_PASSWD_PW_CLASS
 	error = passwd_unpack_string(nvl, "pw_class", &pwd->pw_class, &buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
-#endif
 	error = passwd_unpack_string(nvl, "pw_gecos", &pwd->pw_gecos, &buffer,
 	    &bufsize);
 	if (error != 0)
@@ -125,12 +127,8 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
-#ifdef HAVE_PASSWD_PW_EXPIRE
 	pwd->pw_expire = (time_t)nvlist_get_number(nvl, "pw_expire");
-#endif
-#ifdef HAVE_PASSWD_PW_FIELDS
 	pwd->pw_fields = (int)nvlist_get_number(nvl, "pw_fields");
-#endif
 
 	return (0);
 }
@@ -394,6 +392,7 @@ cap_pwd_limit_users(cap_channel_t *chan, const char * const *names,
 	return (cap_limit_set(chan, limits));
 }
 
+
 /*
  * Service functions.
  */
@@ -467,7 +466,7 @@ pwd_allowed_user(const nvlist_t *limits, const char *uname, uid_t uid)
 			}
 			break;
 		default:
-			PJDLOG_ABORT("Unexpected type %d.", type);
+			abort();
 		}
 	}
 
@@ -538,15 +537,11 @@ pwd_allowed_fields(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	return (0);
 }
 
-#ifdef HAVE_PASSWD_PW_FIELDS
-#define PW_FIELD_CLEAR(fields, f)	(fields) &= ~(f);
-#else
-#define PW_FIELD_CLEAR(fields, f)
-#endif
-
 static bool
 pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 {
+	int fields;
+
 	if (pwd == NULL)
 		return (true);
 
@@ -556,85 +551,76 @@ pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 	if (!pwd_allowed_user(limits, pwd->pw_name, pwd->pw_uid))
 		return (false);
 
-#ifdef HAVE_PASSWD_PW_FIELDS
-	int fields = pwd->pw_fields;
-#endif
+	fields = pwd->pw_fields;
 
 	if (pwd_allowed_field(limits, "pw_name")) {
 		nvlist_add_string(nvl, "pw_name", pwd->pw_name);
 	} else {
 		nvlist_add_string(nvl, "pw_name", "");
-		PW_FIELD_CLEAR(fields, _PWF_NAME);
+		fields &= ~_PWF_NAME;
 	}
 	if (pwd_allowed_field(limits, "pw_uid")) {
 		nvlist_add_number(nvl, "pw_uid", (uint64_t)pwd->pw_uid);
 	} else {
 		nvlist_add_number(nvl, "pw_uid", (uint64_t)-1);
-		PW_FIELD_CLEAR(fields, _PWF_UID);
+		fields &= ~_PWF_UID;
 	}
 	if (pwd_allowed_field(limits, "pw_gid")) {
 		nvlist_add_number(nvl, "pw_gid", (uint64_t)pwd->pw_gid);
 	} else {
 		nvlist_add_number(nvl, "pw_gid", (uint64_t)-1);
-		PW_FIELD_CLEAR(fields, _PWF_GID);
+		fields &= ~_PWF_GID;
 	}
-#ifdef HAVE_PASSWD_PW_CHANGE
 	if (pwd_allowed_field(limits, "pw_change")) {
 		nvlist_add_number(nvl, "pw_change", (uint64_t)pwd->pw_change);
 	} else {
 		nvlist_add_number(nvl, "pw_change", (uint64_t)0);
-		PW_FIELD_CLEAR(fields, _PWF_CHANGE);
+		fields &= ~_PWF_CHANGE;
 	}
-#endif
 	if (pwd_allowed_field(limits, "pw_passwd")) {
 		nvlist_add_string(nvl, "pw_passwd", pwd->pw_passwd);
 	} else {
 		nvlist_add_string(nvl, "pw_passwd", "");
-		PW_FIELD_CLEAR(fields, _PWF_PASSWD);
+		fields &= ~_PWF_PASSWD;
 	}
-#ifdef HAVE_PASSWD_PW_CLASS
 	if (pwd_allowed_field(limits, "pw_class")) {
 		nvlist_add_string(nvl, "pw_class", pwd->pw_class);
 	} else {
 		nvlist_add_string(nvl, "pw_class", "");
-		PW_FIELD_CLEAR(fields, _PWF_CLASS);
+		fields &= ~_PWF_CLASS;
 	}
-#endif
 	if (pwd_allowed_field(limits, "pw_gecos")) {
 		nvlist_add_string(nvl, "pw_gecos", pwd->pw_gecos);
 	} else {
 		nvlist_add_string(nvl, "pw_gecos", "");
-		PW_FIELD_CLEAR(fields, _PWF_GECOS);
+		fields &= ~_PWF_GECOS;
 	}
 	if (pwd_allowed_field(limits, "pw_dir")) {
 		nvlist_add_string(nvl, "pw_dir", pwd->pw_dir);
 	} else {
 		nvlist_add_string(nvl, "pw_dir", "");
-		PW_FIELD_CLEAR(fields, _PWF_DIR);
+		fields &= ~_PWF_DIR;
 	}
 	if (pwd_allowed_field(limits, "pw_shell")) {
 		nvlist_add_string(nvl, "pw_shell", pwd->pw_shell);
 	} else {
 		nvlist_add_string(nvl, "pw_shell", "");
-		PW_FIELD_CLEAR(fields, _PWF_SHELL);
+		fields &= ~_PWF_SHELL;
 	}
-#ifdef HAVE_PASSWD_PW_EXPIRE
 	if (pwd_allowed_field(limits, "pw_expire")) {
 		nvlist_add_number(nvl, "pw_expire", (uint64_t)pwd->pw_expire);
 	} else {
 		nvlist_add_number(nvl, "pw_expire", (uint64_t)0);
-		PW_FIELD_CLEAR(fields, _PWF_EXPIRE);
+		fields &= ~_PWF_EXPIRE;
 	}
-#endif
-#ifdef HAVE_PASSWD_PW_FIELDS
 	nvlist_add_number(nvl, "pw_fields", (uint64_t)fields);
-#endif
 
 	return (true);
 }
 
 static int
-pwd_getpwent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+pwd_getpwent(const nvlist_t *limits, const nvlist_t *nvlin __unused,
+    nvlist_t *nvlout)
 {
 	struct passwd *pwd;
 
@@ -659,7 +645,7 @@ pwd_getpwnam(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!nvlist_exists_string(nvlin, "name"))
 		return (EINVAL);
 	name = nvlist_get_string(nvlin, "name");
-	PJDLOG_ASSERT(name != NULL);
+	assert(name != NULL);
 
 	errno = 0;
 	pwd = getpwnam(name);
@@ -692,9 +678,9 @@ pwd_getpwuid(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
-#ifdef HAVE_SETPASSENT
 static int
-pwd_setpassent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+pwd_setpassent(const nvlist_t *limits __unused, const nvlist_t *nvlin,
+    nvlist_t *nvlout __unused)
 {
 	int stayopen;
 
@@ -705,10 +691,10 @@ pwd_setpassent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	return (setpassent(stayopen) == 0 ? EFAULT : 0);
 }
-#endif
 
 static int
-pwd_setpwent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+pwd_setpwent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
+    nvlist_t *nvlout __unused)
 {
 
 	setpwent();
@@ -717,7 +703,8 @@ pwd_setpwent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 }
 
 static int
-pwd_endpwent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+pwd_endpwent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
+    nvlist_t *nvlout __unused)
 {
 
 	endpwent();
@@ -781,10 +768,8 @@ pwd_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		error = pwd_getpwnam(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "getpwuid") == 0 || strcmp(cmd, "getpwuid_r") == 0)
 		error = pwd_getpwuid(limits, nvlin, nvlout);
-#ifdef HAVE_SETPASSENT
 	else if (strcmp(cmd, "setpassent") == 0)
 		error = pwd_setpassent(limits, nvlin, nvlout);
-#endif
 	else if (strcmp(cmd, "setpwent") == 0)
 		error = pwd_setpwent(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "endpwent") == 0)
@@ -795,10 +780,4 @@ pwd_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (error);
 }
 
-int
-main(int argc, char *argv[])
-{
-
-	return (service_start("system.pwd", PARENT_FILENO, pwd_limit,
-	    pwd_command, argc, argv));
-}
+CREATE_SERVICE("system.pwd", pwd_limit, pwd_command);

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2015 Mariusz Zaborski <oshogbo at FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -34,7 +35,7 @@
 
 typedef void zygote_func_t(int);
 
-int zygote_init(void);
-int zygote_clone(zygote_func_t *func, int *chanfdp, int *procfdp);
+int	zygote_init(void);
+int	zygote_clone(zygote_func_t *func, int *chanfdp, int *procfdp);
 
 #endif	/* !_ZYGOTE_H_ */

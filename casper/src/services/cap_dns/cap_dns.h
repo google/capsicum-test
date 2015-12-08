@@ -26,20 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/lib/libcapsicum/libcapsicum_dns.h 258838 2013-12-02 08:21:28Z pjd $
  */
 
-#ifndef	_LIBCAPSICUM_DNS_H_
-#define	_LIBCAPSICUM_DNS_H_
+#ifndef	_CAP_DNS_H_
+#define	_CAP_DNS_H_
 
 #include <sys/socket.h>	/* socklen_t */
 
 struct addrinfo;
 struct hostent;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct hostent *cap_gethostbyname(cap_channel_t *chan, const char *name);
 struct hostent *cap_gethostbyname2(cap_channel_t *chan, const char *name,
@@ -58,8 +54,4 @@ int cap_dns_type_limit(cap_channel_t *chan, const char * const *types,
 int cap_dns_family_limit(cap_channel_t *chan, const int *families,
     size_t nfamilies);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* !_LIBCAPSICUM_DNS_H_ */
+#endif	/* !_CAP_DNS_H_ */

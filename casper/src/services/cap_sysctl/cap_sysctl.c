@@ -28,19 +28,21 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_sysctl.h>
 #include <libcasper.h>
-#include <nv.h>
-#include <pjdlog.h>
+#include <libcasper_service.h>
+
+#include "cap_sysctl.h"
 
 int
 cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
@@ -92,7 +94,6 @@ cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
 /*
  * Service functions.
  */
-
 static int
 sysctl_check_one(const nvlist_t *nvl, bool islimit)
 {
@@ -169,7 +170,7 @@ sysctl_allowed(const nvlist_t *limits, const char *chname, uint64_t choperation)
 
 	cookie = NULL;
 	while ((name = nvlist_next(limits, &type, &cookie)) != NULL) {
-		PJDLOG_ASSERT(type == NV_TYPE_NUMBER);
+		assert(type == NV_TYPE_NUMBER);
 
 		operation = nvlist_get_number(limits, name);
 		if ((operation & choperation) != choperation)
@@ -197,11 +198,10 @@ sysctl_allowed(const nvlist_t *limits, const char *chname, uint64_t choperation)
 static int
 sysctl_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 {
-	const nvlist_t *nvl;
 	const char *name;
 	void *cookie;
 	uint64_t operation;
-	int error, type;
+	int type;
 
 	cookie = NULL;
 	while ((name = nvlist_next(newlimits, &type, &cookie)) != NULL) {
@@ -246,7 +246,7 @@ sysctl_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		if (!nvlist_exists_binary(nvlin, "newp"))
 			return (EINVAL);
 		newp = nvlist_get_binary(nvlin, "newp", &newlen);
-		PJDLOG_ASSERT(newp != NULL && newlen > 0);
+		assert(newp != NULL && newlen > 0);
 	} else {
 		newp = NULL;
 		newlen = 0;
@@ -290,10 +290,4 @@ sysctl_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (0);
 }
 
-int
-main(int argc, char *argv[])
-{
-
-	return (service_start("system.sysctl", PARENT_FILENO, sysctl_limit,
-	    sysctl_command, argc, argv));
-}
+CREATE_SERVICE("system.sysctl", sysctl_limit, sysctl_command);

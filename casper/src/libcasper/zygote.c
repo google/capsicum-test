@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2015 Mariusz Zaborski <oshogbo at FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -28,28 +29,23 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/socket.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_impl.h>
-#include <nv.h>
-#include <pjdlog.h>
-
-#include "local.h"
 #include "zygote.h"
 
 /* Zygote info. */
@@ -125,12 +121,9 @@ zygote_main(int sock)
 
 	assert(sock > STDERR_FILENO);
 
-#ifdef HAVE_SETPROCTITLE
 	setproctitle("zygote");
-#endif
 
-	if (pjdlog_mode_get() != PJDLOG_MODE_STD)
-		stdnull();
+	stdnull();
 	for (fd = STDERR_FILENO + 1; fd < sock; fd++)
 		close(fd);
 	closefrom(sock + 1);
@@ -139,7 +132,7 @@ zygote_main(int sock)
 		nvlin = nvlist_recv(sock, 0);
 		if (nvlin == NULL) {
 			if (errno == ENOTCONN) {
-				/* Casperd exited. */
+				/* Casper exited. */
 				exit(0);
 			}
 			continue;

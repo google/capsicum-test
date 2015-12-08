@@ -28,7 +28,9 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
 #include <netinet/in.h>
 
 #include <assert.h>
@@ -36,14 +38,12 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_dns.h>
 #include <libcasper.h>
-#include <nv.h>
-#include <dnv.h>
-#include <pjdlog.h>
+#include <libcasper_service.h>
 
+#include "cap_dns.h"
 
 static struct hostent hent;
 
@@ -195,7 +195,7 @@ addrinfo_unpack(const nvlist_t *nvl)
 	ai->ai_socktype = (int)nvlist_get_number(nvl, "ai_socktype");
 	ai->ai_protocol = (int)nvlist_get_number(nvl, "ai_protocol");
 	ai->ai_addrlen = (socklen_t)addrlen;
-	canonname = dnvlist_get_string(nvl, "ai_canonname", NULL);
+	canonname = nvlist_get_string(nvl, "ai_canonname");
 	if (canonname != NULL) {
 		ai->ai_canonname = strdup(canonname);
 		if (ai->ai_canonname == NULL) {
@@ -226,8 +226,7 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "getaddrinfo");
 	nvlist_add_string(nvl, "hostname", hostname);
-	if (servname != NULL)
-		nvlist_add_string(nvl, "servname", servname);
+	nvlist_add_string(nvl, "servname", servname);
 	if (hints != NULL) {
 		nvlist_add_number(nvl, "hints.ai_flags",
 		    (uint64_t)hints->ai_flags);
@@ -297,9 +296,9 @@ cap_getnameinfo(cap_channel_t *chan, const struct sockaddr *sa, socklen_t salen,
 		return (error);
 	}
 
-	if (host != NULL && nvlist_exists_string(nvl, "host"))
+	if (host != NULL)
 		strlcpy(host, nvlist_get_string(nvl, "host"), hostlen + 1);
-	if (serv != NULL && nvlist_exists_string(nvl, "serv"))
+	if (serv != NULL)
 		strlcpy(serv, nvlist_get_string(nvl, "serv"), servlen + 1);
 	nvlist_destroy(nvl);
 	return (0);
@@ -574,10 +573,8 @@ dns_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (error != 0)
 		goto out;
 
-	if (host != NULL)
-		nvlist_move_string(nvlout, "host", host);
-	if (serv != NULL)
-		nvlist_move_string(nvlout, "serv", serv);
+	nvlist_move_string(nvlout, "host", host);
+	nvlist_move_string(nvlout, "serv", serv);
 out:
 	if (error != 0) {
 		free(host);
@@ -597,8 +594,7 @@ addrinfo_pack(const struct addrinfo *ai)
 	nvlist_add_number(nvl, "ai_socktype", (uint64_t)ai->ai_socktype);
 	nvlist_add_number(nvl, "ai_protocol", (uint64_t)ai->ai_protocol);
 	nvlist_add_binary(nvl, "ai_addr", ai->ai_addr, (size_t)ai->ai_addrlen);
-	if (ai->ai_canonname != NULL)
-		nvlist_add_string(nvl, "ai_canonname", ai->ai_canonname);
+	nvlist_add_string(nvl, "ai_canonname", ai->ai_canonname);
 
 	return (nvl);
 }
@@ -617,7 +613,7 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 		return (NO_RECOVERY);
 
 	hostname = nvlist_get_string(nvlin, "hostname");
-	servname = dnvlist_get_string(nvlin, "servname", NULL);
+	servname = nvlist_get_string(nvlin, "servname");
 	if (nvlist_exists_number(nvlin, "hints.ai_flags")) {
 		hints.ai_flags = (int)nvlist_get_number(nvlin,
 		    "hints.ai_flags");
@@ -756,10 +752,4 @@ dns_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (error);
 }
 
-int
-main(int argc, char *argv[])
-{
-
-	return (service_start("system.dns", PARENT_FILENO, dns_limit,
-	    dns_command, argc, argv));
-}
+CREATE_SERVICE("system.dns", dns_limit, dns_command);

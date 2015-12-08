@@ -1,11 +1,9 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
-SUBDIR=	dns
-SUBDIR+=grp
-SUBDIR+=pwd
-SUBDIR+=random
-SUBDIR+=sysctl
+SUBDIR=		cap_dns
+SUBDIR+=	cap_grp
+SUBDIR+=	cap_pwd
+SUBDIR+=	cap_random
+SUBDIR+=	cap_sysctl
 
 .include <bsd.subdir.mk>

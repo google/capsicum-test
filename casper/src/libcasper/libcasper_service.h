@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2015 Mariusz Zaborski <oshogbo at FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -29,20 +30,31 @@
  * $FreeBSD$
  */
 
-#ifndef	_LIBCAPSICUM_SERVICE_H_
-#define	_LIBCAPSICUM_SERVICE_H_
+#ifndef	_LIBCASPER_SERVICE_H_
+#define	_LIBCASPER_SERVICE_H_
 
-#ifdef __cplusplus
-extern "C" {
+#ifndef	_NVLIST_T_DECLARED
+#define	_NVLIST_T_DECLARED
+struct nvlist;
+
+typedef struct nvlist nvlist_t;
 #endif
 
-cap_channel_t *cap_service_open(const cap_channel_t *chan, const char *name);
+typedef int service_limit_func_t(const nvlist_t *, const nvlist_t *);
+typedef int service_command_func_t(const char *cmd, const nvlist_t *,
+    nvlist_t *, nvlist_t *);
 
-int cap_service_limit(const cap_channel_t *chan, const char * const *names,
-    size_t nnames);
+struct casper_service *service_register(const char *name,
+    service_limit_func_t *limitfunc, service_command_func_t *commandfunc);
 
-#ifdef __cplusplus
-}
-#endif
+#define	__constructor	__attribute__((constructor))
+#define	CREATE_SERVICE(name, limit_func, command_func)			\
+	static __constructor void					\
+	init_casper_service(void)					\
+	{								\
+									\
+		(void)service_register(name, limit_func,		\
+		    command_func);					\
+	}
 
-#endif	/* !_LIBCAPSICUM_SERVICE_H_ */
+#endif	/* !_LIBCASPER_SERVICE_H_ */

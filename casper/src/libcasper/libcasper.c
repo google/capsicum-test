@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2012-2013 The FreeBSD Foundation
+ * Copyright (c) 2015 Mariusz Zaborski <oshogbo at FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -28,413 +29,309 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/capsicum.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#include "nv.h"
+#include <sys/nv.h>
+#include <sys/procdesc.h>
 
 #include <assert.h>
-#include <dirent.h>
-#include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
-#include <libcapsicum.h>
-#include <libcasper.h>
-#include <libcasper_impl.h>
-#include <pjdlog.h>
+#include "libcasper.h"
+#include "libcasper_impl.h"
 
 /*
- * Currently there is only one service_connection per service.
- * In the future we may want multiple connections from multiple clients
- * per one service instance, but it has to be carefully designed.
- * The problem is that we may restrict/sandbox service instance according
- * to the limits provided. When new connection comes in with different
- * limits we won't be able to access requested resources.
- * Not to mention one process will serve to mutiple mutually untrusted
- * clients and compromise of this service instance by one of its clients
- * can lead to compromise of the other clients.
+ * Structure describing communication channel between two separated processes.
  */
-
-/*
- * Client connections to the given service.
- */
-#define	SERVICE_CONNECTION_MAGIC	0x5e91c0ec
-struct service_connection {
-	int		 sc_magic;
-	cap_channel_t	*sc_chan;
-	nvlist_t	*sc_limits;
-	TAILQ_ENTRY(service_connection) sc_next;
+#define	CAP_CHANNEL_MAGIC	0xcac8a31
+struct cap_channel {
+	/*
+	 * Magic value helps to ensure that a pointer to the right structure is
+	 * passed to our functions.
+	 */
+	int	cch_magic;
+	/* Socket descriptor for IPC. */
+	int	cch_sock;
+	/* Process descriptor for casper. */
+	int	cch_pd;
 };
 
-#define	SERVICE_MAGIC	0x5e91ce
-struct service {
-	int			 s_magic;
-	char			*s_name;
-	service_limit_func_t	*s_limit;
-	service_command_func_t	*s_command;
-	TAILQ_HEAD(, service_connection) s_connections;
-};
-
-struct service *
-service_alloc(const char *name, service_limit_func_t *limitfunc,
-    service_command_func_t *commandfunc)
-{
-	struct service *service;
-
-	service = malloc(sizeof(*service));
-	if (service == NULL)
-		return (NULL);
-	service->s_name = strdup(name);
-	if (service->s_name == NULL) {
-		free(service);
-		return (NULL);
-	}
-	service->s_limit = limitfunc;
-	service->s_command = commandfunc;
-	TAILQ_INIT(&service->s_connections);
-	service->s_magic = SERVICE_MAGIC;
-
-	return (service);
-}
-
-void
-service_free(struct service *service)
-{
-	struct service_connection *sconn;
-
-	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
-
-	service->s_magic = 0;
-	while ((sconn = service_connection_first(service)) != NULL)
-		service_connection_remove(service, sconn);
-	free(service->s_name);
-	free(service);
-}
-
-struct service_connection *
-service_connection_add(struct service *service, int sock,
-    const nvlist_t *limits)
-{
-	struct service_connection *sconn;
-	int serrno;
-
-	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
-
-	sconn = malloc(sizeof(*sconn));
-	if (sconn == NULL) {
-		pjdlog_error("Unable to allocate memory for service connection.");
-		return (NULL);
-	}
-	sconn->sc_chan = cap_wrap(sock);
-	if (sconn->sc_chan == NULL) {
-		serrno = errno;
-		pjdlog_error("Unable to wrap communication channel.");
-		free(sconn);
-		errno = serrno;
-		return (NULL);
-	}
-	if (limits == NULL) {
-		sconn->sc_limits = NULL;
-	} else {
-		sconn->sc_limits = nvlist_clone(limits);
-		if (sconn->sc_limits == NULL) {
-			serrno = errno;
-			pjdlog_error("Unable to clone limits.");
-			(void)cap_unwrap(sconn->sc_chan);
-			free(sconn);
-			errno = serrno;
-			return (NULL);
-		}
-	}
-	sconn->sc_magic = SERVICE_CONNECTION_MAGIC;
-	TAILQ_INSERT_TAIL(&service->s_connections, sconn, sc_next);
-	return (sconn);
-}
-
-void
-service_connection_remove(struct service *service,
-    struct service_connection *sconn)
+static bool
+cap_add_pd(cap_channel_t *chan, int pd)
 {
 
-	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
-	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-
-	TAILQ_REMOVE(&service->s_connections, sconn, sc_next);
-	sconn->sc_magic = 0;
-	nvlist_destroy(sconn->sc_limits);
-	cap_close(sconn->sc_chan);
-	free(sconn);
-}
-
-int
-service_connection_clone(struct service *service,
-    struct service_connection *sconn)
-{
-	struct service_connection *newsconn;
-	int serrno, sock[2];
-
-	if (socketpair(PF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sock) < 0)
-		return (-1);
-
-	newsconn = service_connection_add(service, sock[0],
-	    service_connection_get_limits(sconn));
-	if (newsconn == NULL) {
-		serrno = errno;
-		close(sock[0]);
-		close(sock[1]);
-		errno = serrno;
-		return (-1);
-	}
-
-	return (sock[1]);
-}
-
-struct service_connection *
-service_connection_first(struct service *service)
-{
-	struct service_connection *sconn;
-
-	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
-
-	sconn = TAILQ_FIRST(&service->s_connections);
-	PJDLOG_ASSERT(sconn == NULL ||
-	    sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-	return (sconn);
-}
-
-struct service_connection *
-service_connection_next(struct service_connection *sconn)
-{
-
-	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-
-	sconn = TAILQ_NEXT(sconn, sc_next);
-	PJDLOG_ASSERT(sconn == NULL ||
-	    sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-	return (sconn);
+	if (!fd_is_valid(pd))
+		return (false);
+	chan->cch_pd = pd;
+	return (true);
 }
 
 cap_channel_t *
-service_connection_get_chan(const struct service_connection *sconn)
+cap_init(void)
 {
+	pid_t pid;
+	int sock[2], serrno, pfd;
+	bool ret;
+	cap_channel_t *chan;
 
-	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
+	if (socketpair(PF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0,
+	    sock) == -1) {
+		return (NULL);
+	}
 
-	return (sconn->sc_chan);
+	pid = pdfork(&pfd, 0);
+	if (pid == 0) {
+		/* Parent. */
+		close(sock[0]);
+		casper_main_loop(sock[1]);
+		/* NOTREACHED. */
+	} else if (pid > 0) {
+		/* Child. */
+		close(sock[1]);
+		chan = cap_wrap(sock[0]);
+		if (chan == NULL) {
+			serrno = errno;
+			close(sock[0]);
+			close(pfd);
+			errno = serrno;
+			return (NULL);
+		}
+		ret = cap_add_pd(chan, pfd);
+		assert(ret);
+		return (chan);
+	}
+
+	/* Error. */
+	serrno = errno;
+	close(sock[0]);
+	close(sock[1]);
+	errno = serrno;
+	return (NULL);
+}
+
+cap_channel_t *
+cap_wrap(int sock)
+{
+	cap_channel_t *chan;
+
+	if (!fd_is_valid(sock))
+		return (NULL);
+
+	chan = malloc(sizeof(*chan));
+	if (chan != NULL) {
+		chan->cch_sock = sock;
+		chan->cch_pd = -1;
+		chan->cch_magic = CAP_CHANNEL_MAGIC;
+	}
+
+	return (chan);
 }
 
 int
-service_connection_get_sock(const struct service_connection *sconn)
+cap_unwrap(cap_channel_t *chan)
 {
+	int sock;
 
-	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
 
-	return (cap_sock(sconn->sc_chan));
+	sock = chan->cch_sock;
+	if (chan->cch_pd != -1)
+		close(chan->cch_pd);
+	chan->cch_magic = 0;
+	free(chan);
+
+	return (sock);
 }
 
-const nvlist_t *
-service_connection_get_limits(const struct service_connection *sconn)
+cap_channel_t *
+cap_clone(const cap_channel_t *chan)
 {
-
-	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-
-	return (sconn->sc_limits);
-}
-
-void
-service_connection_set_limits(struct service_connection *sconn,
-    nvlist_t *limits)
-{
-
-	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
-
-	nvlist_destroy(sconn->sc_limits);
-	sconn->sc_limits = limits;
-}
-
-#if 0
-static void
-casper_message_connection(struct service *service, const nvlist_t *nvl)
-{
-
-	service_connection_add(&service->s_connections,
-	    nvlist_get_descriptor(nvl, "sock"));
-}
-
-static void
-casper_message(const cap_channel_t *capcas, struct service *service)
-{
-	const char *cmd;
+	cap_channel_t *newchan;
 	nvlist_t *nvl;
+	int newsock;
 
-	nvl = cap_recv_nvlist(capcas, 0);
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
+
+	nvl = nvlist_create(0);
+	nvlist_add_string(nvl, "cmd", "clone");
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
-		pjdlog_exit(1, "Unable to receive message from Casper");
-	cmd = nvlist_get_string(nvl, "cmd");
-	if (strcmp(cmd, "connection") == 0)
-		casper_message_connection(service, nvl);
-	else
-		PJDLOG_ABORT("Unknown command from Casper: %s.", cmd);
+		return (NULL);
+	if (nvlist_get_number(nvl, "error") != 0) {
+		errno = (int)nvlist_get_number(nvl, "error");
+		nvlist_destroy(nvl);
+		return (NULL);
+	}
+	newsock = nvlist_take_descriptor(nvl, "sock");
+	nvlist_destroy(nvl);
+	newchan = cap_wrap(newsock);
+	if (newchan == NULL) {
+		int serrno;
+
+		serrno = errno;
+		close(newsock);
+		errno = serrno;
+	}
+
+	return (newchan);
 }
-#endif
 
 void
-service_message(struct service *service, struct service_connection *sconn)
+cap_close(cap_channel_t *chan)
 {
-	nvlist_t *nvlin, *nvlout;
-	const char *cmd;
+
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
+
+	chan->cch_magic = 0;
+	if (chan->cch_pd != -1)
+		close(chan->cch_pd);
+	close(chan->cch_sock);
+	free(chan);
+}
+
+int
+cap_sock(const cap_channel_t *chan)
+{
+
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
+
+	return (chan->cch_sock);
+}
+
+int
+cap_limit_set(const cap_channel_t *chan, nvlist_t *limits)
+{
+	nvlist_t *nvlmsg;
 	int error;
 
-	nvlin = cap_recv_nvlist(service_connection_get_chan(sconn), 0);
-	if (nvlin == NULL) {
-		if (errno == ENOTCONN) {
-			pjdlog_debug(1, "Connection closed by the client.");
-		} else {
-			pjdlog_errno(LOG_ERR,
-			    "Unable to receive message from client");
-		}
-		service_connection_remove(service, sconn);
-		return;
+	nvlmsg = nvlist_create(0);
+	nvlist_add_string(nvlmsg, "cmd", "limit_set");
+	nvlist_add_nvlist(nvlmsg, "limits", limits);
+	nvlmsg = cap_xfer_nvlist(chan, nvlmsg, 0);
+	if (nvlmsg == NULL) {
+		nvlist_destroy(limits);
+		return (-1);
 	}
-
-	error = EINVAL;
-	nvlout = nvlist_create(0);
-
-	cmd = nvlist_get_string(nvlin, "cmd");
-	pjdlog_debug(1, "Command received from client: %s.", cmd);
-	if (pjdlog_debug_get() >= 2)
-		nvlist_fdump(nvlin, stderr);
-	if (strcmp(cmd, "limit_set") == 0) {
-		nvlist_t *nvllim;
-
-		nvllim = nvlist_take_nvlist(nvlin, "limits");
-		error = service->s_limit(service_connection_get_limits(sconn),
-		    nvllim);
-		if (error == 0) {
-			service_connection_set_limits(sconn, nvllim);
-			/* Function consumes nvllim. */
-		} else {
-			nvlist_destroy(nvllim);
-		}
-	} else if (strcmp(cmd, "limit_get") == 0) {
-		const nvlist_t *nvllim;
-
-		nvllim = service_connection_get_limits(sconn);
-		if (nvllim != NULL)
-			nvlist_add_nvlist(nvlout, "limits", nvllim);
-		else
-			nvlist_add_null(nvlout, "limits");
-		error = 0;
-	} else if (strcmp(cmd, "clone") == 0) {
-		int sock;
-
-		sock = service_connection_clone(service, sconn);
-		if (sock == -1) {
-			error = errno;
-		} else {
-			nvlist_move_descriptor(nvlout, "sock", sock);
-			error = 0;
-		}
-	} else {
-		error = service->s_command(cmd,
-		    service_connection_get_limits(sconn), nvlin, nvlout);
+	error = (int)nvlist_get_number(nvlmsg, "error");
+	nvlist_destroy(nvlmsg);
+	nvlist_destroy(limits);
+	if (error != 0) {
+		errno = error;
+		return (-1);
 	}
-
-	nvlist_destroy(nvlin);
-	nvlist_add_number(nvlout, "error", (uint64_t)error);
-	pjdlog_debug(1, "Sending reply to client (error=%d).", error);
-	if (pjdlog_debug_get() >= 2)
-		nvlist_fdump(nvlout, stderr);
-
-	if (cap_send_nvlist(service_connection_get_chan(sconn), nvlout) == -1) {
-		pjdlog_errno(LOG_ERR, "Unable to send message to client");
-		service_connection_remove(service, sconn);
-	}
-
-	nvlist_destroy(nvlout);
-}
-
-static int
-fd_add(fd_set *fdsp, int maxfd, int fd)
-{
-
-	FD_SET(fd, fdsp);
-	return (fd > maxfd ? fd : maxfd);
+	return (0);
 }
 
 int
-service_start(const char *name, int sock, service_limit_func_t *limitfunc,
-    service_command_func_t *commandfunc, int argc, char *argv[])
+cap_limit_get(const cap_channel_t *chan, nvlist_t **limitsp)
 {
-	struct service *service;
-	struct service_connection *sconn, *sconntmp;
-	fd_set fds;
-	int maxfd, nfds, serrno;
+	nvlist_t *nvlmsg;
+	int error;
 
-	assert(argc == 2);
-
-	pjdlog_init(PJDLOG_MODE_STD);
-	pjdlog_debug_set(atoi(argv[1]));
-
-	service = service_alloc(name, limitfunc, commandfunc);
-	if (service == NULL)
-		return (errno);
-	if (service_connection_add(service, sock, NULL) == NULL) {
-		serrno = errno;
-		service_free(service);
-		return (serrno);
+	nvlmsg = nvlist_create(0);
+	nvlist_add_string(nvlmsg, "cmd", "limit_get");
+	nvlmsg = cap_xfer_nvlist(chan, nvlmsg, 0);
+	if (nvlmsg == NULL)
+		return (-1);
+	error = (int)nvlist_get_number(nvlmsg, "error");
+	if (error != 0) {
+		nvlist_destroy(nvlmsg);
+		errno = error;
+		return (-1);
 	}
-
-	for (;;) {
-		FD_ZERO(&fds);
-		maxfd = -1;
-		for (sconn = service_connection_first(service); sconn != NULL;
-		    sconn = service_connection_next(sconn)) {
-			maxfd = fd_add(&fds, maxfd,
-			    service_connection_get_sock(sconn));
-		}
-
-		PJDLOG_ASSERT(maxfd >= 0);
-		PJDLOG_ASSERT(maxfd + 1 <= (int)FD_SETSIZE);
-		nfds = select(maxfd + 1, &fds, NULL, NULL, NULL);
-		if (nfds < 0) {
-			if (errno != EINTR)
-				pjdlog_errno(LOG_ERR, "select() failed");
-			continue;
-		} else if (nfds == 0) {
-			/* Timeout. */
-			PJDLOG_ABORT("select() timeout");
-			continue;
-		}
-
-		for (sconn = service_connection_first(service); sconn != NULL;
-		    sconn = sconntmp) {
-			/*
-			 * Prepare for connection to be removed from the list
-			 * on failure.
-			 */
-			sconntmp = service_connection_next(sconn);
-			if (FD_ISSET(service_connection_get_sock(sconn), &fds))
-				service_message(service, sconn);
-		}
-		if (service_connection_first(service) == NULL) {
-			/*
-			 * No connections left, exiting.
-			 */
-			break;
-		}
-	}
-
+	if (nvlist_exists_null(nvlmsg, "limits"))
+		*limitsp = NULL;
+	else
+		*limitsp = nvlist_take_nvlist(nvlmsg, "limits");
+	nvlist_destroy(nvlmsg);
 	return (0);
+}
+
+int
+cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl)
+{
+
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
+
+	return (nvlist_send(chan->cch_sock, nvl));
+}
+
+nvlist_t *
+cap_recv_nvlist(const cap_channel_t *chan, int flags)
+{
+
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
+
+	return (nvlist_recv(chan->cch_sock, flags));
+}
+
+nvlist_t *
+cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags)
+{
+
+	assert(chan != NULL);
+	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
+
+	return (nvlist_xfer(chan->cch_sock, nvl, flags));
+}
+
+cap_channel_t *
+cap_service_open(const cap_channel_t *chan, const char *name)
+{
+	cap_channel_t *newchan;
+	nvlist_t *nvl;
+	int sock, error;
+
+	sock = -1;
+
+	nvl = nvlist_create(0);
+	nvlist_add_string(nvl, "cmd", "open");
+	nvlist_add_string(nvl, "service", name);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	if (nvl == NULL)
+		return (NULL);
+	error = (int)nvlist_get_number(nvl, "error");
+	if (error != 0) {
+		nvlist_destroy(nvl);
+		errno = error;
+		return (NULL);
+	}
+	sock = nvlist_take_descriptor(nvl, "chanfd");
+	assert(sock >= 0);
+	nvlist_destroy(nvl);
+	nvl = NULL;
+	newchan = cap_wrap(sock);
+	if (newchan == NULL)
+		goto fail;
+	return (newchan);
+fail:
+	error = errno;
+	close(sock);
+	errno = error;
+	return (NULL);
+}
+
+int
+cap_service_limit(const cap_channel_t *chan, const char * const *names,
+    size_t nnames)
+{
+	nvlist_t *limits;
+	unsigned int i;
+
+	limits = nvlist_create(0);
+	for (i = 0; i < nnames; i++)
+		nvlist_add_null(limits, names[i]);
+	return (cap_limit_set(chan, limits));
 }

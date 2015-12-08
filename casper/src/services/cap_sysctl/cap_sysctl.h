@@ -29,23 +29,15 @@
  * $FreeBSD$
  */
 
-#ifndef	_LIBCAPSICUM_SYSCTL_H_
-#define	_LIBCAPSICUM_SYSCTL_H_
+#ifndef	_CAP_SYSCTL_H_
+#define	_CAP_SYSCTL_H_
 
 #define	CAP_SYSCTL_READ		0x01
 #define	CAP_SYSCTL_WRITE	0x02
 #define	CAP_SYSCTL_RDWR		(CAP_SYSCTL_READ | CAP_SYSCTL_WRITE)
 #define	CAP_SYSCTL_RECURSIVE	0x04
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 int cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
     size_t *oldlenp, const void *newp, size_t newlen);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif	/* !_LIBCAPSICUM_SYSCTL_H_ */
+#endif	/* !_CAP_SYSCTL_H_ */

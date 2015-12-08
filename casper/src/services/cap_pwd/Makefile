@@ -1,22 +1,20 @@
-# $FreeBSD: head/libexec/casper/pwd/Makefile 264400 2014-04-13 05:21:56Z imp $
+# $FreeBSD$
 
-.PATH:	${.CURDIR} ${.CURDIR}/../../../sbin/casper
+LIB=	cap_pwd
 
-PROG=	pwd
+SHLIB_MAJOR=	0
+SHLIBDIR?=	/lib/casper
+INCSDIR?=	${INCLUDEDIR}/casper
 
-SRCS=	pwd.c
+SRCS=	cap_pwd.c
 
-DPADD=	${LIBCAPSICUM} ${LIBCASPER} ${LIBNV} ${LIBPJDLOG} ${LIBUTIL}
-LDADD=	-lcapsicum -lcasper -lnv -lpjdlog -lutil
+INCS=	cap_pwd.h
 
-BINDIR=	/libexec/casper
+LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
-CFLAGS+=-I${.CURDIR}/../../../lib/libcapsicum
-CFLAGS+=-I${.CURDIR}/../../../lib/libcasper
-CFLAGS+=-I${.CURDIR}/../../../lib/libpjdlog
-CFLAGS+=-I${.CURDIR}/../../../sbin/casper
+CFLAGS+=-I${.CURDIR}/../libcasper
 
-MAN=
+WARNS?=	6
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

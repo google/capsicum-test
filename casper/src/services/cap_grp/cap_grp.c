@@ -28,6 +28,11 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD: head/libexec/casper/grp/grp.c 285063 2015-07-02 21:58:10Z oshogbo $");
+
+#include <sys/dnv.h>
+#include <sys/nv.h>
+#include <sys/param.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -35,10 +40,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <libcapsicum.h>
 #include <libcasper.h>
-#include <nv.h>
-#include <pjdlog.h>
+#include <libcasper_service.h>
+
+#include "cap_grp.h"
 
 static struct group ggrp;
 static char *gbuffer;
@@ -506,7 +511,7 @@ grp_allowed_group(const nvlist_t *limits, const char *gname, gid_t gid)
 			}
 			break;
 		default:
-			PJDLOG_ABORT("Unexpected type %d.", type);
+			abort();
 		}
 	}
 
@@ -610,7 +615,7 @@ grp_pack(const nvlist_t *limits, const struct group *grp, nvlist_t *nvl)
 		for (ngroups = 0; grp->gr_mem[ngroups] != NULL; ngroups++) {
 			n = snprintf(nvlname, sizeof(nvlname), "gr_mem[%u]",
 			    ngroups);
-			assert(n > 0 && n < sizeof(nvlname));
+			assert(n > 0 && n < (ssize_t)sizeof(nvlname));
 			nvlist_add_string(nvl, nvlname, grp->gr_mem[ngroups]);
 		}
 		nvlist_add_number(nvl, "gr_nmem", (uint64_t)ngroups);
@@ -620,7 +625,8 @@ grp_pack(const nvlist_t *limits, const struct group *grp, nvlist_t *nvl)
 }
 
 static int
-grp_getgrent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+grp_getgrent(const nvlist_t *limits, const nvlist_t *nvlin __unused,
+    nvlist_t *nvlout)
 {
 	struct group *grp;
 
@@ -645,7 +651,7 @@ grp_getgrnam(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!nvlist_exists_string(nvlin, "name"))
 		return (EINVAL);
 	name = nvlist_get_string(nvlin, "name");
-	PJDLOG_ASSERT(name != NULL);
+	assert(name != NULL);
 
 	errno = 0;
 	grp = getgrnam(name);
@@ -678,9 +684,9 @@ grp_getgrgid(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
-#ifdef HAVE_SETGROUPENT
 static int
-grp_setgroupent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+grp_setgroupent(const nvlist_t *limits __unused, const nvlist_t *nvlin,
+    nvlist_t *nvlout __unused)
 {
 	int stayopen;
 
@@ -691,25 +697,24 @@ grp_setgroupent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	return (setgroupent(stayopen) == 0 ? EFAULT : 0);
 }
-#endif
 
-#ifdef HAVE_SETGRENT
 static int
-grp_setgrent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+grp_setgrent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
+    nvlist_t *nvlout __unused)
 {
 
 	return (setgrent() == 0 ? EFAULT : 0);
 }
 
 static int
-grp_endgrent(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+grp_endgrent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
+    nvlist_t *nvlout __unused)
 {
 
 	endgrent();
 
 	return (0);
 }
-#endif
 
 static int
 grp_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
@@ -767,26 +772,16 @@ grp_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		error = grp_getgrnam(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "getgrgid") == 0 || strcmp(cmd, "getgrgid_r") == 0)
 		error = grp_getgrgid(limits, nvlin, nvlout);
-#ifdef HAVE_SETGROUPENT
 	else if (strcmp(cmd, "setgroupent") == 0)
 		error = grp_setgroupent(limits, nvlin, nvlout);
-#endif
-#ifdef HAVE_SETGRENT
 	else if (strcmp(cmd, "setgrent") == 0)
 		error = grp_setgrent(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "endgrent") == 0)
 		error = grp_endgrent(limits, nvlin, nvlout);
-#endif
 	else
 		error = EINVAL;
 
 	return (error);
 }
 
-int
-main(int argc, char *argv[])
-{
-
-	return (service_start("system.grp", PARENT_FILENO, grp_limit,
-	    grp_command, argc, argv));
-}
+CREATE_SERVICE("system.grp", grp_limit, grp_command);
