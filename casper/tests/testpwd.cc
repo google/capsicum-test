@@ -1,26 +1,15 @@
 #include <sys/types.h>
 #include <pwd.h>
 
-#include <libcasper.h>
+#include "testcasper.h"
 #include <cap_pwd/cap_pwd.h>
 
 #include <string>
 #include <map>
 
-#include "gtest/gtest.h"
-
-extern bool verbose;
-
-class CasperPwdTest : public ::testing::Test {
+class CasperPwdTest : public CasperTest {
  public:
-  CasperPwdTest() : pwd_chan_(nullptr), lowest_uid_(-1) {
-    cap_channel_t *chan = cap_init();
-    EXPECT_NE(nullptr, chan) << "Failed to cap_init()";
-    if (!chan) return;
-    pwd_chan_ = cap_service_open(chan, "system.pwd");
-    EXPECT_NE(nullptr, pwd_chan_) << "Failed to open system.pwd service";
-    cap_close(chan);
-
+  CasperPwdTest() : CasperTest("system.pwd"), lowest_uid_(-1) {
     // Build a local copy of the passwd database.
     setpwent();
     for (struct passwd *pwd = getpwent(); pwd != NULL; pwd = getpwent()) {
@@ -30,19 +19,7 @@ class CasperPwdTest : public ::testing::Test {
     }
     endpwent();
   }
-  bool CheckSkip() {
-    if (pwd_chan_ == nullptr) {
-      fprintf(stderr, "Skipping test as system.pwd service unavailable\n");
-      return true;
-    } else {
-      return false;
-    }
-  }
-  ~CasperPwdTest() {
-    if (pwd_chan_) cap_close(pwd_chan_);
-  }
  protected:
-  cap_channel_t *pwd_chan_;
   std::map<int, std::string> passwds_;
   int lowest_uid_;
 };
@@ -58,8 +35,8 @@ static void print_passwd(const struct passwd *pwd) {
 TEST_F(CasperPwdTest, GetPwent) {
   if (CheckSkip()) return;
 
-  cap_setpwent(pwd_chan_);
-  for (struct passwd *pwd = cap_getpwent(pwd_chan_); pwd != NULL; pwd = cap_getpwent(pwd_chan_)) {
+  cap_setpwent(chan_);
+  for (struct passwd *pwd = cap_getpwent(chan_); pwd != NULL; pwd = cap_getpwent(chan_)) {
     if (verbose) print_passwd(pwd);
     const auto it = passwds_.find(pwd->pw_uid);
     EXPECT_NE(passwds_.end(), it);
@@ -67,7 +44,7 @@ TEST_F(CasperPwdTest, GetPwent) {
       EXPECT_EQ(it->second, std::string(pwd->pw_name));
     }
   }
-  cap_endpwent(pwd_chan_);
+  cap_endpwent(chan_);
 }
 
 TEST_F(CasperPwdTest, GetPwNam) {
@@ -78,7 +55,7 @@ TEST_F(CasperPwdTest, GetPwNam) {
   char buffer[1024];
   struct passwd *pwd;
 
-  int rc = cap_getpwnam_r(pwd_chan_, passwds_[lowest_uid_].c_str(), &spwd,  buffer, sizeof(buffer), &pwd);
+  int rc = cap_getpwnam_r(chan_, passwds_[lowest_uid_].c_str(), &spwd,  buffer, sizeof(buffer), &pwd);
   EXPECT_EQ(0, rc);
   EXPECT_NE(nullptr, pwd);
   EXPECT_EQ(passwds_[lowest_uid_], std::string(pwd->pw_name));
@@ -93,7 +70,7 @@ TEST_F(CasperPwdTest, GetGrUid) {
   char buffer[1024];
   struct passwd *pwd;
 
-  int rc = cap_getpwuid_r(pwd_chan_, lowest_uid_, &spwd,  buffer, sizeof(buffer), &pwd);
+  int rc = cap_getpwuid_r(chan_, lowest_uid_, &spwd,  buffer, sizeof(buffer), &pwd);
   EXPECT_EQ(0, rc);
   EXPECT_NE(nullptr, pwd);
   EXPECT_EQ(passwds_[lowest_uid_], std::string(pwd->pw_name));

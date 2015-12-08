@@ -4,8 +4,6 @@
 
 #include "gtest/gtest.h"
 
-extern bool verbose;
-
 TEST(Pjdlog, Basic) {
   int count = 1;
   pjdlog_init(PJDLOG_MODE_STD);

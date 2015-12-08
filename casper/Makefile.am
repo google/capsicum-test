@@ -25,7 +25,7 @@ libcasper_ladir = ${includedir}
 libgtest_a_SOURCES = gtest-1.6.0/src/gtest-all.cc
 libgtest_a_CXXFLAGS = -I gtest-1.6.0/include -I gtest-1.6.0 -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
-casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc tests/nv_tests.cc tests/dnv_tests.cc tests/nv_array_tests.cc tests/atf-fake.h
+casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc tests/testcasper.h tests/nv_tests.cc tests/dnv_tests.cc tests/nv_array_tests.cc tests/atf-fake.h
 casper_test_LDADD  = libcasper.la libnv.la libpjdlog.a libgtest.a -lpthread
 casper_test_CXXFLAGS = -std=c++11 -Wall -g -I gtest-1.6.0/include -I gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcasper -I src/services -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 

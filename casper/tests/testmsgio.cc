@@ -12,8 +12,6 @@
 
 #include "gtest/gtest.h"
 
-extern bool verbose;
-
 TEST(NVList, CredSend) {
   int fds[2];
   EXPECT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));

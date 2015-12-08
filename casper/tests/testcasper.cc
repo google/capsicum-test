@@ -6,8 +6,6 @@
 
 #include "gtest/gtest.h"
 
-extern bool verbose;
-
 TEST(Casper, Init) {
   cap_channel_t *chan = cap_init();
   EXPECT_NE(nullptr, chan);
