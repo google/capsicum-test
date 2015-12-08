@@ -42,6 +42,57 @@
 #include <nv.h>
 #include <pjdlog.h>
 
+int
+cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
+    size_t *oldlenp, const void *newp, size_t newlen)
+{
+	nvlist_t *nvl;
+	const uint8_t *retoldp;
+	uint8_t operation;
+	size_t oldlen;
+
+	operation = 0;
+	if (oldp != NULL)
+		operation |= CAP_SYSCTL_READ;
+	if (newp != NULL)
+		operation |= CAP_SYSCTL_WRITE;
+
+	nvl = nvlist_create(0);
+	nvlist_add_string(nvl, "cmd", "sysctl");
+	nvlist_add_string(nvl, "name", name);
+	nvlist_add_number(nvl, "operation", (uint64_t)operation);
+	if (oldp == NULL && oldlenp != NULL)
+		nvlist_add_null(nvl, "justsize");
+	else if (oldlenp != NULL)
+		nvlist_add_number(nvl, "oldlen", (uint64_t)*oldlenp);
+	if (newp != NULL)
+		nvlist_add_binary(nvl, "newp", newp, newlen);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	if (nvl == NULL)
+		return (-1);
+	if (nvlist_get_number(nvl, "error") != 0) {
+		errno = (int)nvlist_get_number(nvl, "error");
+		nvlist_destroy(nvl);
+		return (-1);
+	}
+
+	if (oldp == NULL && oldlenp != NULL) {
+		*oldlenp = (size_t)nvlist_get_number(nvl, "oldlen");
+	} else if (oldp != NULL) {
+		retoldp = nvlist_get_binary(nvl, "oldp", &oldlen);
+		memcpy(oldp, retoldp, oldlen);
+		if (oldlenp != NULL)
+			*oldlenp = oldlen;
+	}
+	nvlist_destroy(nvl);
+
+	return (0);
+}
+
+/*
+ * Service functions.
+ */
+
 static int
 sysctl_check_one(const nvlist_t *nvl, bool islimit)
 {
