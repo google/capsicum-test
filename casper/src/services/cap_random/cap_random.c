@@ -28,9 +28,8 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
-#include <sys/nv.h>
+#include "nv.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <libcasper_service.h>
 
 #include "cap_random.h"
+#include "local.h"
 
 #define	MAXSIZE	(1024 * 1024)
 
@@ -114,4 +114,4 @@ random_command(const char *cmd, const nvlist_t *limits __unused,
 	return (0);
 }
 
-CREATE_SERVICE("system.random", NULL, random_command);
+CREATE_SERVICE("system.random", NULL, random_command)

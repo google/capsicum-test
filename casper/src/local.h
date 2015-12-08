@@ -44,16 +44,8 @@ void arc4random_buf(void *buf, size_t nbytes);
 void closefrom(int lowfd);
 #endif
 
-#ifndef HAVE_FLOPEN
-int flopen(const char *path, int flags, ...);
-#endif
-
-#ifndef HAVE_GETPROGNAME
-const char *getprogname(void);
-#endif
-
-#if !defined(HAVE_PIDFILE_OPEN) || !defined(HAVE_PIDFILE_REMOVE) || !defined(HAVE_PIDFILE_WRITE)
-#include "pidfile.h"
+#ifndef HAVE_SETPROCTITLE
+void setproctitle(const char *fmt, ...);
 #endif
 
 #ifndef HAVE_STRLCAT
@@ -72,8 +64,12 @@ size_t strlcpy(char *dst, const char* src, size_t siz);
 #define _ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 #endif
 
-#ifndef	__DECONST
-#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#ifndef __DECONST
+#define __DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#endif
+
+#ifndef __unused
+#define __unused	__attribute__ ((unused))
 #endif
 
 #endif

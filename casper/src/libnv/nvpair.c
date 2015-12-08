@@ -55,8 +55,6 @@
 #include "nvlist_impl.h"
 #include "nvpair_impl.h"
 
-#define __unused __attribute__((unused))
-
 #ifndef	HAVE_PJDLOG
 #include <assert.h>
 #define	PJDLOG_ASSERT(...)		assert(__VA_ARGS__)

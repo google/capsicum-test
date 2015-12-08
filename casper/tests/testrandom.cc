@@ -1,19 +1,17 @@
 #include <stddef.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_service.h>
-#include <libcapsicum_random.h>
+#include <libcasper.h>
+#include <cap_random/cap_random.h>
 
 #include "gtest/gtest.h"
 
 extern bool verbose;
-extern const char *casper_sock;
 
 class CasperRandomTest : public ::testing::Test {
  public:
   CasperRandomTest() : random_chan_(nullptr) {
-    cap_channel_t *chan = cap_init_sock(casper_sock);
-    EXPECT_NE(nullptr, chan) << "Failed to open socket " << casper_sock;
+    cap_channel_t *chan = cap_init();
+    EXPECT_NE(nullptr, chan) << "Failed to cap_init()";
     if (!chan) return;
     random_chan_ = cap_service_open(chan, "system.random");
     EXPECT_NE(nullptr, random_chan_) << "Failed to open system.random service";

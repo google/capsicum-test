@@ -1,4 +1,0 @@
-usr/lib/*/libcapsicum.so.*
-usr/lib/*/libnv.so.*
-usr/sbin/casper*
-etc/casper/*

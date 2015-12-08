@@ -1,9 +1,8 @@
 #include <sys/types.h>
 #include <pwd.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_service.h>
-#include <libcapsicum_pwd.h>
+#include <libcasper.h>
+#include <cap_pwd/cap_pwd.h>
 
 #include <string>
 #include <map>
@@ -11,13 +10,12 @@
 #include "gtest/gtest.h"
 
 extern bool verbose;
-extern const char *casper_sock;
 
 class CasperPwdTest : public ::testing::Test {
  public:
   CasperPwdTest() : pwd_chan_(nullptr), lowest_uid_(-1) {
-    cap_channel_t *chan = cap_init_sock(casper_sock);
-    EXPECT_NE(nullptr, chan) << "Failed to open socket " << casper_sock;
+    cap_channel_t *chan = cap_init();
+    EXPECT_NE(nullptr, chan) << "Failed to cap_init()";
     if (!chan) return;
     pwd_chan_ = cap_service_open(chan, "system.pwd");
     EXPECT_NE(nullptr, pwd_chan_) << "Failed to open system.pwd service";

@@ -1,9 +1,8 @@
 #include <sys/types.h>
 #include <grp.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_service.h>
-#include <libcapsicum_grp.h>
+#include <libcasper.h>
+#include <cap_grp/cap_grp.h>
 
 #include <string>
 #include <map>
@@ -11,13 +10,12 @@
 #include "gtest/gtest.h"
 
 extern bool verbose;
-extern const char *casper_sock;
 
 class CasperGrpTest : public ::testing::Test {
  public:
   CasperGrpTest() : grp_chan_(nullptr), lowest_gid_(-1) {
-    cap_channel_t *chan = cap_init_sock(casper_sock);
-    EXPECT_NE(nullptr, chan) << "Failed to open socket " << casper_sock;
+    cap_channel_t *chan = cap_init();
+    EXPECT_NE(nullptr, chan) << "Failed to cap_init()";
     if (!chan) return;
     grp_chan_ = cap_service_open(chan, "system.grp");
     EXPECT_NE(nullptr, grp_chan_) << "Failed to open system.grp service";

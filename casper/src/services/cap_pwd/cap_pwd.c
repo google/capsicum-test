@@ -28,10 +28,9 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/nv.h>
+#include "nv.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <libcasper_service.h>
 
 #include "cap_pwd.h"
+#include "local.h"
 
 static struct passwd gpwd;
 static char *gbuffer;
@@ -106,15 +106,19 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 		return (error);
 	pwd->pw_uid = (uid_t)nvlist_get_number(nvl, "pw_uid");
 	pwd->pw_gid = (gid_t)nvlist_get_number(nvl, "pw_gid");
+#ifdef HAVE_PASSWD_PW_CHANGE
 	pwd->pw_change = (time_t)nvlist_get_number(nvl, "pw_change");
+#endif
 	error = passwd_unpack_string(nvl, "pw_passwd", &pwd->pw_passwd, &buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
+#ifdef HAVE_PASSWD_PW_CLASS
 	error = passwd_unpack_string(nvl, "pw_class", &pwd->pw_class, &buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
+#endif
 	error = passwd_unpack_string(nvl, "pw_gecos", &pwd->pw_gecos, &buffer,
 	    &bufsize);
 	if (error != 0)
@@ -127,8 +131,12 @@ passwd_unpack(const nvlist_t *nvl, struct passwd *pwd, char *buffer,
 	    &bufsize);
 	if (error != 0)
 		return (error);
+#ifdef HAVE_PASSWD_PW_EXPIRE
 	pwd->pw_expire = (time_t)nvlist_get_number(nvl, "pw_expire");
+#endif
+#ifdef HAVE_PASSWD_PW_FIELDS
 	pwd->pw_fields = (int)nvlist_get_number(nvl, "pw_fields");
+#endif
 
 	return (0);
 }
@@ -271,6 +279,7 @@ cap_getpwuid_r(cap_channel_t *chan, uid_t uid, struct passwd *pwd, char *buffer,
 	    bufsize, result));
 }
 
+#ifdef HAVE_SETPASSENT
 int
 cap_setpassent(cap_channel_t *chan, int stayopen)
 {
@@ -291,6 +300,7 @@ cap_setpassent(cap_channel_t *chan, int stayopen)
 
 	return (1);
 }
+#endif
 
 static void
 cap_set_end_pwent(cap_channel_t *chan, const char *cmd)
@@ -537,10 +547,18 @@ pwd_allowed_fields(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	return (0);
 }
 
+#ifdef HAVE_PASSWD_PW_FIELDS
+#define PW_FIELD_CLEAR(fields, f)	(fields) &= ~(f);
+#else
+#define PW_FIELD_CLEAR(fields, f)
+#endif
+
 static bool
 pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 {
+#ifdef HAVE_PASSWD_PW_FIELDS
 	int fields;
+#endif
 
 	if (pwd == NULL)
 		return (true);
@@ -551,69 +569,79 @@ pwd_pack(const nvlist_t *limits, const struct passwd *pwd, nvlist_t *nvl)
 	if (!pwd_allowed_user(limits, pwd->pw_name, pwd->pw_uid))
 		return (false);
 
+#ifdef HAVE_PASSWD_PW_FIELDS
 	fields = pwd->pw_fields;
+#endif
 
 	if (pwd_allowed_field(limits, "pw_name")) {
 		nvlist_add_string(nvl, "pw_name", pwd->pw_name);
 	} else {
 		nvlist_add_string(nvl, "pw_name", "");
-		fields &= ~_PWF_NAME;
+		PW_FIELD_CLEAR(fields, _PWF_NAME);
 	}
 	if (pwd_allowed_field(limits, "pw_uid")) {
 		nvlist_add_number(nvl, "pw_uid", (uint64_t)pwd->pw_uid);
 	} else {
 		nvlist_add_number(nvl, "pw_uid", (uint64_t)-1);
-		fields &= ~_PWF_UID;
+		PW_FIELD_CLEAR(fields, _PWF_UID);
 	}
 	if (pwd_allowed_field(limits, "pw_gid")) {
 		nvlist_add_number(nvl, "pw_gid", (uint64_t)pwd->pw_gid);
 	} else {
 		nvlist_add_number(nvl, "pw_gid", (uint64_t)-1);
-		fields &= ~_PWF_GID;
+		PW_FIELD_CLEAR(fields, _PWF_GID);
 	}
+#ifdef HAVE_PASSWD_PW_CHANGE
 	if (pwd_allowed_field(limits, "pw_change")) {
 		nvlist_add_number(nvl, "pw_change", (uint64_t)pwd->pw_change);
 	} else {
 		nvlist_add_number(nvl, "pw_change", (uint64_t)0);
-		fields &= ~_PWF_CHANGE;
+		PW_FIELD_CLEAR(fields, _PWF_CHANGE);
 	}
+#endif
 	if (pwd_allowed_field(limits, "pw_passwd")) {
 		nvlist_add_string(nvl, "pw_passwd", pwd->pw_passwd);
 	} else {
 		nvlist_add_string(nvl, "pw_passwd", "");
-		fields &= ~_PWF_PASSWD;
+		PW_FIELD_CLEAR(fields, _PWF_PASSWD);
 	}
+#ifdef HAVE_PASSWD_PW_CLASS
 	if (pwd_allowed_field(limits, "pw_class")) {
 		nvlist_add_string(nvl, "pw_class", pwd->pw_class);
 	} else {
 		nvlist_add_string(nvl, "pw_class", "");
-		fields &= ~_PWF_CLASS;
+		PW_FIELD_CLEAR(fields, _PWF_CLASS);
 	}
+#endif
 	if (pwd_allowed_field(limits, "pw_gecos")) {
 		nvlist_add_string(nvl, "pw_gecos", pwd->pw_gecos);
 	} else {
 		nvlist_add_string(nvl, "pw_gecos", "");
-		fields &= ~_PWF_GECOS;
+		PW_FIELD_CLEAR(fields, _PWF_GECOS);
 	}
 	if (pwd_allowed_field(limits, "pw_dir")) {
 		nvlist_add_string(nvl, "pw_dir", pwd->pw_dir);
 	} else {
 		nvlist_add_string(nvl, "pw_dir", "");
-		fields &= ~_PWF_DIR;
+		PW_FIELD_CLEAR(fields, _PWF_DIR);
 	}
 	if (pwd_allowed_field(limits, "pw_shell")) {
 		nvlist_add_string(nvl, "pw_shell", pwd->pw_shell);
 	} else {
 		nvlist_add_string(nvl, "pw_shell", "");
-		fields &= ~_PWF_SHELL;
+		PW_FIELD_CLEAR(fields, _PWF_SHELL);
 	}
+#ifdef HAVE_PASSWD_PW_EXPIRE
 	if (pwd_allowed_field(limits, "pw_expire")) {
 		nvlist_add_number(nvl, "pw_expire", (uint64_t)pwd->pw_expire);
 	} else {
 		nvlist_add_number(nvl, "pw_expire", (uint64_t)0);
-		fields &= ~_PWF_EXPIRE;
+		PW_FIELD_CLEAR(fields, _PWF_EXPIRE);
 	}
+#endif
+#ifdef HAVE_PASSWD_PW_FIELDS
 	nvlist_add_number(nvl, "pw_fields", (uint64_t)fields);
+#endif
 
 	return (true);
 }
@@ -678,6 +706,7 @@ pwd_getpwuid(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
+#ifdef HAVE_SETPASSENT
 static int
 pwd_setpassent(const nvlist_t *limits __unused, const nvlist_t *nvlin,
     nvlist_t *nvlout __unused)
@@ -691,6 +720,7 @@ pwd_setpassent(const nvlist_t *limits __unused, const nvlist_t *nvlin,
 
 	return (setpassent(stayopen) == 0 ? EFAULT : 0);
 }
+#endif
 
 static int
 pwd_setpwent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
@@ -768,8 +798,10 @@ pwd_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		error = pwd_getpwnam(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "getpwuid") == 0 || strcmp(cmd, "getpwuid_r") == 0)
 		error = pwd_getpwuid(limits, nvlin, nvlout);
+#ifdef HAVE_SETPASSENT
 	else if (strcmp(cmd, "setpassent") == 0)
 		error = pwd_setpassent(limits, nvlin, nvlout);
+#endif
 	else if (strcmp(cmd, "setpwent") == 0)
 		error = pwd_setpwent(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "endpwent") == 0)
@@ -780,4 +812,4 @@ pwd_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (error);
 }
 
-CREATE_SERVICE("system.pwd", pwd_limit, pwd_command);
+CREATE_SERVICE("system.pwd", pwd_limit, pwd_command)

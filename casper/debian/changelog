@@ -1,3 +1,9 @@
+casper (0.2.0-1) UNRELEASED; urgency=low
+
+  * Updated version of Casper from FreeBSD, as a library not a daemon.
+
+ -- David Drysdale <drysdale@google.com>  Tue, 8 December 2015 12:15:08 +0100
+
 casper (0.1.0-1) UNRELEASED; urgency=low
 
   * Initial release

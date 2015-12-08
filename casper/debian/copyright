@@ -3,8 +3,8 @@ Upstream-Name: casper
 Source: http://github.com/google/capsicum-test
 
 Files: *
-Copyright: 2012-2013 FreeBSD Foundation
-           2014 Google, Inc.
+Copyright: 2012-2015 FreeBSD Foundation
+           2014-2015 Google, Inc.
 License: BSD-2-clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions

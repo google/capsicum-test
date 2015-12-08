@@ -28,9 +28,8 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
-#include <sys/nv.h>
+#include "nv.h"
 #include <netinet/in.h>
 
 #include <assert.h>
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <libcasper_service.h>
 
 #include "cap_dns.h"
+#include "local.h"
 
 static struct hostent hent;
 
@@ -752,4 +752,4 @@ dns_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (error);
 }
 
-CREATE_SERVICE("system.dns", dns_limit, dns_command);
+CREATE_SERVICE("system.dns", dns_limit, dns_command)

@@ -29,12 +29,11 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/nv.h>
+#include "nv.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -50,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include "libcasper.h"
 #include "libcasper_impl.h"
+#include "local.h"
 
 /*
  * Currently there is only one service_connection per service.
@@ -269,7 +269,7 @@ service_message(struct service *service, struct service_connection *sconn)
 		return;
 	}
 
-	error = EDOOFUS;
+	error = EINVAL;
 	nvlout = nvlist_create(0);
 
 	cmd = nvlist_get_string(nvlin, "cmd");

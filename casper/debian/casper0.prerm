@@ -1,5 +1,0 @@
-# Automatically added by dh_installinit
-if [ -x "/etc/init.d/casper0" ] || [ -e "/etc/init/casper0.conf" ]; then
-	invoke-rc.d casper0 stop || exit $?
-fi
-# End automatically added section

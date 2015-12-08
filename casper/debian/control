@@ -6,19 +6,19 @@ Standards-Version: 3.9.5
 Section: libs
 Homepage: https://github.com/google/capsicum-test
 
-Package: casper-dev
+Package: libcasper-dev
 Section: libdevel
 Architecture: any
 Depends: casper0 (= ${binary:Version}), ${misc:Depends}
-Description: Development files for Casper daemon
+Description: Development files for Casper
  This package provides header files and development libraries for
- building applications that make use of the Casper daemon.
+ building applications that make use of Casper
 
-Package: casper0
+Package: libcasper0
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Casper daemon, sub-daemons and libraries
- This package holds the Casper daemon and attendant files.  This
+Description: Casper libraries
+ This package holds the Casper libraries and attendant files.  This
  daemon allows Capsicum-sandboxed applications to perform some
  functions that are not possible within the sandbox, such as
  DNS name/address resolution and group/passwd enumeration.

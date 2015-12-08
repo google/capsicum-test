@@ -49,6 +49,10 @@ struct cap_channel;
 typedef struct cap_channel cap_channel_t;
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The functions opens unrestricted communication channel to Casper.
  */
@@ -111,5 +115,9 @@ nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
  * response over the given capability.
  */
 nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_LIBCASPER_H_ */

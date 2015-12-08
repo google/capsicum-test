@@ -29,11 +29,10 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/nv.h>
+#include "nv.h"
 #include <sys/procdesc.h>
 
 #include <assert.h>

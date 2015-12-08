@@ -3,20 +3,18 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <libcapsicum.h>
-#include <libcapsicum_service.h>
-#include <libcapsicum_dns.h>
+#include <libcasper.h>
+#include <cap_dns/cap_dns.h>
 
 #include "gtest/gtest.h"
 
 extern bool verbose;
-extern const char *casper_sock;
 
 class CasperDNSTest : public ::testing::Test {
  public:
   CasperDNSTest() : dns_chan_(nullptr) {
-    cap_channel_t *chan = cap_init_sock(casper_sock);
-    EXPECT_NE(nullptr, chan) << "Failed to open socket " << casper_sock;
+    cap_channel_t *chan = cap_init();
+    EXPECT_NE(nullptr, chan) << "Failed to cap_init()";
     if (!chan) return;
     dns_chan_ = cap_service_open(chan, "system.dns");
     EXPECT_NE(nullptr, dns_chan_) << "Failed to open system.dns service";

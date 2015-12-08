@@ -5,7 +5,7 @@ dnl (c) 2014 Google, Inc.
 
 AC_PREREQ([2.69])
 AC_INIT([casper],[0.1.0])
-AC_CONFIG_SRCDIR([src/casperd/casperd.c])
+AC_CONFIG_SRCDIR([src/libcasper/libcasper.c])
 AC_CONFIG_LIBOBJ_DIR([src])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
@@ -23,11 +23,7 @@ dnl Checks for libraries.
 AC_CHECK_LIB([caprights], [cap_rights_limit])
 AC_SEARCH_LIBS([arc4random_buf], [bsd])
 AC_SEARCH_LIBS([closefrom], [bsd])
-AC_SEARCH_LIBS([flopen], [bsd])
-AC_SEARCH_LIBS([getprogname], [bsd])
-AC_SEARCH_LIBS([pidfile_open], [bsd])
-AC_SEARCH_LIBS([pidfile_remove], [bsd])
-AC_SEARCH_LIBS([pidfile_write], [bsd])
+AC_SEARCH_LIBS([setproctitle], [bsd])
 AC_SEARCH_LIBS([strlcat], [bsd])
 AC_SEARCH_LIBS([strlcpy], [bsd])
 
@@ -113,9 +109,7 @@ AC_CHECK_FUNCS([strdup])
 AC_CHECK_FUNCS([strerror])
 AC_CHECK_FUNCS([vasprintf])
 AC_CHECK_FUNCS([arc4random_buf],[],[AC_LIBOBJ(arc4random)])
-AC_CHECK_FUNCS([getprogname],[],[AC_LIBOBJ(progname)])
-AC_CHECK_FUNCS([pidfile_open pidfile_remove pidfile_write],[],[AC_LIBOBJ(pidfile)])
-AC_REPLACE_FUNCS([closefrom flopen strlcat strlcpy])
+AC_REPLACE_FUNCS([closefrom setproctitle strlcat strlcpy])
 
 AC_OUTPUT(Makefile)
 

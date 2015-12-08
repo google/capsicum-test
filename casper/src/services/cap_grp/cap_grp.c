@@ -28,10 +28,9 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/libexec/casper/grp/grp.c 285063 2015-07-02 21:58:10Z oshogbo $");
 
-#include <sys/dnv.h>
-#include <sys/nv.h>
+#include "dnv.h"
+#include "nv.h"
 #include <sys/param.h>
 
 #include <assert.h>
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD: head/libexec/casper/grp/grp.c 285063 2015-07-02 21:58:10Z os
 #include <libcasper_service.h>
 
 #include "cap_grp.h"
+#include "local.h"
 
 static struct group ggrp;
 static char *gbuffer;
@@ -311,6 +311,7 @@ cap_getgrgid_r(cap_channel_t *chan, gid_t gid, struct group *grp, char *buffer,
 	    bufsize, result));
 }
 
+#ifdef HAVE_SETGROUPENT
 int
 cap_setgroupent(cap_channel_t *chan, int stayopen)
 {
@@ -331,6 +332,7 @@ cap_setgroupent(cap_channel_t *chan, int stayopen)
 
 	return (1);
 }
+#endif
 
 int
 cap_setgrent(cap_channel_t *chan)
@@ -684,6 +686,7 @@ grp_getgrgid(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	return (0);
 }
 
+#ifdef HAVE_SETGROUPENT
 static int
 grp_setgroupent(const nvlist_t *limits __unused, const nvlist_t *nvlin,
     nvlist_t *nvlout __unused)
@@ -697,14 +700,18 @@ grp_setgroupent(const nvlist_t *limits __unused, const nvlist_t *nvlin,
 
 	return (setgroupent(stayopen) == 0 ? EFAULT : 0);
 }
+#endif
 
+#ifdef HAVE_SETGRENT
 static int
 grp_setgrent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
     nvlist_t *nvlout __unused)
 {
 
-	return (setgrent() == 0 ? EFAULT : 0);
+	setgrent();
+	return 0;
 }
+#endif
 
 static int
 grp_endgrent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
@@ -772,10 +779,14 @@ grp_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		error = grp_getgrnam(limits, nvlin, nvlout);
 	else if (strcmp(cmd, "getgrgid") == 0 || strcmp(cmd, "getgrgid_r") == 0)
 		error = grp_getgrgid(limits, nvlin, nvlout);
+#ifdef HAVE_SETGROUPENT
 	else if (strcmp(cmd, "setgroupent") == 0)
 		error = grp_setgroupent(limits, nvlin, nvlout);
+#endif
+#ifdef HAVE_SETGRENT
 	else if (strcmp(cmd, "setgrent") == 0)
 		error = grp_setgrent(limits, nvlin, nvlout);
+#endif
 	else if (strcmp(cmd, "endgrent") == 0)
 		error = grp_endgrent(limits, nvlin, nvlout);
 	else
@@ -784,4 +795,4 @@ grp_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (error);
 }
 
-CREATE_SERVICE("system.grp", grp_limit, grp_command);
+CREATE_SERVICE("system.grp", grp_limit, grp_command)

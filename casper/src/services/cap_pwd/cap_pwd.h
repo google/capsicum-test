@@ -32,6 +32,10 @@
 #ifndef	_CAP_PWD_H_
 #define	_CAP_PWD_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct passwd *cap_getpwent(cap_channel_t *chan);
 struct passwd *cap_getpwnam(cap_channel_t *chan, const char *login);
 struct passwd *cap_getpwuid(cap_channel_t *chan, uid_t uid);
@@ -43,7 +47,9 @@ int cap_getpwnam_r(cap_channel_t *chan, const char *name, struct passwd *pwd,
 int cap_getpwuid_r(cap_channel_t *chan, uid_t uid, struct passwd *pwd,
     char *buffer, size_t bufsize, struct passwd **result);
 
+#ifdef HAVE_SETPASSENT
 int cap_setpassent(cap_channel_t *chan, int stayopen);
+#endif
 void cap_setpwent(cap_channel_t *chan);
 void cap_endpwent(cap_channel_t *chan);
 
@@ -53,5 +59,8 @@ int cap_pwd_limit_fields(cap_channel_t *chan, const char * const *fields,
     size_t nfields);
 int cap_pwd_limit_users(cap_channel_t *chan, const char * const *names,
     size_t nnames, uid_t *uids, size_t nuids);
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_CAP_PWD_H_ */
