@@ -67,8 +67,13 @@ TEST_F(CasperDNSTest, GetAddrInfo) {
   if (CheckSkip()) return;
 
   const char *name = "google.com.";
+  struct addrinfo hint;
+  hint.ai_family = AF_UNSPEC;
+  hint.ai_socktype = SOCK_DGRAM;
+  hint.ai_protocol = 0;
+  hint.ai_flags = AI_ALL|AI_CANONNAME;
   struct addrinfo *info = nullptr;
-  int rc = cap_getaddrinfo(chan_, name, NULL, NULL, &info);
+  int rc = cap_getaddrinfo(chan_, name, NULL, &hint, &info);
   //  int rc = getaddrinfo(           name, NULL, NULL, &info);
   EXPECT_EQ(0, rc) << " error " << gai_strerror(rc);
   EXPECT_NE(nullptr, info);
