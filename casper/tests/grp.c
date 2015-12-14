@@ -861,6 +861,8 @@ group_fields(const struct group *grp)
 
 	result = 0;
 
+	if (!grp)
+		return (result);
 	if (grp->gr_name != NULL && grp->gr_name[0] != '\0')
 		result |= GR_NAME;
 
