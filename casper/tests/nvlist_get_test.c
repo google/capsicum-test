@@ -36,15 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static int ntest = 1;
-
-#define	CHECK(expr)	do {						\
-	if ((expr))							\
-		printf("ok # %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok # %d %s:%u\n", ntest, __FILE__, __LINE__);\
-	ntest++;							\
-} while (0)
+#include "test.h"
 
 #define	fd_is_valid(fd)	(fcntl((fd), F_GETFL) != -1 || errno != EBADF)
 
@@ -177,5 +169,5 @@ main(void)
 
 	nvlist_destroy(nvl);
 
-	return (0);
+	return (failures);
 }

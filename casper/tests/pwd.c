@@ -44,25 +44,7 @@
 
 #include "cap_pwd/cap_pwd.h"
 #include "local.h"
-
-static int ntest = 1;
-
-#define CHECK(expr)     do {						\
-	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);\
-	ntest++;							\
-} while (0)
-#define CHECKX(expr)     do {						\
-	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);\
-		exit(1);						\
-	}								\
-	ntest++;							\
-} while (0)
+#include "test.h"
 
 #define	UID_ROOT	0
 #define	UID_OPERATOR	2
@@ -1561,5 +1543,5 @@ main(void)
 
 	cap_close(cappwd);
 
-	exit(0);
+	exit(failures);
 }

@@ -44,25 +44,7 @@
 #include <libcasper.h>
 
 #include "cap_grp/cap_grp.h"
-
-static int ntest = 1;
-
-#define CHECK(expr)     do {						\
-	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	ntest++;							\
-} while (0)
-#define CHECKX(expr)     do {						\
-	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-		exit(1);						\
-	}								\
-	ntest++;							\
-} while (0)
+#include "test.h"
 
 #define	GID_WHEEL	0
 #define	GID_OPERATOR	5
@@ -1546,5 +1528,5 @@ main(void)
 
 	cap_close(capgrp);
 
-	exit(0);
+	exit(failures);
 }

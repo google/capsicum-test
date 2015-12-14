@@ -56,24 +56,7 @@
 #define	SYSCTL1_PARENT	"debug"
 #define	SYSCTL1_NAME	"debug.minidump"
 
-static int ntest = 1;
-
-#define CHECK(expr)     do {						\
-	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	ntest++;							\
-} while (0)
-#define CHECKX(expr)     do {						\
-	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-		exit(1);						\
-	}								\
-	ntest++;							\
-} while (0)
+#include "test.h"
 
 #define	SYSCTL0_READ0		0x0001
 #define	SYSCTL0_READ1		0x0002
@@ -1505,5 +1488,5 @@ main(void)
 	CHECK(sysctlbyname(SYSCTL1_NAME, NULL, NULL, &scvalue1,
 	    sizeof(scvalue1)) == 0);
 
-	exit(0);
+	exit(failures);
 }

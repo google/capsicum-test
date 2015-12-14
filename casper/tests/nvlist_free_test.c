@@ -34,15 +34,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static int ntest = 1;
-
-#define	CHECK(expr)	do {						\
-	if ((expr))							\
-		printf("ok # %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok # %d %s:%u\n", ntest, __FILE__, __LINE__);\
-	ntest++;							\
-} while (0)
+#include "test.h"
 
 int
 main(void)
@@ -217,5 +209,5 @@ main(void)
 
 	nvlist_destroy(nvl);
 
-	return (0);
+	return (failures);
 }

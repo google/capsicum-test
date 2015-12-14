@@ -29,34 +29,34 @@ casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tes
 casper_test_LDADD  = libcasper.la libnv.la libpjdlog.a libgtest.a -lpthread
 casper_test_CXXFLAGS = -std=c++11 -Wall -g -I gtest-1.6.0/include -I gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcasper -I src/services -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 
-test_dns_SOURCES = tests/dns.c
+test_dns_SOURCES = tests/dns.c tests/test.h
 test_dns_LDADD = libcasper.la
 test_dns_CFLAGS = -Wall -g -I src/libcasper -I src/services
 
-test_grp_SOURCES = tests/grp.c
+test_grp_SOURCES = tests/grp.c tests/test.h
 test_grp_LDADD = libcasper.la
 test_grp_CFLAGS = -Wall -g -I src/libcasper -I src/services
 
-test_pwd_SOURCES = tests/pwd.c
+test_pwd_SOURCES = tests/pwd.c tests/test.h
 test_pwd_LDADD = libcasper.la
 test_pwd_CFLAGS = -Wall -g -I src/libcasper -I src/services
 
-nvlist_add_test_SOURCES = tests/nvlist_add_test.c
+nvlist_add_test_SOURCES = tests/nvlist_add_test.c tests/test.h
 nvlist_add_test_LDADD = libnv.la
 nvlist_add_test_CFLAGS = -Wall -g -I src/libnv
-nvlist_exists_test_SOURCES = tests/nvlist_exists_test.c
+nvlist_exists_test_SOURCES = tests/nvlist_exists_test.c tests/test.h
 nvlist_exists_test_LDADD = libnv.la
 nvlist_exists_test_CFLAGS = -Wall -g -I src/libnv
-nvlist_free_test_SOURCES = tests/nvlist_free_test.c
+nvlist_free_test_SOURCES = tests/nvlist_free_test.c tests/test.h
 nvlist_free_test_LDADD = libnv.la
 nvlist_free_test_CFLAGS = -Wall -g -I src/libnv
-nvlist_get_test_SOURCES = tests/nvlist_get_test.c
+nvlist_get_test_SOURCES = tests/nvlist_get_test.c tests/test.h
 nvlist_get_test_LDADD = libnv.la
 nvlist_get_test_CFLAGS = -Wall -g -I src/libnv
-nvlist_move_test_SOURCES = tests/nvlist_move_test.c
+nvlist_move_test_SOURCES = tests/nvlist_move_test.c tests/test.h
 nvlist_move_test_LDADD = libnv.la
 nvlist_move_test_CFLAGS = -Wall -g -I src/libnv
-nvlist_send_recv_test_SOURCES = tests/nvlist_send_recv_test.c
+nvlist_send_recv_test_SOURCES = tests/nvlist_send_recv_test.c tests/test.h
 nvlist_send_recv_test_LDADD = libnv.la
 nvlist_send_recv_test_CFLAGS = -Wall -g -I src/libnv
 

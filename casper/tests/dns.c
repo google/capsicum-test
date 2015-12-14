@@ -46,25 +46,7 @@
 #include <libcasper.h>
 
 #include "cap_dns/cap_dns.h"
-
-static int ntest = 1;
-
-#define CHECK(expr)     do {						\
-	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	ntest++;							\
-} while (0)
-#define CHECKX(expr)     do {						\
-	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-		exit(1);						\
-	}								\
-	ntest++;							\
-} while (0)
+#include "test.h"
 
 #define	GETHOSTBYNAME			0x01
 #define	GETHOSTBYNAME2_AF_INET		0x02
@@ -583,5 +565,5 @@ main(void)
 
 	cap_close(origcapdns);
 
-	exit(0);
+	exit(failures);
 }
