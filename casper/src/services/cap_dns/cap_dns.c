@@ -29,6 +29,7 @@
 
 #include <sys/cdefs.h>
 
+#include "dnv.h"
 #include "nv.h"
 #include <netinet/in.h>
 
@@ -195,8 +196,7 @@ addrinfo_unpack(const nvlist_t *nvl)
 	ai->ai_socktype = (int)nvlist_get_number(nvl, "ai_socktype");
 	ai->ai_protocol = (int)nvlist_get_number(nvl, "ai_protocol");
 	ai->ai_addrlen = (socklen_t)addrlen;
-	if (nvlist_exists_string(nvl, "ai_canonname"))
-		canonname = nvlist_get_string(nvl, "ai_canonname");
+	canonname = dnvlist_get_string(nvl, "ai_canonname", NULL);
 	if (canonname != NULL) {
 		ai->ai_canonname = strdup(canonname);
 		if (ai->ai_canonname == NULL) {
@@ -517,8 +517,7 @@ dns_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 {
 	struct sockaddr_storage sast;
 	const void *sabin;
-	char *host = NULL;
-	char *serv = NULL;
+	char *host, *serv;
 	size_t sabinsize, hostlen, servlen;
 	socklen_t salen;
 	int error, flags;
@@ -610,8 +609,7 @@ static int
 dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 {
 	struct addrinfo hints, *hintsp, *res, *cur;
-	const char *hostname = NULL;
-	const char *servname = NULL;
+	const char *hostname, *servname;
 	char nvlname[64];
 	nvlist_t *elem;
 	unsigned int ii;
@@ -620,10 +618,8 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!dns_allowed_type(limits, "ADDR"))
 		return (NO_RECOVERY);
 
-	if (nvlist_exists_string(nvlin, "hostname"))
-		hostname = nvlist_get_string(nvlin, "hostname");
-	if (nvlist_exists_string(nvlin, "servname"))
-		servname = nvlist_get_string(nvlin, "servname");
+	hostname = dnvlist_get_string(nvlin, "hostname", NULL);
+	servname = dnvlist_get_string(nvlin, "servname", NULL);
 	if (nvlist_exists_number(nvlin, "hints.ai_flags")) {
 		hints.ai_flags = (int)nvlist_get_number(nvlin,
 		    "hints.ai_flags");
