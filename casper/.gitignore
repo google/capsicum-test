@@ -31,6 +31,12 @@ casper-test
 casper-test.*
 test-driver
 test-suite.log
+test_dns
+test_dns.*
+test_grp
+test_grp.*
+test_pwd
+test_pwd.*
 test-wrapper.sh.*
 casper-*.tar.gz
 README.html

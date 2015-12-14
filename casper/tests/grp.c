@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE  /* For getgrent_r */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 
@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <libcasper.h>
 
-#include <casper/cap_grp.h>
+#include "cap_grp/cap_grp.h"
 
 static int ntest = 1;
 

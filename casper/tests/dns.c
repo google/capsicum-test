@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 
@@ -46,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <libcasper.h>
 
-#include <casper/cap_dns.h>
+#include "cap_dns/cap_dns.h"
 
 static int ntest = 1;
 

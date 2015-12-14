@@ -4,8 +4,8 @@ CFLAGS = --pedantic -Wall -O2 -g -I . -I src
 
 lib_LTLIBRARIES = libnv.la libcasper.la
 noinst_LIBRARIES = libpjdlog.a libgtest.a
-noinst_PROGRAMS = casper-test nvlist_add_test nvlist_exists_test nvlist_free_test nvlist_get_test nvlist_move_test nvlist_send_recv_test
-TESTS = casper-test nvlist_add_test nvlist_exists_test nvlist_free_test nvlist_get_test nvlist_move_test nvlist_send_recv_test
+noinst_PROGRAMS = casper-test nvlist_add_test nvlist_exists_test nvlist_free_test nvlist_get_test nvlist_move_test nvlist_send_recv_test test_dns test_grp test_pwd
+TESTS = casper-test nvlist_add_test nvlist_exists_test nvlist_free_test nvlist_get_test nvlist_move_test nvlist_send_recv_test test_dns test_grp test_pwd
 EXTRA_DIST = debian
 
 libnv_la_SOURCES = src/libnv/dnvlist.c src/libnv/msgio.c src/libnv/nvlist.c src/libnv/nvpair.c src/libnv/common_impl.h src/libnv/msgio.h src/libnv/nv_impl.h src/libnv/nvlist_impl.h src/libnv/nvpair_impl.h src/local.h src/sys_endian.h
@@ -28,6 +28,18 @@ libgtest_a_CXXFLAGS = -I gtest-1.6.0/include -I gtest-1.6.0 -DGTEST_USE_OWN_TR1_
 casper_test_SOURCES = tests/testnv.cc tests/testmsgio.cc tests/testpjdlog.cc tests/testcasper.cc tests/testdns.cc tests/testgrp.cc tests/testpwd.cc tests/testrandom.cc tests/casper-test-main.cc tests/testcasper.h tests/nv_tests.cc tests/dnv_tests.cc tests/nv_array_tests.cc tests/atf-fake.h
 casper_test_LDADD  = libcasper.la libnv.la libpjdlog.a libgtest.a -lpthread
 casper_test_CXXFLAGS = -std=c++11 -Wall -g -I gtest-1.6.0/include -I gtest-1.6.0 -I src/libnv -I src/libpjdlog -I src/libcasper -I src/services -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
+
+test_dns_SOURCES = tests/dns.c
+test_dns_LDADD = libcasper.la
+test_dns_CFLAGS = -Wall -g -I src/libcasper -I src/services
+
+test_grp_SOURCES = tests/grp.c
+test_grp_LDADD = libcasper.la
+test_grp_CFLAGS = -Wall -g -I src/libcasper -I src/services
+
+test_pwd_SOURCES = tests/pwd.c
+test_pwd_LDADD = libcasper.la
+test_pwd_CFLAGS = -Wall -g -I src/libcasper -I src/services
 
 nvlist_add_test_SOURCES = tests/nvlist_add_test.c
 nvlist_add_test_LDADD = libnv.la

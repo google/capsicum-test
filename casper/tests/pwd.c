@@ -28,7 +28,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 
@@ -43,7 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <libcasper.h>
 
-#include <casper/cap_pwd.h>
+#include "cap_pwd/cap_pwd.h"
+#include "local.h"
 
 static int ntest = 1;
 
@@ -105,15 +105,19 @@ passwd_compare(const struct passwd *pwd0, const struct passwd *pwd1)
 	if (pwd0->pw_gid != pwd1->pw_gid)
 		return (false);
 
+#ifdef HAVE_PASSWD_PW_CHANGE
 	if (pwd0->pw_change != pwd1->pw_change)
 		return (false);
+#endif
 
+#ifdef HAVE_PASSWD_PW_CLASS
 	if (pwd0->pw_class != NULL || pwd1->pw_class != NULL) {
 		if (pwd0->pw_class == NULL || pwd1->pw_class == NULL)
 			return (false);
 		if (strcmp(pwd0->pw_class, pwd1->pw_class) != 0)
 			return (false);
 	}
+#endif
 
 	if (pwd0->pw_gecos != NULL || pwd1->pw_gecos != NULL) {
 		if (pwd0->pw_gecos == NULL || pwd1->pw_gecos == NULL)
@@ -136,11 +140,15 @@ passwd_compare(const struct passwd *pwd0, const struct passwd *pwd1)
 			return (false);
 	}
 
+#ifdef HAVE_PASSWD_PW_EXPIRE
 	if (pwd0->pw_expire != pwd1->pw_expire)
 		return (false);
+#endif
 
+#ifdef HAVE_PASSWD_PW_FIELDS
 	if (pwd0->pw_fields != pwd1->pw_fields)
 		return (false);
+#endif
 
 	return (true);
 }
@@ -868,6 +876,7 @@ test_cmds(cap_channel_t *origcappwd)
 	cap_close(cappwd);
 }
 
+#ifdef HAVE_PASSWD_PW_FIELDS
 #define	PW_NAME		_PWF_NAME
 #define	PW_PASSWD	_PWF_PASSWD
 #define	PW_UID		_PWF_UID
@@ -964,6 +973,26 @@ printf("PW_EXPIRE  %d      %d\n", (pwd->pw_fields & PW_EXPIRE) != 0, (result & P
 //printf("result=0x%x\n", result);
 	return (result);
 }
+#else
+
+#define	PW_NAME	0x0001
+#define	PW_PASSWD	0x0002
+#define	PW_UID		0x0004
+#define	PW_GID		0x0008
+#define	PW_CHANGE	0x0010
+#define	PW_CLASS	0x0020
+#define	PW_GECOS	0x0040
+#define	PW_DIR		0x0080
+#define	PW_SHELL	0x0100
+#define	PW_EXPIRE	0x0200
+
+static unsigned int
+passwd_fields(const struct passwd *pwd)
+{
+	return 0;
+}
+
+#endif
 
 static bool
 runtest_fields(cap_channel_t *cappwd, unsigned int expected)
