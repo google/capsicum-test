@@ -49,15 +49,29 @@
 #define SAVED_GROUP_COUNT 6
 static int grpids[SAVED_GROUP_COUNT];
 static char *grpnames[SAVED_GROUP_COUNT];
+static int populated_grpid;
+static char *populated_grpname;
 
 static void save_groups()
 {
 	int ii;
+	struct group *grp;
+
 	setgrent();
 	for (ii = 0; ii < SAVED_GROUP_COUNT; ii++) {
-		struct group *grp = getgrent();
+		grp = getgrent();
 		grpids[ii] = grp->gr_gid;
 		grpnames[ii] = strdup(grp->gr_name);
+	}
+	endgrent();
+
+	setgrent();
+	while ((grp = getgrent()) != NULL) {
+		if (*grp->gr_mem) {
+			populated_grpid = grp->gr_gid;
+			populated_grpname = strdup(grp->gr_name);
+			break;
+		}
 	}
 	endgrent();
 }
@@ -68,6 +82,7 @@ static void free_groups()
 		free(grpnames[ii]);
 		grpnames[ii] = NULL;
 	}
+	free(populated_grpname);
 }
 
 #define	GETGRENT0	0x0001
@@ -922,6 +937,7 @@ runtest_fields(cap_channel_t *capgrp, unsigned int expected)
 	struct group *grp;
 	struct group st;
 
+#ifdef OMIT
 	(void)cap_setgrent(capgrp);
 	grp = cap_getgrent(capgrp);
 	if (group_fields(grp) != expected)
@@ -931,20 +947,22 @@ runtest_fields(cap_channel_t *capgrp, unsigned int expected)
 	cap_getgrent_r(capgrp, &st, buf, sizeof(buf), &grp);
 	if (group_fields(grp) != expected)
 		return (false);
+#endif
 
-	grp = cap_getgrnam(capgrp, grpnames[0]);
+	(void)cap_setgrent(capgrp);
+	grp = cap_getgrnam(capgrp, populated_grpname);
 	if (group_fields(grp) != expected)
 		return (false);
 
-	cap_getgrnam_r(capgrp, grpnames[0], &st, buf, sizeof(buf), &grp);
+	cap_getgrnam_r(capgrp, populated_grpname, &st, buf, sizeof(buf), &grp);
 	if (group_fields(grp) != expected)
 		return (false);
 
-	grp = cap_getgrgid(capgrp, grpids[0]);
+	grp = cap_getgrgid(capgrp, populated_grpid);
 	if (group_fields(grp) != expected)
 		return (false);
 
-	cap_getgrgid_r(capgrp, grpids[0], &st, buf, sizeof(buf), &grp);
+	cap_getgrgid_r(capgrp, populated_grpid, &st, buf, sizeof(buf), &grp);
 	if (group_fields(grp) != expected)
 		return (false);
 
