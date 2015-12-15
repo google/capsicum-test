@@ -47,7 +47,32 @@
 #include "test.h"
 
 #define	UID_ROOT	0
-#define	UID_OPERATOR	2
+
+#define SAVED_USER_COUNT 8
+static int userids[SAVED_USER_COUNT];
+static char *usernames[SAVED_USER_COUNT];
+
+static void save_users()
+{
+	int ii;
+	struct passwd *pwd;
+
+	setpwent();
+	for (ii = 0; ii < SAVED_USER_COUNT; ii++) {
+		pwd = getpwent();
+		userids[ii] = pwd->pw_uid;
+		usernames[ii] = strdup(pwd->pw_name);
+	}
+	endpwent();
+}
+static void free_users()
+{
+	int ii;
+	for (ii = 0; ii < SAVED_USER_COUNT; ii++) {
+		free(usernames[ii]);
+		usernames[ii] = NULL;
+	}
+}
 
 #define	GETPWENT0	0x0001
 #define	GETPWENT1	0x0002
@@ -181,20 +206,20 @@ runtest_cmds(cap_channel_t *cappwd)
 	if (passwd_compare(pwds, pwdc))
 		result |= GETPWENT2;
 
-	pwds = getpwnam("root");
-	pwdc = cap_getpwnam(cappwd, "root");
+	pwds = getpwnam(usernames[0]);
+	pwdc = cap_getpwnam(cappwd, usernames[0]);
 	if (passwd_compare(pwds, pwdc)) {
-		pwds = getpwnam("operator");
-		pwdc = cap_getpwnam(cappwd, "operator");
+		pwds = getpwnam(usernames[3]);
+		pwdc = cap_getpwnam(cappwd, usernames[3]);
 		if (passwd_compare(pwds, pwdc))
 			result |= GETPWNAM;
 	}
 
-	getpwnam_r("root", &sts, bufs, sizeof(bufs), &pwds);
-	cap_getpwnam_r(cappwd, "root", &stc, bufc, sizeof(bufc), &pwdc);
+	getpwnam_r(usernames[0], &sts, bufs, sizeof(bufs), &pwds);
+	cap_getpwnam_r(cappwd, usernames[0], &stc, bufc, sizeof(bufc), &pwdc);
 	if (passwd_compare(pwds, pwdc)) {
-		getpwnam_r("operator", &sts, bufs, sizeof(bufs), &pwds);
-		cap_getpwnam_r(cappwd, "operator", &stc, bufc, sizeof(bufc),
+		getpwnam_r(usernames[3], &sts, bufs, sizeof(bufs), &pwds);
+		cap_getpwnam_r(cappwd, usernames[3], &stc, bufc, sizeof(bufc),
 		    &pwdc);
 		if (passwd_compare(pwds, pwdc))
 			result |= GETPWNAM_R;
@@ -203,8 +228,8 @@ runtest_cmds(cap_channel_t *cappwd)
 	pwds = getpwuid(UID_ROOT);
 	pwdc = cap_getpwuid(cappwd, UID_ROOT);
 	if (passwd_compare(pwds, pwdc)) {
-		pwds = getpwuid(UID_OPERATOR);
-		pwdc = cap_getpwuid(cappwd, UID_OPERATOR);
+		pwds = getpwuid(userids[3]);
+		pwdc = cap_getpwuid(cappwd, userids[3]);
 		if (passwd_compare(pwds, pwdc))
 			result |= GETPWUID;
 	}
@@ -212,8 +237,8 @@ runtest_cmds(cap_channel_t *cappwd)
 	getpwuid_r(UID_ROOT, &sts, bufs, sizeof(bufs), &pwds);
 	cap_getpwuid_r(cappwd, UID_ROOT, &stc, bufc, sizeof(bufc), &pwdc);
 	if (passwd_compare(pwds, pwdc)) {
-		getpwuid_r(UID_OPERATOR, &sts, bufs, sizeof(bufs), &pwds);
-		cap_getpwuid_r(cappwd, UID_OPERATOR, &stc, bufc, sizeof(bufc),
+		getpwuid_r(userids[3], &sts, bufs, sizeof(bufs), &pwds);
+		cap_getpwuid_r(cappwd, userids[3], &stc, bufc, sizeof(bufc),
 		    &pwdc);
 		if (passwd_compare(pwds, pwdc))
 			result |= GETPWUID_R;
@@ -240,25 +265,25 @@ test_cmds(cap_channel_t *origcappwd)
 	fields[8] = "pw_shell";
 	fields[9] = "pw_expire";
 
-	names[0] = "root";
-	names[1] = "toor";
-	names[2] = "daemon";
-	names[3] = "operator";
-	names[4] = "bin";
-	names[5] = "kmem";
+	names[0] = usernames[0];
+	names[1] = usernames[1];
+	names[2] = usernames[2];
+	names[3] = usernames[3];
+	names[4] = usernames[4];
+	names[5] = usernames[6];
 
-	uids[0] = 0;
-	uids[1] = 1;
-	uids[2] = 2;
-	uids[3] = 3;
-	uids[4] = 5;
+	uids[0] = userids[0];
+	uids[1] = userids[1];
+	uids[2] = userids[2];
+	uids[3] = userids[3];
+	uids[4] = userids[5];
 
 	/*
 	 * Allow:
 	 * cmds: setpwent, getpwent, getpwent_r, getpwnam, getpwnam_r,
 	 *       getpwuid, getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 */
 	cappwd = cap_clone(origcappwd);
@@ -286,7 +311,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid, getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 */
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
@@ -312,7 +337,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwent, getpwent_r, getpwnam, getpwnam_r,
 	 *       getpwuid, getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: setpwent
@@ -354,7 +379,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid, getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: setpwent
 	 * users:
@@ -394,7 +419,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent, getpwent_r, getpwnam, getpwnam_r,
 	 *       getpwuid, getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: getpwent
@@ -434,7 +459,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid, getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getpwent
 	 * users:
@@ -472,7 +497,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent, getpwent, getpwnam, getpwnam_r,
 	 *       getpwuid, getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: getpwent_r
@@ -512,7 +537,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid, getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getpwent_r
 	 * users:
@@ -550,7 +575,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent, getpwent, getpwent_r, getpwnam_r,
 	 *       getpwuid, getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: getpwnam
@@ -590,7 +615,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid, getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getpwnam
 	 * users:
@@ -628,7 +653,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent, getpwent, getpwent_r, getpwnam,
 	 *       getpwuid, getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: getpwnam_r
@@ -668,7 +693,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid, getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getpwnam_r
 	 * users:
@@ -706,7 +731,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent, getpwent, getpwent_r, getpwnam, getpwnam_r,
 	 *       getpwuid_r
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: getpwuid
@@ -746,7 +771,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid_r
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getpwuid
 	 * users:
@@ -784,7 +809,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent, getpwent, getpwent_r, getpwnam, getpwnam_r,
 	 *       getpwuid
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, kmem
+	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 * Disallow:
 	 * cmds: getpwuid_r
@@ -824,7 +849,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *       getpwuid
 	 * users:
 	 *     names:
-	 *     uids: 0, 1, 2, 3, 5
+	 *     uids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getpwuid_r
 	 * users:
@@ -994,11 +1019,11 @@ runtest_fields(cap_channel_t *cappwd, unsigned int expected)
 	if ((passwd_fields(pwd) & ~expected) != 0)
 		return (false);
 
-	pwd = cap_getpwnam(cappwd, "root");
+	pwd = cap_getpwnam(cappwd, usernames[0]);
 	if ((passwd_fields(pwd) & ~expected) != 0)
 		return (false);
 
-	cap_getpwnam_r(cappwd, "root", &st, buf, sizeof(buf), &pwd);
+	cap_getpwnam_r(cappwd, usernames[0], &st, buf, sizeof(buf), &pwd);
 	if ((passwd_fields(pwd) & ~expected) != 0)
 		return (false);
 
@@ -1278,25 +1303,25 @@ test_users(cap_channel_t *origcappwd)
 	/*
 	 * Allow:
 	 * users:
-	 *     names: root, toor, daemon, operator, bin, tty
+	 *     names: entries 0-5
 	 *     uids:
 	 */
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "root";
-	names[1] = "toor";
-	names[2] = "daemon";
-	names[3] = "operator";
-	names[4] = "bin";
-	names[5] = "tty";
+	names[0] = usernames[0];
+	names[1] = usernames[1];
+	names[2] = usernames[2];
+	names[3] = usernames[3];
+	names[4] = usernames[4];
+	names[5] = usernames[5];
 	CHECK(cap_pwd_limit_users(cappwd, names, 6, NULL, 0) == 0);
-	uids[0] = 0;
-	uids[1] = 0;
-	uids[2] = 1;
-	uids[3] = 2;
-	uids[4] = 3;
-	uids[5] = 4;
+	uids[0] = userids[0];
+	uids[1] = userids[1];
+	uids[2] = userids[2];
+	uids[3] = userids[3];
+	uids[4] = userids[4];
+	uids[5] = userids[5];
 
 	CHECK(runtest_users(cappwd, names, uids, 6));
 
@@ -1305,26 +1330,26 @@ test_users(cap_channel_t *origcappwd)
 	/*
 	 * Allow:
 	 * users:
-	 *     names: daemon, operator, bin
+	 *     names: entries 2-4
 	 *     uids:
 	 */
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "daemon";
-	names[1] = "operator";
-	names[2] = "bin";
+	names[0] = usernames[2];
+	names[1] = usernames[3];
+	names[2] = usernames[4];
 	CHECK(cap_pwd_limit_users(cappwd, names, 3, NULL, 0) == 0);
-	names[3] = "tty";
+	names[3] = usernames[5];
 	CHECK(cap_pwd_limit_users(cappwd, names, 4, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "tty";
+	names[0] = usernames[5];
 	CHECK(cap_pwd_limit_users(cappwd, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
-	uids[0] = 1;
-	uids[1] = 2;
-	uids[2] = 3;
+	names[0] = usernames[2];
+	uids[0] = userids[2];
+	uids[1] = userids[3];
+	uids[2] = userids[4];
 
 	CHECK(runtest_users(cappwd, names, uids, 3));
 
@@ -1333,26 +1358,26 @@ test_users(cap_channel_t *origcappwd)
 	/*
 	 * Allow:
 	 * users:
-	 *     names: daemon, bin, tty
+	 *     names: entries 2,4,5
 	 *     uids:
 	 */
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "daemon";
-	names[1] = "bin";
-	names[2] = "tty";
+	names[0] = usernames[2];
+	names[1] = usernames[4];
+	names[2] = usernames[5];
 	CHECK(cap_pwd_limit_users(cappwd, names, 3, NULL, 0) == 0);
-	names[3] = "operator";
+	names[3] = usernames[3];
 	CHECK(cap_pwd_limit_users(cappwd, names, 4, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "operator";
+	names[0] = usernames[3];
 	CHECK(cap_pwd_limit_users(cappwd, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
-	uids[0] = 1;
-	uids[1] = 3;
-	uids[2] = 4;
+	names[0] = usernames[2];
+	uids[0] = userids[2];
+	uids[1] = userids[4];
+	uids[2] = userids[5];
 
 	CHECK(runtest_users(cappwd, names, uids, 3));
 
@@ -1367,20 +1392,20 @@ test_users(cap_channel_t *origcappwd)
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "daemon";
-	names[1] = "operator";
-	names[2] = "bin";
-	uids[0] = 1;
-	uids[1] = 2;
-	uids[2] = 3;
+	names[0] = usernames[1];
+	names[1] = usernames[2];
+	names[2] = usernames[3];
+	uids[0] = userids[1];
+	uids[1] = userids[2];
+	uids[2] = userids[3];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 3) == 0);
-	uids[3] = 4;
+	uids[3] = userids[4];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 4) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 4;
+	uids[0] = userids[4];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 1;
+	uids[0] = userids[1];
 
 	CHECK(runtest_users(cappwd, names, uids, 3));
 
@@ -1395,20 +1420,20 @@ test_users(cap_channel_t *origcappwd)
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "daemon";
-	names[1] = "bin";
-	names[2] = "tty";
-	uids[0] = 1;
-	uids[1] = 3;
-	uids[2] = 4;
+	names[0] = usernames[1];
+	names[1] = usernames[3];
+	names[2] = usernames[4];
+	uids[0] = userids[1];
+	uids[1] = userids[3];
+	uids[2] = userids[4];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 3) == 0);
-	uids[3] = 5;
+	uids[3] = userids[5];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 4) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 5;
+	uids[0] = userids[5];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 1;
+	uids[0] = userids[1];
 
 	CHECK(runtest_users(cappwd, names, uids, 3));
 
@@ -1417,22 +1442,22 @@ test_users(cap_channel_t *origcappwd)
 	/*
 	 * Allow:
 	 * users:
-	 *     names: bin
+	 *     names: entry 4
 	 *     uids:
 	 */
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "bin";
+	names[0] = usernames[4];
 	CHECK(cap_pwd_limit_users(cappwd, names, 1, NULL, 0) == 0);
-	names[1] = "operator";
+	names[1] = usernames[3];
 	CHECK(cap_pwd_limit_users(cappwd, names, 2, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "operator";
+	names[0] = usernames[3];
 	CHECK(cap_pwd_limit_users(cappwd, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "bin";
-	uids[0] = 3;
+	names[0] = usernames[4];
+	uids[0] = userids[4];
 
 	CHECK(runtest_users(cappwd, names, uids, 1));
 
@@ -1441,24 +1466,24 @@ test_users(cap_channel_t *origcappwd)
 	/*
 	 * Allow:
 	 * users:
-	 *     names: daemon, tty
+	 *     names: entries 2, 5
 	 *     uids:
 	 */
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "daemon";
-	names[1] = "tty";
+	names[0] = usernames[2];
+	names[1] = usernames[5];
 	CHECK(cap_pwd_limit_users(cappwd, names, 2, NULL, 0) == 0);
-	names[2] = "operator";
+	names[2] = usernames[3];
 	CHECK(cap_pwd_limit_users(cappwd, names, 3, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "operator";
+	names[0] = usernames[3];
 	CHECK(cap_pwd_limit_users(cappwd, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
-	uids[0] = 1;
-	uids[1] = 4;
+	names[0] = usernames[2];
+	uids[0] = userids[2];
+	uids[1] = userids[5];
 
 	CHECK(runtest_users(cappwd, names, uids, 2));
 
@@ -1473,16 +1498,16 @@ test_users(cap_channel_t *origcappwd)
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "bin";
-	uids[0] = 3;
+	names[0] = usernames[3];
+	uids[0] = userids[3];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 1) == 0);
-	uids[1] = 4;
+	uids[1] = userids[4];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 4;
+	uids[0] = userids[4];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 3;
+	uids[0] = userids[3];
 
 	CHECK(runtest_users(cappwd, names, uids, 1));
 
@@ -1497,18 +1522,18 @@ test_users(cap_channel_t *origcappwd)
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
-	names[0] = "daemon";
-	names[1] = "tty";
-	uids[0] = 1;
-	uids[1] = 4;
+	names[0] = usernames[1];
+	names[1] = usernames[4];
+	uids[0] = userids[1];
+	uids[1] = userids[4];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 2) == 0);
-	uids[2] = 3;
+	uids[2] = userids[3];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 3) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 3;
+	uids[0] = userids[3];
 	CHECK(cap_pwd_limit_users(cappwd, NULL, 0, uids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	uids[0] = 1;
+	uids[0] = userids[1];
 
 	CHECK(runtest_users(cappwd, names, uids, 2));
 
@@ -1520,6 +1545,7 @@ main(void)
 {
 	cap_channel_t *capcas, *cappwd;
 
+	save_users();
 	printf("1..188\n");
 
 	capcas = cap_init();
@@ -1543,5 +1569,6 @@ main(void)
 
 	cap_close(cappwd);
 
+	free_users();
 	exit(failures);
 }
