@@ -46,8 +46,29 @@
 #include "cap_grp/cap_grp.h"
 #include "test.h"
 
-#define	GID_WHEEL	0
-#define	GID_OPERATOR	5
+#define SAVED_GROUP_COUNT 6
+static int grpids[SAVED_GROUP_COUNT];
+static char *grpnames[SAVED_GROUP_COUNT];
+
+static void save_groups()
+{
+	int ii;
+	setgrent();
+	for (ii = 0; ii < SAVED_GROUP_COUNT; ii++) {
+		struct group *grp = getgrent();
+		grpids[ii] = grp->gr_gid;
+		grpnames[ii] = strdup(grp->gr_name);
+	}
+	endgrent();
+}
+static void free_groups()
+{
+	int ii;
+	for (ii = 0; ii < SAVED_GROUP_COUNT; ii++) {
+		free(grpnames[ii]);
+		grpnames[ii] = NULL;
+	}
+}
 
 #define	GETGRENT0	0x0001
 #define	GETGRENT1	0x0002
@@ -161,39 +182,39 @@ runtest_cmds(cap_channel_t *capgrp)
 	if (group_compare(grps, grpc))
 		result |= GETGRENT2;
 
-	grps = getgrnam("wheel");
-	grpc = cap_getgrnam(capgrp, "wheel");
+	grps = getgrnam(grpnames[0]);
+	grpc = cap_getgrnam(capgrp, grpnames[0]);
 	if (group_compare(grps, grpc)) {
-		grps = getgrnam("operator");
-		grpc = cap_getgrnam(capgrp, "operator");
+		grps = getgrnam(grpnames[5]);
+		grpc = cap_getgrnam(capgrp, grpnames[5]);
 		if (group_compare(grps, grpc))
 			result |= GETGRNAM;
 	}
 
-	getgrnam_r("wheel", &sts, bufs, sizeof(bufs), &grps);
-	cap_getgrnam_r(capgrp, "wheel", &stc, bufc, sizeof(bufc), &grpc);
+	getgrnam_r(grpnames[0], &sts, bufs, sizeof(bufs), &grps);
+	cap_getgrnam_r(capgrp, grpnames[0], &stc, bufc, sizeof(bufc), &grpc);
 	if (group_compare(grps, grpc)) {
-		getgrnam_r("operator", &sts, bufs, sizeof(bufs), &grps);
-		cap_getgrnam_r(capgrp, "operator", &stc, bufc, sizeof(bufc),
+		getgrnam_r(grpnames[5], &sts, bufs, sizeof(bufs), &grps);
+		cap_getgrnam_r(capgrp, grpnames[5], &stc, bufc, sizeof(bufc),
 		    &grpc);
 		if (group_compare(grps, grpc))
 			result |= GETGRNAM_R;
 	}
 
-	grps = getgrgid(GID_WHEEL);
-	grpc = cap_getgrgid(capgrp, GID_WHEEL);
+	grps = getgrgid(grpids[0]);
+	grpc = cap_getgrgid(capgrp, grpids[0]);
 	if (group_compare(grps, grpc)) {
-		grps = getgrgid(GID_OPERATOR);
-		grpc = cap_getgrgid(capgrp, GID_OPERATOR);
+		grps = getgrgid(grpids[5]);
+		grpc = cap_getgrgid(capgrp, grpids[5]);
 		if (group_compare(grps, grpc))
 			result |= GETGRGID;
 	}
 
-	getgrgid_r(GID_WHEEL, &sts, bufs, sizeof(bufs), &grps);
-	cap_getgrgid_r(capgrp, GID_WHEEL, &stc, bufc, sizeof(bufc), &grpc);
+	getgrgid_r(grpids[0], &sts, bufs, sizeof(bufs), &grps);
+	cap_getgrgid_r(capgrp, grpids[0], &stc, bufc, sizeof(bufc), &grpc);
 	if (group_compare(grps, grpc)) {
-		getgrgid_r(GID_OPERATOR, &sts, bufs, sizeof(bufs), &grps);
-		cap_getgrgid_r(capgrp, GID_OPERATOR, &stc, bufc, sizeof(bufc),
+		getgrgid_r(grpids[5], &sts, bufs, sizeof(bufs), &grps);
+		cap_getgrgid_r(capgrp, grpids[5], &stc, bufc, sizeof(bufc),
 		    &grpc);
 		if (group_compare(grps, grpc))
 			result |= GETGRGID_R;
@@ -214,17 +235,17 @@ test_cmds(cap_channel_t *origcapgrp)
 	fields[2] = "gr_gid";
 	fields[3] = "gr_mem";
 
-	names[0] = "wheel";
-	names[1] = "daemon";
-	names[2] = "kmem";
-	names[3] = "sys";
-	names[4] = "operator";
+	names[0] = grpnames[0];
+	names[1] = grpnames[1];
+	names[2] = grpnames[2];
+	names[3] = grpnames[3];
+	names[4] = grpnames[5];
 
-	gids[0] = 0;
-	gids[1] = 1;
-	gids[2] = 2;
-	gids[3] = 3;
-	gids[4] = 5;
+	gids[0] = grpids[0];
+	gids[1] = grpids[1];
+	gids[2] = grpids[2];
+	gids[3] = grpids[3];
+	gids[4] = grpids[5];
 
 	/*
 	 * Allow:
@@ -232,7 +253,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid, getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 */
 	capgrp = cap_clone(origcapgrp);
@@ -261,7 +282,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
@@ -288,7 +309,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid, getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: setgrent
@@ -329,7 +350,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: setgrent
 	 * fields:
@@ -368,7 +389,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid, getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: getgrent
@@ -410,7 +431,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getgrent
 	 * fields:
@@ -450,7 +471,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid, getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: getgrent_r
@@ -491,7 +512,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getgrent_r
 	 * fields:
@@ -530,7 +551,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid, getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: getgrnam
@@ -572,7 +593,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getgrnam
 	 * fields:
@@ -612,7 +633,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid, getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: getgrnam_r
@@ -653,7 +674,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getgrnam_r
 	 * fields:
@@ -692,7 +713,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid_r
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: getgrgid
@@ -734,7 +755,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getgrgid
 	 * fields:
@@ -774,7 +795,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *       getgrgid
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, operator
+	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 * Disallow:
 	 * cmds: getgrgid_r
@@ -815,7 +836,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 * groups:
 	 *     names:
-	 *     gids: 0, 1, 2, 3, 5
+	 *     gids: entries 0, 1, 2, 3, 5
 	 * Disallow:
 	 * cmds: getgrgid_r
 	 * fields:
@@ -895,19 +916,19 @@ runtest_fields(cap_channel_t *capgrp, unsigned int expected)
 	if (group_fields(grp) != expected)
 		return (false);
 
-	grp = cap_getgrnam(capgrp, "wheel");
+	grp = cap_getgrnam(capgrp, grpnames[0]);
 	if (group_fields(grp) != expected)
 		return (false);
 
-	cap_getgrnam_r(capgrp, "wheel", &st, buf, sizeof(buf), &grp);
+	cap_getgrnam_r(capgrp, grpnames[0], &st, buf, sizeof(buf), &grp);
 	if (group_fields(grp) != expected)
 		return (false);
 
-	grp = cap_getgrgid(capgrp, GID_WHEEL);
+	grp = cap_getgrgid(capgrp, grpids[0]);
 	if (group_fields(grp) != expected)
 		return (false);
 
-	cap_getgrgid_r(capgrp, GID_WHEEL, &st, buf, sizeof(buf), &grp);
+	cap_getgrgid_r(capgrp, grpids[0], &st, buf, sizeof(buf), &grp);
 	if (group_fields(grp) != expected)
 		return (false);
 
@@ -1267,23 +1288,23 @@ test_groups(cap_channel_t *origcapgrp)
 	/*
 	 * Allow:
 	 * groups:
-	 *     names: wheel, daemon, kmem, sys, tty
+	 *     names: entries 0, 1, 2, 3, 4
 	 *     gids:
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "wheel";
-	names[1] = "daemon";
-	names[2] = "kmem";
-	names[3] = "sys";
-	names[4] = "tty";
+	names[0] = grpnames[0];
+	names[1] = grpnames[1];
+	names[2] = grpnames[2];
+	names[3] = grpnames[3];
+	names[4] = grpnames[4];
 	CHECK(cap_grp_limit_groups(capgrp, names, 5, NULL, 0) == 0);
-	gids[0] = 0;
-	gids[1] = 1;
-	gids[2] = 2;
-	gids[3] = 3;
-	gids[4] = 4;
+	gids[0] = grpids[0];
+	gids[1] = grpids[1];
+	gids[2] = grpids[2];
+	gids[3] = grpids[3];
+	gids[4] = grpids[4];
 
 	CHECK(runtest_groups(capgrp, names, gids, 5));
 
@@ -1292,26 +1313,26 @@ test_groups(cap_channel_t *origcapgrp)
 	/*
 	 * Allow:
 	 * groups:
-	 *     names: kmem, sys, tty
+	 *     names: entries 2, 3, 4
 	 *     gids:
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "kmem";
-	names[1] = "sys";
-	names[2] = "tty";
+	names[0] = grpnames[2];
+	names[1] = grpnames[3];
+	names[2] = grpnames[4];
 	CHECK(cap_grp_limit_groups(capgrp, names, 3, NULL, 0) == 0);
-	names[3] = "daemon";
+	names[3] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 4, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
+	names[0] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "kmem";
-	gids[0] = 2;
-	gids[1] = 3;
-	gids[2] = 4;
+	names[0] = grpnames[2];
+	gids[0] = grpids[2];
+	gids[1] = grpids[3];
+	gids[2] = grpids[4];
 
 	CHECK(runtest_groups(capgrp, names, gids, 3));
 
@@ -1320,26 +1341,26 @@ test_groups(cap_channel_t *origcapgrp)
 	/*
 	 * Allow:
 	 * groups:
-	 *     names: wheel, kmem, tty
+	 *     names: entries 0, 2, 4
 	 *     gids:
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "wheel";
-	names[1] = "kmem";
-	names[2] = "tty";
+	names[0] = grpnames[0];
+	names[1] = grpnames[2];
+	names[2] = grpnames[4];
 	CHECK(cap_grp_limit_groups(capgrp, names, 3, NULL, 0) == 0);
-	names[3] = "daemon";
+	names[3] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 4, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
+	names[0] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "wheel";
-	gids[0] = 0;
-	gids[1] = 2;
-	gids[2] = 4;
+	names[0] = grpnames[0];
+	gids[0] = grpids[0];
+	gids[1] = grpids[2];
+	gids[2] = grpids[4];
 
 	CHECK(runtest_groups(capgrp, names, gids, 3));
 
@@ -1354,20 +1375,20 @@ test_groups(cap_channel_t *origcapgrp)
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "kmem";
-	names[1] = "sys";
-	names[2] = "tty";
-	gids[0] = 2;
-	gids[1] = 3;
-	gids[2] = 4;
+	names[0] = grpnames[2];
+	names[1] = grpnames[3];
+	names[2] = grpnames[4];
+	gids[0] = grpids[2];
+	gids[1] = grpids[3];
+	gids[2] = grpids[4];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 3) == 0);
-	gids[3] = 0;
+	gids[3] = grpids[0];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 4) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 0;
+	gids[0] = grpids[0];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 2;
+	gids[0] = grpids[2];
 
 	CHECK(runtest_groups(capgrp, names, gids, 3));
 
@@ -1382,20 +1403,20 @@ test_groups(cap_channel_t *origcapgrp)
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "wheel";
-	names[1] = "kmem";
-	names[2] = "tty";
-	gids[0] = 0;
-	gids[1] = 2;
-	gids[2] = 4;
+	names[0] = grpnames[0];
+	names[1] = grpnames[2];
+	names[2] = grpnames[4];
+	gids[0] = grpids[0];
+	gids[1] = grpids[2];
+	gids[2] = grpids[4];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 3) == 0);
-	gids[3] = 1;
+	gids[3] = grpids[1];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 4) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 1;
+	gids[0] = grpids[1];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 0;
+	gids[0] = grpids[0];
 
 	CHECK(runtest_groups(capgrp, names, gids, 3));
 
@@ -1404,22 +1425,22 @@ test_groups(cap_channel_t *origcapgrp)
 	/*
 	 * Allow:
 	 * groups:
-	 *     names: kmem
+	 *     names: entry 2
 	 *     gids:
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "kmem";
+	names[0] = grpnames[2];
 	CHECK(cap_grp_limit_groups(capgrp, names, 1, NULL, 0) == 0);
-	names[1] = "daemon";
+	names[1] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 2, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
+	names[0] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "kmem";
-	gids[0] = 2;
+	names[0] = grpnames[2];
+	gids[0] = grpids[2];
 
 	CHECK(runtest_groups(capgrp, names, gids, 1));
 
@@ -1428,24 +1449,24 @@ test_groups(cap_channel_t *origcapgrp)
 	/*
 	 * Allow:
 	 * groups:
-	 *     names: wheel, tty
+	 *     names: entries 0, 4
 	 *     gids:
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "wheel";
-	names[1] = "tty";
+	names[0] = grpnames[0];
+	names[1] = grpnames[4];
 	CHECK(cap_grp_limit_groups(capgrp, names, 2, NULL, 0) == 0);
-	names[2] = "daemon";
+	names[2] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 3, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "daemon";
+	names[0] = grpnames[1];
 	CHECK(cap_grp_limit_groups(capgrp, names, 1, NULL, 0) == -1 &&
 	    errno == ENOTCAPABLE);
-	names[0] = "wheel";
-	gids[0] = 0;
-	gids[1] = 4;
+	names[0] = grpnames[0];
+	gids[0] = grpids[0];
+	gids[1] = grpids[4];
 
 	CHECK(runtest_groups(capgrp, names, gids, 2));
 
@@ -1460,16 +1481,16 @@ test_groups(cap_channel_t *origcapgrp)
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "kmem";
-	gids[0] = 2;
+	names[0] = grpnames[2];
+	gids[0] = grpids[2];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 1) == 0);
-	gids[1] = 1;
+	gids[1] = grpids[1];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 2) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 1;
+	gids[0] = grpids[1];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 2;
+	gids[0] = grpids[2];
 
 	CHECK(runtest_groups(capgrp, names, gids, 1));
 
@@ -1484,18 +1505,18 @@ test_groups(cap_channel_t *origcapgrp)
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
-	names[0] = "wheel";
-	names[1] = "tty";
-	gids[0] = 0;
-	gids[1] = 4;
+	names[0] = grpnames[0];
+	names[1] = grpnames[4];
+	gids[0] = grpids[0];
+	gids[1] = grpids[4];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 2) == 0);
-	gids[2] = 1;
+	gids[2] = grpids[1];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 3) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 1;
+	gids[0] = grpids[1];
 	CHECK(cap_grp_limit_groups(capgrp, NULL, 0, gids, 1) == -1 &&
 	    errno == ENOTCAPABLE);
-	gids[0] = 0;
+	gids[0] = grpids[0];
 
 	CHECK(runtest_groups(capgrp, names, gids, 2));
 
@@ -1507,6 +1528,7 @@ main(void)
 {
 	cap_channel_t *capcas, *capgrp;
 
+	save_groups();
 	printf("1..199\n");
 
 	capcas = cap_init();
@@ -1530,5 +1552,6 @@ main(void)
 
 	cap_close(capgrp);
 
+	free_groups();
 	exit(failures);
 }
