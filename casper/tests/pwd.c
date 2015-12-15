@@ -286,6 +286,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *     names: entries 0,1,2,3,4,6
 	 *     uids:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -313,6 +314,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 *     names:
 	 *     uids: entries 0, 1, 2, 3, 5
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -343,6 +345,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -384,6 +387,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: setpwent
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -425,6 +429,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwent
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -464,6 +469,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwent
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -503,6 +509,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwent_r
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -542,6 +549,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwent_r
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -581,6 +589,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwnam
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -620,6 +629,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwnam
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -659,6 +669,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwnam_r
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -698,6 +709,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwnam_r
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -737,6 +749,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwuid
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -776,6 +789,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwuid
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -815,6 +829,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwuid_r
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -854,6 +869,7 @@ test_cmds(cap_channel_t *origcappwd)
 	 * cmds: getpwuid_r
 	 * users:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1055,6 +1071,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * fields: pw_name, pw_passwd, pw_uid, pw_gid, pw_change, pw_class,
 	 *         pw_gecos, pw_dir, pw_shell, pw_expire
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1080,6 +1097,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * Allow:
 	 * fields: pw_name, pw_passwd, pw_uid, pw_gid, pw_change
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1105,6 +1123,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * Allow:
 	 * fields: pw_class, pw_gecos, pw_dir, pw_shell, pw_expire
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1130,6 +1149,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * Allow:
 	 * fields: pw_name, pw_uid, pw_change, pw_gecos, pw_shell
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1155,6 +1175,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * Allow:
 	 * fields: pw_passwd, pw_gid, pw_class, pw_dir, pw_expire
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1180,6 +1201,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * Allow:
 	 * fields: pw_uid, pw_class, pw_shell
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1202,6 +1224,7 @@ test_fields(cap_channel_t *origcappwd)
 	 * Allow:
 	 * fields: pw_change
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1306,6 +1329,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names: entries 0-5
 	 *     uids:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1333,6 +1357,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names: entries 2-4
 	 *     uids:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1361,6 +1386,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names: entries 2,4,5
 	 *     uids:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1389,6 +1415,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names:
 	 *     uids: 1, 2, 3
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1417,6 +1444,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names:
 	 *     uids: 1, 3, 4
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1445,6 +1473,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names: entry 4
 	 *     uids:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1469,6 +1498,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names: entries 2, 5
 	 *     uids:
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1495,6 +1525,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names:
 	 *     uids: 3
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
@@ -1519,6 +1550,7 @@ test_users(cap_channel_t *origcappwd)
 	 *     names:
 	 *     uids: 1, 4
 	 */
+	cap_setpwent(origcappwd);
 	cappwd = cap_clone(origcappwd);
 	CHECK(cappwd != NULL);
 
