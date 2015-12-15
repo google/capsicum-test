@@ -256,6 +256,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *     names: entries 0, 1, 2, 3, 5
 	 *     gids:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -284,6 +285,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 *     names:
 	 *     gids: entries 0, 1, 2, 3, 5
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -316,6 +318,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -356,6 +359,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -396,6 +400,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -437,6 +442,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -478,6 +484,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -518,6 +525,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -558,6 +566,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -599,6 +608,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -640,6 +650,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -680,6 +691,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -720,6 +732,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -761,6 +774,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -802,6 +816,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -842,6 +857,7 @@ test_cmds(cap_channel_t *origcapgrp)
 	 * fields:
 	 * groups:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -949,6 +965,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_passwd, gr_gid, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -966,6 +983,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_passwd, gr_gid, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -988,6 +1006,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_gid, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1013,6 +1032,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_passwd, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1038,6 +1058,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_passwd, gr_gid
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1063,6 +1084,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_passwd
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1087,6 +1109,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_gid
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1111,6 +1134,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_name, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1135,6 +1159,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_passwd, gr_gid
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1159,6 +1184,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_passwd, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1183,6 +1209,7 @@ test_fields(cap_channel_t *origcapgrp)
 	 * Allow:
 	 * fields: gr_gid, gr_mem
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1291,6 +1318,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names: entries 0, 1, 2, 3, 4
 	 *     gids:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1316,6 +1344,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names: entries 2, 3, 4
 	 *     gids:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1344,6 +1373,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names: entries 0, 2, 4
 	 *     gids:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1372,6 +1402,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names:
 	 *     gids: 2, 3, 4
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1400,6 +1431,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names:
 	 *     gids: 0, 2, 4
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1428,6 +1460,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names: entry 2
 	 *     gids:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1452,6 +1485,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names: entries 0, 4
 	 *     gids:
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1478,6 +1512,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names:
 	 *     gids: 2
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
@@ -1502,6 +1537,7 @@ test_groups(cap_channel_t *origcapgrp)
 	 *     names:
 	 *     gids: 0, 4
 	 */
+	cap_setgrent(origcapgrp);
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
