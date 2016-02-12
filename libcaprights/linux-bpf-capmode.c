@@ -203,11 +203,18 @@ int seccomp_(unsigned int op, unsigned int flags, struct sock_fprog *filter) {
 }
 
 int cap_enter() {
-	int rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	int rc;
+
+	rc = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	if (rc < 0) return rc;
+
 #ifdef PR_SET_OPENAT_BENEATH
 	rc = prctl(PR_SET_OPENAT_BENEATH, 1 , PR_SET_OPENAT_BENEATH_TSYNC, 0, 0);
 	if (rc < 0) return rc;
+#else
+	/* If PR_SET_OPENAT_BENEATH is unavailable, capability mode is not possible */
+	errno = ENOSYS;
+	return -1;
 #endif
 	return seccomp_(SECCOMP_SET_MODE_FILTER,
 			SECCOMP_FILTER_FLAG_TSYNC,
@@ -215,13 +222,19 @@ int cap_enter() {
 }
 
 int cap_getmode(unsigned int *mode) {
-	int beneath = 1;
-	int seccomp = prctl(PR_GET_SECCOMP, 0, 0, 0, 0);
-	if (seccomp < 0) return seccomp;
+	int beneath;
+	int seccomp;
+
 #ifdef PR_GET_OPENAT_BENEATH
 	beneath = prctl(PR_GET_OPENAT_BENEATH, 0, 0, 0, 0);
 	if (beneath < 0) return beneath;
+#else
+	errno = ENOSYS;
+	return -1;
 #endif
+
+	seccomp = prctl(PR_GET_SECCOMP, 0, 0, 0, 0);
+	if (seccomp < 0) return seccomp;
 	*mode = (seccomp == SECCOMP_MODE_FILTER && beneath == 1);
 	return 0;
 }
