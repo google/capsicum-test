@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
-CFLAGS = --pedantic -Wall -O2
+CFLAGS = --pedantic -Wall -O2 -fPIC
 lib_LTLIBRARIES = libcaprights.la
 libcaprights_la_SOURCES = capsicum.c procdesc.c signal.c linux-bpf-capmode.c linux-bpf-capmode.h
 libcaprights_la_HEADERS = capsicum.h procdesc.h
