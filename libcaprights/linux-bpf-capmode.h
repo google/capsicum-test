@@ -154,6 +154,11 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(dup),
 	ALLOW_SYSCALL(dup2),
 	ALLOW_SYSCALL(dup3),
+	ALLOW_SYSCALL(epoll_create),
+	ALLOW_SYSCALL(epoll_create1),
+	ALLOW_SYSCALL(eventfd),
+	ALLOW_SYSCALL(eventfd2),
+
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_execveat)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_execveat)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_execveat)))
@@ -518,6 +523,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(sync),
 	ALLOW_SYSCALL(syncfs),
 	ALLOW_SYSCALL(sync_file_range),
+	ALLOW_SYSCALL(timerfd_create),
 	ALLOW_SYSCALL(umask),
 	ALLOW_SYSCALL(uname),
 	ALLOW_SYSCALL(unlinkat),
