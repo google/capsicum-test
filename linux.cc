@@ -1360,6 +1360,35 @@ TEST(Linux, InvalidRightsSyscall) {
   unlink(TmpFile("cap_invalid_rights"));
 }
 
+FORK_TEST_ON(Linux, OpenByHandleAt, TmpFile("cap_openbyhandle_testfile")) {
+  REQUIRE_ROOT();
+  int dir = open(tmpdir, O_RDONLY);
+  EXPECT_OK(dir);
+  int fd = openat(dir, "cap_openbyhandle_testfile", O_RDWR|O_CREAT, 0644);
+  EXPECT_OK(fd);
+  const char* message = "Saved text";
+  EXPECT_OK(write(fd, message, strlen(message)));
+  close(fd);
+
+  struct file_handle* fhandle = (struct file_handle*)malloc(sizeof(struct file_handle) + MAX_HANDLE_SZ);
+  fhandle->handle_bytes = MAX_HANDLE_SZ;
+  int mount_id;
+  EXPECT_OK(name_to_handle_at(dir, "cap_openbyhandle_testfile", fhandle,  &mount_id, 0));
+
+  fd = open_by_handle_at(dir, fhandle, O_RDONLY);
+  EXPECT_OK(fd);
+  char buffer[200];
+  EXPECT_OK(read(fd, buffer, 199));
+  EXPECT_EQ(std::string(message), std::string(buffer));
+  close(fd);
+
+  // Cannot issue open_by_handle_at after entering capability mode.
+  cap_enter();
+  EXPECT_CAPMODE(open_by_handle_at(dir, fhandle, O_RDONLY));
+
+  close(dir);
+}
+
 int getrandom_(void *buf, size_t buflen, unsigned int flags) {
 #ifdef __NR_getrandom
   return syscall(__NR_getrandom, buf, buflen, flags);
