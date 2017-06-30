@@ -6,7 +6,13 @@ extern "C" {
 #endif
 
 #ifdef __FreeBSD__
+#include <sys/param.h>
+#if __FreeBSD_version >= 1100014 || \
+    (__FreeBSD_version >= 1001511 && __FreeBSD_version < 1100000)
+#include <sys/capsicum.h>
+#else
 #include <sys/capability.h>
+#endif
 #endif
 
 #ifdef __linux__
