@@ -12,7 +12,12 @@ extern "C" {
 /* FreeBSD definitions. */
 #include <errno.h>
 #include <sys/param.h>
+#if __FreeBSD_version >= 1100014 || \
+    (__FreeBSD_version >= 1001511 && __FreeBSD_version < 1100000)
+#include <sys/capsicum.h>
+#else
 #include <sys/capability.h>
+#endif
 #include <sys/procdesc.h>
 
 #if __FreeBSD_version >= 1000000
