@@ -261,10 +261,12 @@ class OpenatTest : public ::testing::Test {
     EXPECT_OPEN_OK(openat(sub_fd_, ".", O_RDONLY|oflag));
 
     // Can't open paths with ".." in them.
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "subdir/../topfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "../topfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "../subdir/bottomfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "..", O_RDONLY|oflag);
+
+    // OK for dotdot lookups that don't escape the top directory
+    EXPECT_OPEN_OK(openat(dir_fd_, "subdir/../topfile", O_RDONLY|oflag));
 
     // Check that we can't escape the top directory by the cunning
     // ruse of going via a subdirectory.
