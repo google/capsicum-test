@@ -50,7 +50,11 @@ char ProcessState(int pid) {
 #endif
 #ifdef __FreeBSD__
   char buffer[1024];
-  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
+  /* 
+   * XXX: -a is used with ps(1) as a temporary workaround for retrieving the
+   * state of zombie processes
+   */
+  snprintf(buffer, sizeof(buffer), "ps -a -p %d -o state | grep -v STAT", pid);
   sig_t original = signal(SIGCHLD, SIG_IGN);
   FILE* cmd = popen(buffer, "r");
   usleep(50000);  // allow any pending SIGCHLD signals to arrive
