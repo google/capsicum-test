@@ -41,8 +41,8 @@ ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds);
  * Variadic macros (requiring C99/C++11) to invoke underlying varargs functions
  * without need for terminating zero.
  */
-#define cap_rights_init(...)						\
-	_cap_rights_init(CAP_RIGHTS_VERSION, __VA_ARGS__, 0ULL)
+#define cap_rights_init(rights, ...)					\
+	_cap_rights_init(CAP_RIGHTS_VERSION, rights, __VA_ARGS__, 0ULL)
 #define cap_rights_set(rights, ...)					\
 	_cap_rights_set((rights), __VA_ARGS__, 0ULL)
 #define cap_rights_clear(rights, ...)					\
