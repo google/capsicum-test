@@ -19,6 +19,9 @@
 // TODO(drysdale): uncomment if/when Linux propagates rights on sctp_peeloff.
 // Linux does not generate a capability from sctp_peeloff(cap_fd,...).
 // #define CAP_FROM_PEELOFF
+// TODO(drysdale): uncomment if/when Linux allows intermediate .. path segments
+// for openat()-like operations.
+// #define HAVE_OPENAT_INTERMEDIATE_DOTDOT
 
 #define AT_SYSCALLS_IN_CAPMODE
 
