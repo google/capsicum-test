@@ -71,6 +71,7 @@
 #define FAIL_SYSCALL(name)	\
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(name), 0, 1),	\
 	FAIL_ECAPMODE
+
 #ifdef SECCOMP_DATA_TID_PRESENT
 /* Build environment includes .tgid and .tid fields in seccomp_data */
 #define EXAMINE_TGID	\
@@ -78,6 +79,16 @@
 #define EXAMINE_TID	\
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, tid))
 #endif
+
+/* Check a dfd at argument n is not AT_FDCWD */
+#define FAIL_AT_FDCWD(n)					\
+	EXAMINE_ARGHI(n),					\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),		\
+	FAIL_ECAPMODE,						\
+	EXAMINE_ARG(n),  /* dfd */				\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),	\
+	FAIL_ECAPMODE
+#define FAIL_AT_FDCWD_COUNT 6
 
 /*
  * Create a filter for our base architecture by including the filter header
