@@ -87,6 +87,20 @@
 	FAIL_ECAPMODE
 #define FAIL_AT_FDCWD_COUNT 6
 
+#define ALLOW_AT_SYSCALL_NUM(num, arg)					\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (num & SYSCALL_NUM_MASK), 0, 1+FAIL_AT_FDCWD_COUNT),	\
+	FAIL_AT_FDCWD(arg),					\
+	ALLOW
+#define ALLOW_AT_SYSCALL_ARG(name, arg)	ALLOW_AT_SYSCALL_NUM(SYSCALL_NUM(name), arg)
+#define ALLOW_AT_SYSCALL(name)			ALLOW_AT_SYSCALL_NUM(SYSCALL_NUM(name), 0)
+#define ALLOW_X32_AT_SYSCALL(name)		ALLOW_AT_SYSCALL_NUM(SYSCALL_X32_NUM(name), 0)
+#define ALLOW_2AT_SYSCALL_NUM(num, arg1, arg2)				\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (num & SYSCALL_NUM_MASK), 0, 1+FAIL_AT_FDCWD_COUNT+FAIL_AT_FDCWD_COUNT),	\
+	FAIL_AT_FDCWD(arg1),					\
+	FAIL_AT_FDCWD(arg2),					\
+	ALLOW
+#define ALLOW_AT_SYSCALL_2ARG(name, a1, a2)	ALLOW_2AT_SYSCALL_NUM(SYSCALL_NUM(name), a1, a2)
+
 /*
  * Create a filter for our base architecture by including the filter header
  * with the following macros set:

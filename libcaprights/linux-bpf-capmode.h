@@ -157,20 +157,20 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_execveat)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_execveat)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_execveat)))
-	ALLOW_SYSCALL(execveat),
+	ALLOW_AT_SYSCALL(execveat),
 #endif
 	ALLOW_SYSCALL(exit),
 	ALLOW_SYSCALL(exit_group),
-	ALLOW_SYSCALL(faccessat),
+	ALLOW_AT_SYSCALL(faccessat),
 	ALLOW_SYSCALL(fchmod),
-	ALLOW_SYSCALL(fchmodat),
+	ALLOW_AT_SYSCALL(fchmodat),
 	ALLOW_SYSCALL(fchown),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_fchown32)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_fchown32)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_fchown32)))
 	ALLOW_SYSCALL(fchown32),
 #endif
-	ALLOW_SYSCALL(fchownat),
+	ALLOW_AT_SYSCALL(fchownat),
 	ALLOW_SYSCALL(fdatasync),
 	ALLOW_SYSCALL(fgetxattr),
 	ALLOW_SYSCALL(finit_module),
@@ -187,7 +187,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_ftruncate64)))
 	ALLOW_SYSCALL(ftruncate64),
 #endif
-	ALLOW_SYSCALL(futimesat),
+	ALLOW_AT_SYSCALL(futimesat),
 	ALLOW_SYSCALL(get_robust_list),
 	ALLOW_SYSCALL(getdents),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_getdents64)) || \
@@ -243,7 +243,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(gettimeofday),
 	ALLOW_SYSCALL(getuid),
 	ALLOW_SYSCALL(ioctl),
-	ALLOW_SYSCALL(linkat),
+	ALLOW_AT_SYSCALL_2ARG(linkat, 0, 2),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_listen)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_listen)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_listen)))
@@ -260,8 +260,8 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(memfd_create),
 #endif
 	ALLOW_SYSCALL(mincore),
-	ALLOW_SYSCALL(mkdirat),
-	ALLOW_SYSCALL(mknodat),
+	ALLOW_AT_SYSCALL(mkdirat),
+	ALLOW_AT_SYSCALL(mknodat),
 	ALLOW_SYSCALL(mlock),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_mlock2)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_mlock2)) || \
@@ -282,7 +282,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_newfstatat)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_newfstatat)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_newfstatat)))
-	ALLOW_SYSCALL(newfstatat),
+	ALLOW_AT_SYSCALL(newfstatat),
 #endif
 #if ((SYSCALL_PREFIX == 0 && defined(__NR__newselect)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64__newselect)) || \
@@ -303,9 +303,9 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(pwrite64),
 	ALLOW_SYSCALL(pwritev),
 	ALLOW_SYSCALL(readahead),
-	ALLOW_SYSCALL(readlinkat),
+	ALLOW_AT_SYSCALL(readlinkat),
 	ALLOW_SYSCALL(recvmmsg),
-	ALLOW_SYSCALL(renameat),
+	ALLOW_AT_SYSCALL_2ARG(renameat, 0, 2),
 #if ((SYSCALL_PREFIX == 0 && defined(__NR_restart_syscall)) || \
      (SYSCALL_PREFIX == 1 && defined(__NR_amd64_restart_syscall)) || \
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_restart_syscall)))
@@ -514,16 +514,16 @@ static struct sock_filter SYSCALL_FILTER[] = {
      (SYSCALL_PREFIX == 2 && defined(__NR_ia32_socketpair)))
 	ALLOW_SYSCALL(socketpair),
 #endif
-	ALLOW_SYSCALL(symlinkat),
+	ALLOW_AT_SYSCALL_ARG(symlinkat, 1),
 	ALLOW_SYSCALL(sync),
 	ALLOW_SYSCALL(syncfs),
 	ALLOW_SYSCALL(sync_file_range),
 	ALLOW_SYSCALL(timerfd_create),
 	ALLOW_SYSCALL(umask),
 	ALLOW_SYSCALL(uname),
-	ALLOW_SYSCALL(unlinkat),
+	ALLOW_AT_SYSCALL(unlinkat),
 	ALLOW_SYSCALL(unshare),
-	ALLOW_SYSCALL(utimensat),
+	ALLOW_AT_SYSCALL(utimensat),
 	ALLOW_SYSCALL(vfork),
 	ALLOW_SYSCALL(vmsplice),
 
@@ -699,7 +699,7 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_X32_SYSCALL(getsockopt),
 #endif
 #if (SYSCALL_ARCH == ARCH_X86_64 && defined(__NR_x32_execveat))
-	ALLOW_X32_SYSCALL(execveat),
+	ALLOW_X32_AT_SYSCALL(execveat),
 #endif
 
 	/* Fail everything else */
