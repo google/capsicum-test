@@ -68,9 +68,6 @@
 #define ALLOW_X32_SYSCALL(name)	ALLOW_SYSCALL_NUM(SYSCALL_X32_NUM(name))
 #define FAIL_ECAPMODE	\
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO | (ECAPMODE & 0xFFFF))
-#define FAIL_SYSCALL(name)	\
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, SYSCALL_NUM(name), 0, 1),	\
-	FAIL_ECAPMODE
 
 #ifdef SECCOMP_DATA_TID_PRESENT
 /* Build environment includes .tgid and .tid fields in seccomp_data */
