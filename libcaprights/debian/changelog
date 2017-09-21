@@ -1,3 +1,16 @@
+libcaprights (0.1.5-1) UNRELEASED; urgency=low
+
+  * Police *at(AT_FDCWD,..) syscalls in capability mode.
+  * Require initial rights argument for cap_rights_init()
+  * Allow some FD-creating syscalls (epoll_create, eventfd, timerfd_create) in capability mode
+  * Return -ENOSYS if PR_[SG]ET_OPENAT_BENEATH missing
+  * Allow recent syscalls (membarrier, mlock2) in capability mode
+  * Check for common syscalls earlier
+  * Allow restart_syscall(2) in capability mode
+  * Check argument of arch_prctl(2)
+
+ -- David Drysdale <drysdale@google.com>  Thu, 21 Sep 2017 13:37:12 +0100
+
 libcaprights (0.1.4-1) UNRELEASED; urgency=low
 
   * Allow futex calls.
