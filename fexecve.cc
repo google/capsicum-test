@@ -147,7 +147,7 @@ TEST(Execveat, NoUpwardTraversal) {
   if (child == 0) {
     EXPECT_OK(cap_enter());  // Enter capability mode.
     // Can't execveat() an absolute path, even relative to a dfd.
-    EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY,
+    EXPECT_SYSCALL_FAIL(ECAPMODE,
                         execveat(AT_FDCWD, abspath, argv_pass, null_envp, 0));
     EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY,
                         execveat(dfd, abspath, argv_pass, null_envp, 0));

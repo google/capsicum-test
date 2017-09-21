@@ -444,6 +444,63 @@ TEST(Capmode, AllowedAtSyscalls) {
   rmdir(TmpFile("cap_at_syscalls"));
 }
 
+TEST(Capmode, AllowedAtSyscallsCwd) {
+  int rc = mkdir(TmpFile("cap_at_syscalls_cwd"), 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+  int dfd = open(TmpFile("cap_at_syscalls_cwd"), O_RDONLY);
+  EXPECT_OK(dfd);
+
+  int file = openat(dfd, "testfile", O_RDONLY|O_CREAT, 0644);
+  EXPECT_OK(file);
+  EXPECT_OK(close(file));
+
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: move into temp dir, enter cap mode and run tests
+    EXPECT_OK(fchdir(dfd));
+    EXPECT_OK(cap_enter());  // Enter capability mode
+
+    // Test that *at(AT_FDCWD, path,...) is policed with ECAPMODE.
+    EXPECT_CAPMODE(openat(AT_FDCWD, "testfile", O_RDONLY));
+    struct stat fs;
+    EXPECT_CAPMODE(fstatat(AT_FDCWD, "testfile", &fs, 0));
+    EXPECT_CAPMODE(mkdirat(AT_FDCWD, "subdir", 0600));
+    EXPECT_CAPMODE(fchmodat(AT_FDCWD, "subdir", 0644, 0));
+    EXPECT_CAPMODE(faccessat(AT_FDCWD, "subdir", F_OK, 0));
+    EXPECT_CAPMODE(renameat(AT_FDCWD, "subdir", AT_FDCWD, "subdir2"));
+    EXPECT_CAPMODE(renameat(AT_FDCWD, "subdir2", AT_FDCWD, "subdir"));
+    struct timeval tv[2];
+    struct timezone tz;
+    EXPECT_OK(gettimeofday(&tv[0], &tz));
+    EXPECT_OK(gettimeofday(&tv[1], &tz));
+    EXPECT_CAPMODE(futimesat(AT_FDCWD, "testfile", tv));
+
+    EXPECT_CAPMODE(fchownat(AT_FDCWD, "testfile",  fs.st_uid, fs.st_gid, 0));
+    EXPECT_CAPMODE(linkat(AT_FDCWD, "testfile", AT_FDCWD, "linky", 0));
+    EXPECT_CAPMODE(symlinkat("testfile", AT_FDCWD, "symlink"));
+    char buffer[256];
+    EXPECT_CAPMODE(readlinkat(AT_FDCWD, "symlink", buffer, sizeof(buffer)));
+    EXPECT_CAPMODE(unlinkat(AT_FDCWD, "linky", 0));
+
+    exit(HasFailure());
+  }
+
+  // Wait for the child.
+  int status;
+  EXPECT_EQ(child, waitpid(child, &status, 0));
+  rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  EXPECT_EQ(0, rc);
+
+  // Tidy up.
+  close(dfd);
+  rmdir(TmpFile("cap_at_syscalls_cwd/subdir"));
+  unlink(TmpFile("cap_at_syscalls_cwd/symlink"));
+  unlink(TmpFile("cap_at_syscalls_cwd/linky"));
+  unlink(TmpFile("cap_at_syscalls_cwd/testfile"));
+  rmdir(TmpFile("cap_at_syscalls_cwd"));
+}
+
 TEST(Capmode, Abort) {
   // Check that abort(3) works even in capability mode.
   pid_t child = fork();
