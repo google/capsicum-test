@@ -23,8 +23,6 @@
 // for openat()-like operations.
 // #define HAVE_OPENAT_INTERMEDIATE_DOTDOT
 
-#define AT_SYSCALLS_IN_CAPMODE
-
 // Failure to open file due to path traversal generates EPERM
 #ifdef ENOTBENEATH
 #define E_NO_TRAVERSE_CAPABILITY ENOTBENEATH

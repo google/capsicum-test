@@ -416,7 +416,6 @@ TEST(Capmode, AllowedAtSyscalls) {
     EXPECT_OK(gettimeofday(&tv[1], &tz));
     EXPECT_OK(futimesat(dfd, "testfile", tv));
 
-#ifdef AT_SYSCALLS_IN_CAPMODE
     EXPECT_OK(fchownat(dfd, "testfile",  fs.st_uid, fs.st_gid, 0));
     EXPECT_OK(linkat(dfd, "testfile", dfd, "linky", 0));
     EXPECT_OK(symlinkat("testfile", dfd, "symlink"));
@@ -424,7 +423,6 @@ TEST(Capmode, AllowedAtSyscalls) {
     EXPECT_OK(readlinkat(dfd, "symlink", buffer, sizeof(buffer)));
     EXPECT_OK(unlinkat(dfd, "linky", 0));
     EXPECT_OK(unlinkat(dfd, "subdir", AT_REMOVEDIR));
-#endif
 
     exit(HasFailure());
   }
