@@ -252,12 +252,14 @@ TEST(Linux, EventFD) {
   close(fd);
 }
 
-TEST(Linux, epoll) {
+FORK_TEST(Linux, epoll) {
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
   // Queue some data.
   char buffer[4] = {1, 2, 3, 4};
   EXPECT_OK(write(sock_fds[1], buffer, sizeof(buffer)));
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
 
   int epoll_fd = epoll_create(1);
   EXPECT_OK(epoll_fd);
