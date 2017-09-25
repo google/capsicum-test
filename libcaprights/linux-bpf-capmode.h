@@ -151,6 +151,9 @@ static struct sock_filter SYSCALL_FILTER[] = {
 	ALLOW_SYSCALL(dup3),
 	ALLOW_SYSCALL(epoll_create),
 	ALLOW_SYSCALL(epoll_create1),
+	ALLOW_SYSCALL(epoll_ctl),
+	ALLOW_SYSCALL(epoll_pwait),
+	ALLOW_SYSCALL(epoll_wait),
 	ALLOW_SYSCALL(eventfd),
 	ALLOW_SYSCALL(eventfd2),
 

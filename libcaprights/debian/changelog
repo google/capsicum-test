@@ -1,3 +1,9 @@
+libcaprights (0.1.6-1) UNRELEASED; urgency=low
+
+  * Allow epoll syscalls (epoll_ctl, epoll_pwait, epoll_wait) in capability mode.
+
+ -- David Drysdale <drysdale@google.com>  Mon, 25 Sep 2017 13:19:00 +0100
+
 libcaprights (0.1.5-1) UNRELEASED; urgency=low
 
   * Police *at(AT_FDCWD,..) syscalls in capability mode.
