@@ -11,10 +11,200 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdint.h>
 
 #include "capsicum.h"
 #include "syscalls.h"
 #include "capsicum-test.h"
+
+/* Utilities for printing rights information */
+/* Written in C style to allow for: */
+/* TODO(drysdale): migrate these to somewhere in libcaprights/ */
+#define RIGHTS_INFO(RR) { (RR), #RR}
+typedef struct {
+  uint64_t right;
+  const char* name;
+} right_info;
+right_info known_rights[] = {
+  /* Rights that are common to all versions of Capsicum */
+  RIGHTS_INFO(CAP_READ),
+  RIGHTS_INFO(CAP_WRITE),
+  RIGHTS_INFO(CAP_SEEK_TELL),
+  RIGHTS_INFO(CAP_SEEK),
+  RIGHTS_INFO(CAP_PREAD),
+  RIGHTS_INFO(CAP_PWRITE),
+  RIGHTS_INFO(CAP_MMAP),
+  RIGHTS_INFO(CAP_MMAP_R),
+  RIGHTS_INFO(CAP_MMAP_W),
+  RIGHTS_INFO(CAP_MMAP_X),
+  RIGHTS_INFO(CAP_MMAP_RW),
+  RIGHTS_INFO(CAP_MMAP_RX),
+  RIGHTS_INFO(CAP_MMAP_WX),
+  RIGHTS_INFO(CAP_MMAP_RWX),
+  RIGHTS_INFO(CAP_CREATE),
+  RIGHTS_INFO(CAP_FEXECVE),
+  RIGHTS_INFO(CAP_FSYNC),
+  RIGHTS_INFO(CAP_FTRUNCATE),
+  RIGHTS_INFO(CAP_LOOKUP),
+  RIGHTS_INFO(CAP_FCHDIR),
+  RIGHTS_INFO(CAP_FCHFLAGS),
+  RIGHTS_INFO(CAP_CHFLAGSAT),
+  RIGHTS_INFO(CAP_FCHMOD),
+  RIGHTS_INFO(CAP_FCHMODAT),
+  RIGHTS_INFO(CAP_FCHOWN),
+  RIGHTS_INFO(CAP_FCHOWNAT),
+  RIGHTS_INFO(CAP_FCNTL),
+  RIGHTS_INFO(CAP_FLOCK),
+  RIGHTS_INFO(CAP_FPATHCONF),
+  RIGHTS_INFO(CAP_FSCK),
+  RIGHTS_INFO(CAP_FSTAT),
+  RIGHTS_INFO(CAP_FSTATAT),
+  RIGHTS_INFO(CAP_FSTATFS),
+  RIGHTS_INFO(CAP_FUTIMES),
+  RIGHTS_INFO(CAP_FUTIMESAT),
+  RIGHTS_INFO(CAP_MKDIRAT),
+  RIGHTS_INFO(CAP_MKFIFOAT),
+  RIGHTS_INFO(CAP_MKNODAT),
+  RIGHTS_INFO(CAP_RENAMEAT_SOURCE),
+  RIGHTS_INFO(CAP_SYMLINKAT),
+  RIGHTS_INFO(CAP_UNLINKAT),
+  RIGHTS_INFO(CAP_ACCEPT),
+  RIGHTS_INFO(CAP_BIND),
+  RIGHTS_INFO(CAP_CONNECT),
+  RIGHTS_INFO(CAP_GETPEERNAME),
+  RIGHTS_INFO(CAP_GETSOCKNAME),
+  RIGHTS_INFO(CAP_GETSOCKOPT),
+  RIGHTS_INFO(CAP_LISTEN),
+  RIGHTS_INFO(CAP_PEELOFF),
+  RIGHTS_INFO(CAP_RECV),
+  RIGHTS_INFO(CAP_SEND),
+  RIGHTS_INFO(CAP_SETSOCKOPT),
+  RIGHTS_INFO(CAP_SHUTDOWN),
+  RIGHTS_INFO(CAP_BINDAT),
+  RIGHTS_INFO(CAP_CONNECTAT),
+  RIGHTS_INFO(CAP_LINKAT_SOURCE),
+  RIGHTS_INFO(CAP_RENAMEAT_TARGET),
+  RIGHTS_INFO(CAP_SOCK_CLIENT),
+  RIGHTS_INFO(CAP_SOCK_SERVER),
+  RIGHTS_INFO(CAP_MAC_GET),
+  RIGHTS_INFO(CAP_MAC_SET),
+  RIGHTS_INFO(CAP_SEM_GETVALUE),
+  RIGHTS_INFO(CAP_SEM_POST),
+  RIGHTS_INFO(CAP_SEM_WAIT),
+  RIGHTS_INFO(CAP_EVENT),
+  RIGHTS_INFO(CAP_KQUEUE_EVENT),
+  RIGHTS_INFO(CAP_IOCTL),
+  RIGHTS_INFO(CAP_TTYHOOK),
+  RIGHTS_INFO(CAP_PDWAIT),
+  RIGHTS_INFO(CAP_PDGETPID),
+  RIGHTS_INFO(CAP_PDKILL),
+  RIGHTS_INFO(CAP_EXTATTR_DELETE),
+  RIGHTS_INFO(CAP_EXTATTR_GET),
+  RIGHTS_INFO(CAP_EXTATTR_LIST),
+  RIGHTS_INFO(CAP_EXTATTR_SET),
+  RIGHTS_INFO(CAP_ACL_CHECK),
+  RIGHTS_INFO(CAP_ACL_DELETE),
+  RIGHTS_INFO(CAP_ACL_GET),
+  RIGHTS_INFO(CAP_ACL_SET),
+  RIGHTS_INFO(CAP_KQUEUE_CHANGE),
+  RIGHTS_INFO(CAP_KQUEUE),
+  /* Rights that are only present in some version or some OS, and so are #ifdef'ed */
+  /* LINKAT got split */
+#ifdef CAP_LINKAT
+  RIGHTS_INFO(CAP_LINKAT),
+#endif
+#ifdef CAP_LINKAT_SOURCE
+  RIGHTS_INFO(CAP_LINKAT_SOURCE),
+#endif
+#ifdef CAP_LINKAT_TARGET
+  RIGHTS_INFO(CAP_LINKAT_TARGET),
+#endif
+  /* Linux aliased some FD operations for pdgetpid/pdkill */
+#ifdef CAP_PDGETPID_FREEBSD
+  RIGHTS_INFO(CAP_PDGETPID_FREEBSD),
+#endif
+#ifdef CAP_PDKILL_FREEBSD
+  RIGHTS_INFO(CAP_PDKILL_FREEBSD),
+#endif
+  /* Linux-specific rights */
+#ifdef CAP_FSIGNAL
+  RIGHTS_INFO(CAP_FSIGNAL),
+#endif
+#ifdef CAP_EPOLL_CTL
+  RIGHTS_INFO(CAP_EPOLL_CTL),
+#endif
+#ifdef CAP_NOTIFY
+  RIGHTS_INFO(CAP_NOTIFY),
+#endif
+#ifdef CAP_SETNS
+  RIGHTS_INFO(CAP_SETNS),
+#endif
+#ifdef CAP_PERFMON
+  RIGHTS_INFO(CAP_PERFMON),
+#endif
+#ifdef CAP_BPF
+  RIGHTS_INFO(CAP_BPF),
+#endif
+  /* Rights in later versions of FreeBSD (>10.0) */
+};
+
+void ShowCapRights(FILE *out, int fd) {
+  size_t ii;
+  bool first = true;
+  cap_rights_t rights;
+  CAP_SET_NONE(&rights);
+  if (cap_rights_get(fd, &rights) < 0) {
+    fprintf(out, "Failed to get rights for fd %d: errno %d\n", fd, errno);
+    return;
+  }
+
+  /* First print out all known rights */
+  size_t num_known = (sizeof(known_rights)/sizeof(known_rights[0]));
+  for (ii = 0; ii < num_known; ii++) {
+    if (cap_rights_is_set(&rights, known_rights[ii].right)) {
+      if (!first) fprintf(out, ",");
+      first = false;
+      fprintf(out, "%s", known_rights[ii].name);
+    }
+  }
+  /* Now repeat the loop, clearing rights we know of; this needs to be
+   * a separate loop because some named rights overlap.
+   */
+  for (ii = 0; ii < num_known; ii++) {
+    cap_rights_clear(&rights, known_rights[ii].right);
+  }
+  /* The following relies on the internal structure of cap_rights_t to
+   * try to show rights we don't know about. */
+  for (ii = 0; ii < (size_t)CAPARSIZE(&rights); ii++) {
+    uint64_t bits = (rights.cr_rights[0] & 0x01ffffffffffffffULL);
+    if (bits != 0) {
+      uint64_t which = 1;
+      for (which = 1; which < 0x0200000000000000 ; which <<= 1) {
+        if (bits & which) {
+          if (!first) fprintf(out, ",");
+          fprintf(out, "CAP_RIGHT(%d, 0x%016llxULL)", (int)ii, (long long unsigned)which);
+        }
+      }
+    }
+  }
+  fprintf(out, "\n");
+}
+
+void ShowAllCapRights(FILE *out) {
+  int fd;
+  struct rlimit limits;
+  if (getrlimit(RLIMIT_NOFILE, &limits) != 0) {
+    fprintf(out, "Failed to getrlimit for max FDs: errno %d\n", errno);
+    return;
+  }
+  for (fd = 0; fd < (int)limits.rlim_cur; fd++) {
+    if (fcntl(fd, F_GETFD, 0) != 0) {
+      continue;
+    }
+    fprintf(out, "fd %d: ", fd);
+    ShowCapRights(out, fd);
+  }
+}
 
 FORK_TEST(Capability, CapNew) {
   cap_rights_t r_rws;
@@ -62,6 +252,11 @@ FORK_TEST(Capability, CapNew) {
   int cap_cap_fd = dup(cap_fd);
   EXPECT_OK(cap_cap_fd);
   EXPECT_NOTCAPABLE(cap_rights_limit(cap_cap_fd, &r_rsmapchmod));
+
+  // Dump rights info to stderr (mostly to ensure that Show[All]CapRights()
+  // is working.
+  ShowAllCapRights(stderr);
+
   EXPECT_OK(close(cap_fd));
 }
 

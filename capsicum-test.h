@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/resource.h>
 #include <signal.h>
 
 #include <ios>
