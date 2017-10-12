@@ -2,18 +2,18 @@
 #include <sys/stat.h>
 
 #include "./capsicum-test.h"
-#define RENAME_TEST_FILENAME        ".rename_test"
-#define RENAMEAT_TEST_FILENAME      ".renameat_test"
-#define RENAMEAT_TEST_DIR           ".renameat_testdir"
 
-/*
-added to test the renameat syscall for the case that
-    - the "to" file already exists
-    - the "to" file is specified by an absolute path
-    - the "to" file descriptor is used
+// There was a Capsicum-related regression in FreeBSD renameat,
+// which affects certain cases independent of Capsicum or capability mode
+//
+// added to test the renameat syscall for the case that
+//    - the "to" file already exists
+//    - the "to" file is specified by an absolute path
+//    - the "to" file descriptor is used
+//          (this descriptor should be ignored if absolute path is provided)
+//
+// details at: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=222258
 
-details at: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=222258
-*/
 
 const char * create_tmp_src(const char* filename) {
     const char *src_path = TmpFile(filename);
@@ -22,33 +22,28 @@ const char * create_tmp_src(const char* filename) {
     return src_path;
 }
 
-TEST(Rename, rename_abs) {
-    const char *src_path = create_tmp_src(RENAME_TEST_FILENAME);
-    int ret = rename(src_path, src_path);
-    EXPECT_OK(ret);
+TEST(Rename, AbsDesignationSame) {
+    const char *src_path = create_tmp_src("rename_test");
+    EXPECT_OK(rename(src_path, src_path));
     unlink(src_path);
-    return;
 }
 
-TEST(Rename, renameat_abs) {
-    const char *src_path = create_tmp_src(RENAMEAT_TEST_FILENAME);
-    const char *dir_path = TmpFile(RENAMEAT_TEST_DIR);
+TEST(RenameAt, AbsDesignationSame) {
+    const char *src_path = create_tmp_src("renameat_test");
+    const char *dir_path = TmpFile("renameat_test_dir");
 
     EXPECT_OK(mkdir(dir_path, 0755));
     // random temporary directory descriptor
-    int dir_fd = open(dir_path, O_DIRECTORY);
+    int dfd = open(dir_path, O_DIRECTORY);
 
-    int ret;
-    ret = renameat(AT_FDCWD, src_path, AT_FDCWD, src_path);
-    EXPECT_OK(ret);
-    ret = renameat(AT_FDCWD, src_path, dir_fd, src_path);
-    EXPECT_OK(ret);
-    ret = renameat(dir_fd, src_path, AT_FDCWD, src_path);
-    EXPECT_OK(ret);
-    ret = renameat(dir_fd, src_path, dir_fd, src_path);
-    EXPECT_OK(ret);
+    // Various rename from/to the same absolute path; in each case the source
+    // and dest directory FDs should be irrelevant.
+    EXPECT_OK(renameat(AT_FDCWD, src_path, AT_FDCWD, src_path));
+    EXPECT_OK(renameat(AT_FDCWD, src_path, dfd, src_path));
+    EXPECT_OK(renameat(dfd, src_path, AT_FDCWD, src_path));
+    EXPECT_OK(renameat(dfd, src_path, dfd, src_path));
 
-    close(dir_fd);
+    close(dfd);
+    rmdir(dir_path);
     unlink(src_path);
-    return;
 }
