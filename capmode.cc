@@ -424,6 +424,12 @@ TEST(Capmode, AllowedAtSyscalls) {
     EXPECT_OK(unlinkat(dfd, "linky", 0));
     EXPECT_OK(unlinkat(dfd, "subdir", AT_REMOVEDIR));
 
+    // Check that invalid requests get a non-Capsicum errno.
+    errno = 0;
+    rc = readlinkat(-1, "symlink", buffer, sizeof(buffer));
+    EXPECT_GE(0, rc);
+    EXPECT_NE(ECAPMODE, errno);
+
     exit(HasFailure());
   }
 
