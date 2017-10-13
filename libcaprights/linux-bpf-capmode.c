@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <syscall.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
@@ -77,15 +78,15 @@
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, tid))
 #endif
 
-/* Check a dfd at argument n is not AT_FDCWD */
+/*
+ * Check a dfd at argument n is not AT_FDCWD.  Only check the low 32-bits to
+ * avoid sign-extension problems.
+ */
 #define FAIL_AT_FDCWD(n)					\
-	EXAMINE_ARGHI(n),					\
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0),		\
-	FAIL_ECAPMODE,						\
 	EXAMINE_ARG(n),  /* dfd */				\
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, AT_FDCWD, 0, 1),	\
 	FAIL_ECAPMODE
-#define FAIL_AT_FDCWD_COUNT 6
+#define FAIL_AT_FDCWD_COUNT 3
 
 #define ALLOW_AT_SYSCALL_NUM(num, arg)					\
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (num & SYSCALL_NUM_MASK), 0, 1+FAIL_AT_FDCWD_COUNT),	\

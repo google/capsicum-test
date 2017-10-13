@@ -1,3 +1,9 @@
+libcaprights (0.1.7-1) UNRELEASED; urgency=low
+
+  * Fix sign extension bug that treated all negative FDs as AT_FDCWD
+
+ -- David Drysdale <drysdale@google.com>  Fri, 13 Oct 2017 15:51:00 +0100
+
 libcaprights (0.1.6-1) UNRELEASED; urgency=low
 
   * Allow epoll syscalls (epoll_ctl, epoll_pwait, epoll_wait) in capability mode.
