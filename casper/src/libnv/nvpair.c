@@ -52,7 +52,9 @@
 #include "nvlist_impl.h"
 #include "nvpair_impl.h"
 
+#ifndef	__unused
 #define __unused __attribute__((unused))
+#endif
 
 #ifndef	HAVE_PJDLOG
 #include <assert.h>
