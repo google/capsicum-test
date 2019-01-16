@@ -18,11 +18,13 @@ TEST(NVList, CredSend) {
   int fds[2];
   EXPECT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
 
+#ifdef	__linux__
   // Need to turn on SO_PASSCRED before the fork(); for some reason, turning
   // it on afterwards doesn't work (and credentials are always returned as
   // 65534/65534)
   int one = 1;
   EXPECT_EQ(0, setsockopt(fds[0], SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)));
+#endif
 
   pid_t child = fork();
   if (child == 0) {
