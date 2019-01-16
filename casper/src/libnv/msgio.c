@@ -269,7 +269,7 @@ cred_recv(int sock, uid_t *uid, gid_t *gid, int *ngroups, gid_t *groups)
 		if (*ngroups < count)
 			count = *ngroups;
 		bcopy(groups, cred->cmcred_groups, count*sizeof(gid_t));
-		*ngroups = cred->cmred_ngroups;
+		*ngroups = cred->cmcred_ngroups;
 	}
 #elif defined(HAVE_STRUCT_UCRED)
 	struct ucred *ucred = (struct ucred *) CMSG_DATA(cmsg);
