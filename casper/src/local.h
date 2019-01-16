@@ -13,6 +13,30 @@
 void closefrom(int lowfd);
 #endif
 
+#if defined(__APPLE__)
+#include <sys/_endian.h>
+#include <util.h>
+#elif defined(__FreeBSD__)
+#include <sys/endian.h>
+#include <libutil.h>
+#else
+
+#ifdef HAVE_BSD_SYS_ENDIAN_H
+#include <bsd/sys/endian.h>
+#else
+#include "sys_endian.h"
+#endif
+
+#ifdef HAVE_BSD_LIBUTIL_H
+#include <bsd/libutil.h>
+#endif
+#endif
+
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#else
 #ifdef HAVE_BSD_STDLIB_H
 #include <bsd/stdlib.h>
 #endif
@@ -21,18 +45,9 @@ void closefrom(int lowfd);
 #include <bsd/string.h>
 #endif
 
-#ifdef HAVE_BSD_LIBUTIL_H
-#include <bsd/libutil.h>
-#endif
-
 #ifdef HAVE_BSD_UNISTD_H
 #include <bsd/unistd.h>
 #endif
-
-#ifdef HAVE_BSD_SYS_ENDIAN_H
-#include <bsd/sys/endian.h>
-#else
-#include "sys_endian.h"
 #endif
 
 /* Declarations for local replacements */
