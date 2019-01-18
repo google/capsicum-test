@@ -1,7 +1,7 @@
 all: capsicum-test smoketest mini-me mini-me.noexec mini-me.setuid $(EXTRA_PROGS)
 OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o overhead.o rename.o
 
-GTEST_DIR=gtest-1.6.0
+GTEST_DIR=gtest-1.8.1
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
 GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
 CXXFLAGS+=$(ARCHFLAG) -Wall -g $(GTEST_INCS) $(GTEST_FLAGS)
