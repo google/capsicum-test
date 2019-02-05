@@ -50,13 +50,7 @@ char ProcessState(int pid) {
 #endif
 #ifdef __FreeBSD__
   char buffer[1024];
-  /*
-   * TODO(#18): Pdfork.Simple fails on FreeBSD because zombie processes are
-   * not reported by ps(1). As a temporary workaround, -a is used to retrieve
-   * the state of zombie processes. Remove this once FreeBSD starts reporting
-   * zombie processes with "sysctl kern.proc.pid.<pid>".
-   */
-  snprintf(buffer, sizeof(buffer), "ps -a -p %d -o state | grep -v STAT", pid);
+  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
   sig_t original = signal(SIGCHLD, SIG_IGN);
   FILE* cmd = popen(buffer, "r");
   usleep(50000);  // allow any pending SIGCHLD signals to arrive
