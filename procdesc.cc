@@ -1,17 +1,17 @@
 // Tests for the process descriptor API for Linux.
-#include <stdlib.h>
-#include <unistd.h>
 #include <sys/types.h>
+#include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <poll.h>
-#include <signal.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <iomanip>
 #include <map>
