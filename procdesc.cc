@@ -476,6 +476,10 @@ TEST_F(PipePdfork, Close) {
   EXPECT_FALSE(had_signal[SIGCHLD]);
   EXPECT_PID_DEAD(pid_);
 
+#ifdef __FreeBSD__
+  EXPECT_EQ(-1, waitpid(pid_, NULL, __WALL));
+  EXPECT_EQ(errno, ECHILD);
+#else
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
   int rc = pdwait4_(pd_, &status, 0, NULL);
   EXPECT_EQ(-1, rc);
@@ -483,6 +487,7 @@ TEST_F(PipePdfork, Close) {
 
   // Closing all process descriptors means the the child can only be reaped via pid.
   EXPECT_EQ(pid_, waitpid(pid_, &status, __WALL|WNOHANG));
+#endif
   signal(SIGCHLD, original);
 }
 
@@ -725,10 +730,15 @@ TEST_F(PipePdforkDaemon, NoPDSigchld) {
 
   EXPECT_OK(close(pd_));
   TerminateChild();
+#ifdef __FreeBSD__
+  EXPECT_EQ(-1, waitpid(pid_, NULL, __WALL));
+  EXPECT_EQ(errno, ECHILD);
+#else
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
   EXPECT_EQ(pid_, waitpid(pid_, &rc, __WALL));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
+#endif
   EXPECT_FALSE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
