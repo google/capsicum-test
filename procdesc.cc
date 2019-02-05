@@ -41,10 +41,10 @@ static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
   // Simulate pdwait4() with wait4(pdgetpid()); this won't work in capability mode.
   pid_t pid = -1;
   int rc = pdgetpid(pd, &pid);
-  if (rc < 0) return rc;
-#ifdef __WALL
+  if (rc < 0) {
+    return rc;
+  }
   options |= __WALL;
-#endif
   return wait4(pid, status, options, ru);
 #endif
 }
@@ -294,22 +294,19 @@ class PipePdforkBase : public ::testing::Test {
       read(pipes[0], &rc, sizeof(rc));
       if (verbose) fprintf(stderr, "  [%d] got value %d on pipe, exiting\n", getpid_(), rc);
       exit(rc);
-    } else {
-      pid_ = rc;
-      usleep(100);  // ensure the child has a chance to run
     }
+    pid_ = rc;
+    usleep(100);  // ensure the child has a chance to run
   }
   ~PipePdforkBase() {
     // Terminate by any means necessary.
-    int status;
     if (pd_ > 0) {
       pdkill(pd_, SIGKILL);
-      pdwait4_(pd_, &status, 0, NULL);
       close(pd_);
     }
     if (pid_ > 0) {
       kill(pid_, SIGKILL);
-      waitpid(pid_, &status, __WALL|WNOHANG);
+      waitpid(pid_, NULL, __WALL|WNOHANG);
     }
     // Check signal expectations.
     EXPECT_FALSE(had_signal[SIGCHLD]);
