@@ -49,10 +49,8 @@ typedef unsigned long cap_ioctl_t;
 #define E_NO_TRAVERSE_CAPABILITY ENOTBENEATH
 #define E_NO_TRAVERSE_O_BENEATH ENOTBENEATH
 #else
-// Failure to open file due to path traversal generates ENOTCAPABLE if due to
-// capability mode or EPERM if due to EPERM.
 #define E_NO_TRAVERSE_CAPABILITY ENOTCAPABLE
-#define E_NO_TRAVERSE_O_BENEATH EPERM
+#define E_NO_TRAVERSE_O_BENEATH ENOTCAPABLE
 #endif
 
 // FreeBSD limits the number of ioctls in cap_ioctls_limit to 256
