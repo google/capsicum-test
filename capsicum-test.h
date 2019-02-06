@@ -14,7 +14,7 @@
 #include "gtest/gtest.h"
 
 extern bool verbose;
-extern const char *tmpdir;  // "/tmp" by default
+extern std::string tmpdir;
 extern bool tmpdir_on_tmpfs;
 extern bool force_mt;
 extern bool force_nofork;
@@ -56,9 +56,9 @@ void MaybeRunWithThread(Function fn) {
   }
 }
 
-// Return the absolute path of a filename in the temp directory
-// with the given pathname.  For the default "/tmp" temp directory,
-// this is just "/tmp/<pathname>".
+// Return the absolute path of a filename in the temp directory, `tmpdir`,
+// with the given pathname, e.g., "/tmp/<pathname>", if `tmpdir` was set to
+// "/tmp".
 const char *TmpFile(const char *pathname);
 
 // Run the given test function in a forked process, so that trapdoor
