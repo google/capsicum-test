@@ -4,7 +4,7 @@ OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.
 GTEST_DIR=gtest-1.8.1
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
 GTEST_FLAGS=-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_HAS_TR1_TUPLE=1
-CXXFLAGS+=$(ARCHFLAG) -Wall -g $(GTEST_INCS) $(GTEST_FLAGS)
+CXXFLAGS+=$(ARCHFLAG) -Wall -g $(GTEST_INCS) $(GTEST_FLAGS) --std=c++11
 CFLAGS+=$(ARCHFLAG) -Wall -g
 
 capsicum-test: $(OBJECTS) libgtest.a $(LOCAL_LIBS)
