@@ -291,7 +291,7 @@ FORK_TEST(Capability, BasicInterception) {
 }
 
 FORK_TEST_ON(Capability, OpenAtDirectoryTraversal, TmpFile("cap_openat_testfile")) {
-  int dir = open(tmpdir, O_RDONLY);
+  int dir = open(tmpdir.c_str(), O_RDONLY);
   EXPECT_OK(dir);
 
   cap_enter();
@@ -358,7 +358,7 @@ FORK_TEST_ON(Capability, FileInSync, TmpFile("cap_file_sync")) {
 // Create a capability on /tmp that does not allow CAP_WRITE,
 // and check that this restriction is inherited through openat().
 FORK_TEST_ON(Capability, Inheritance, TmpFile("cap_openat_write_testfile")) {
-  int dir = open(tmpdir, O_RDONLY);
+  int dir = open(tmpdir.c_str(), O_RDONLY);
   EXPECT_OK(dir);
 
   cap_rights_t r_rl;
@@ -902,7 +902,7 @@ void DirOperationsTest(int extra) {
   if (rc < 0 && errno != EEXIST) return;
   int dfd = open(TmpFile("cap_dirops"), O_RDONLY | O_DIRECTORY | extra);
   EXPECT_OK(dfd);
-  int tmpfd = open(tmpdir, O_RDONLY | O_DIRECTORY);
+  int tmpfd = open(tmpdir.c_str(), O_RDONLY | O_DIRECTORY);
   EXPECT_OK(tmpfd);
 
   EXPECT_OK(cap_enter());  // Enter capability mode.

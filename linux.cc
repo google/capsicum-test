@@ -350,7 +350,7 @@ TEST(Linux, fstatat) {
   close(cap_rf);
   close(fd);
 
-  int dir = open(tmpdir, O_RDONLY);
+  int dir = open(tmpdir.c_str(), O_RDONLY);
   EXPECT_OK(dir);
   int dir_rf = dup(dir);
   EXPECT_OK(dir_rf);
@@ -1364,7 +1364,7 @@ TEST(Linux, InvalidRightsSyscall) {
 
 FORK_TEST_ON(Linux, OpenByHandleAt, TmpFile("cap_openbyhandle_testfile")) {
   REQUIRE_ROOT();
-  int dir = open(tmpdir, O_RDONLY);
+  int dir = open(tmpdir.c_str(), O_RDONLY);
   EXPECT_OK(dir);
   int fd = openat(dir, "cap_openbyhandle_testfile", O_RDWR|O_CREAT, 0644);
   EXPECT_OK(fd);

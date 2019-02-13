@@ -28,7 +28,7 @@ class WithFiles : public ::testing::Test {
   WithFiles() :
     fd_file_(open(TmpFile("cap_capmode"), O_RDWR|O_CREAT, 0644)),
     fd_close_(open("/dev/null", O_RDWR)),
-    fd_dir_(open(tmpdir, O_RDONLY)),
+    fd_dir_(open(tmpdir.c_str(), O_RDONLY)),
     fd_socket_(socket(PF_INET, SOCK_DGRAM, 0)),
     fd_tcp_socket_(socket(PF_INET, SOCK_STREAM, 0)) {
     EXPECT_OK(fd_file_);
