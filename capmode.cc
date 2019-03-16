@@ -627,7 +627,7 @@ FORK_TEST(Capmode, NewThread) {
 }
 
 static int had_signal = 0;
-static void handle_signal(int x) { had_signal = 1; }
+static void handle_signal(int) { had_signal = 1; }
 
 FORK_TEST(Capmode, SelfKill) {
   pid_t me = getpid();
