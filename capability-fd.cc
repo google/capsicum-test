@@ -25,7 +25,7 @@ typedef struct {
   uint64_t right;
   const char* name;
 } right_info;
-right_info known_rights[] = {
+static right_info known_rights[] = {
   /* Rights that are common to all versions of Capsicum */
   RIGHTS_INFO(CAP_READ),
   RIGHTS_INFO(CAP_WRITE),
