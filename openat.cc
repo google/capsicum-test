@@ -11,9 +11,9 @@
 
 // Check an open call works and close the resulting fd.
 #define EXPECT_OPEN_OK(f) do { \
-    int fd = f;                \
-    EXPECT_OK(fd);             \
-    close(fd);                 \
+    int _fd = f;               \
+    EXPECT_OK(_fd);            \
+    close(_fd);                \
   } while (0)
 
 static void CreateFile(const char *filename, const char *contents) {
