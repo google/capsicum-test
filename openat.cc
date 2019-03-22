@@ -176,10 +176,14 @@ class OpenatTest : public ::testing::Test {
     // Create a couple of nested directories
     int rc = mkdir(TmpFile(TOPDIR), 0755);
     EXPECT_OK(rc);
-    if (rc < 0) EXPECT_EQ(EEXIST, errno);
+    if (rc < 0) {
+      EXPECT_EQ(EEXIST, errno);
+    }
     rc = mkdir(TmpFile(SUBDIR_ABS), 0755);
     EXPECT_OK(rc);
-    if (rc < 0) EXPECT_EQ(EEXIST, errno);
+    if (rc < 0) {
+      EXPECT_EQ(EEXIST, errno);
+    }
 
     // Figure out a path prefix (like "../..") that gets us to the root
     // directory from TmpFile(TOPDIR).
