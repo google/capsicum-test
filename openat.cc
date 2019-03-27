@@ -269,7 +269,7 @@ class OpenatTest : public ::testing::Test {
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "../subdir/bottomfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "..", O_RDONLY|oflag);
 
-#ifdef HAVE_OPENAT_INTERMEDIATE_DOTDOT
+#ifdef HAVE_OPENAT_BENEATH_BY_LOCATION
     // OK for dotdot lookups that don't escape the top directory
     EXPECT_OPEN_OK(openat(dir_fd_, "subdir/../topfile", O_RDONLY|oflag));
 #endif
