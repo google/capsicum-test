@@ -287,23 +287,31 @@ class OpenatTest : public ::testing::Test {
     // Should only be able to open symlinks that stay within the directory.
     EXPECT_OPEN_OK(openat(dir_fd_, "symlink.samedir", O_RDONLY|oflag));
     EXPECT_OPEN_OK(openat(dir_fd_, "symlink.down", O_RDONLY|oflag));
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_out", O_RDONLY|oflag);
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_in", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_out", O_RDONLY|oflag);
+    EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.samedir/topfile", O_RDONLY|oflag));
+    EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.down/bottomfile", O_RDONLY|oflag));
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_out/passwd", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_out/passwd", O_RDONLY|oflag);
+
+    // Links that end up within the directory FD succeed or fail depending on whether
+    // beneath-checking is done syntactically or by final path resolution
+#ifdef HAVE_OPEN_BENEATH_BY_LOCATION
+    EXPECT_OPENAT_OK(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag);
+    EXPECT_OPENAT_OK(dir_fd_, "symlink.relative_in", O_RDONLY|oflag);
+    EXPECT_OPENAT_OK(dir_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
+    EXPECT_OPENAT_OK(dir_fd_, "dsymlink.relative_in/topfile", O_RDONLY|oflag);
+#else
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_in", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_in/topfile", O_RDONLY|oflag);
+#endif
+
     // Links relative to the subdirectory FD which resolve to the top-level directory
     // should fail.
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "symlink.up", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "symlink.absolute_in", O_RDONLY|oflag);
-
-    EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.samedir/topfile", O_RDONLY|oflag));
-    EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.down/bottomfile", O_RDONLY|oflag));
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_out/passwd", O_RDONLY|oflag);
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_in/topfile", O_RDONLY|oflag);
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_out/passwd", O_RDONLY|oflag);
-    // Links relative to the subdirectory FD which resolve to the top-level directory
-    // should fail.
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "dsymlink.up/topfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
 
