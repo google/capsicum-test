@@ -5,9 +5,11 @@
 #endif
 #include <ctype.h>
 #include <errno.h>
+#include <libgen.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <iostream>
 #include "gtest/gtest.h"
 #include "capsicum-test.h"
@@ -47,7 +49,33 @@ private:
   bool teardown_tmpdir_;
 };
 
+std::string capsicum_test_bindir;
+
+// Adds a directory to $PATH.
+static void AddDirectoryToPath(const char *dir) {
+  char *new_path, *old_path;
+
+  old_path = getenv("PATH");
+  assert(old_path);
+
+  assert(asprintf(&new_path, "%s:%s", dir, old_path) > 0);
+  assert(setenv("PATH", new_path, 1) == 0);
+}
+
 int main(int argc, char* argv[]) {
+  // Set up the test program path, so capsicum-test can find programs, like
+  // mini-me* when executed from an absolute path.
+  char *program_name;
+
+  // Copy argv[0], so dirname can do an in-place manipulation of the buffer's
+  // contents.
+  program_name = strdup(argv[0]);
+  assert(program_name);
+  capsicum_test_bindir = std::string(dirname(program_name));
+  free(program_name);
+
+  AddDirectoryToPath(capsicum_test_bindir.c_str());
+
   ::testing::InitGoogleTest(&argc, argv);
   for (int ii = 1; ii < argc; ii++) {
     if (strcmp(argv[ii], "-v") == 0) {
