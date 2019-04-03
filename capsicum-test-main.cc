@@ -2,6 +2,8 @@
 #ifdef __linux__
 #include <sys/vfs.h>
 #include <linux/magic.h>
+#elif defined(__FreeBSD__)
+#include <sys/sysctl.h>
 #endif
 #include <ctype.h>
 #include <errno.h>
@@ -12,6 +14,11 @@
 #include "gtest/gtest.h"
 #include "capsicum-test.h"
 
+// For versions of googletest that lack GTEST_SKIP.
+#ifndef GTEST_SKIP
+#define GTEST_SKIP GTEST_FAIL
+#endif
+
 std::string tmpdir;
 
 class SetupEnvironment : public ::testing::Environment
@@ -19,6 +26,7 @@ class SetupEnvironment : public ::testing::Environment
 public:
   SetupEnvironment() : teardown_tmpdir_(false) {}
   void SetUp() override {
+    CheckCapsicumSupport();
     if (tmpdir.empty()) {
       std::cerr << "Generating temporary directory root: ";
       CreateTemporaryRoot();
@@ -26,6 +34,31 @@ public:
       std::cerr << "User provided temporary directory root: ";
     }
     std::cerr << tmpdir << std::endl;
+  }
+  void CheckCapsicumSupport() {
+#ifdef __FreeBSD__
+    int rc;
+    bool trap_enotcap_enabled;
+    size_t trap_enotcap_enabled_len = sizeof(trap_enotcap_enabled);
+
+    if (feature_present("security_capabilities") == 0) {
+      GTEST_SKIP() << "Skipping tests because capsicum support is not "
+                   << "enabled in the kernel.";
+    }
+    // If this OID is enabled, it will send SIGTRAP to the process when
+    // `ENOTCAPABLE` is returned.
+    const char *oid = "kern.trap_enotcap";
+    rc = sysctlbyname(oid, &trap_enotcap_enabled, &trap_enotcap_enabled_len,
+      nullptr, 0);
+    if (rc != 0) {
+      GTEST_FAIL() << "sysctlbyname failed: " << strerror(errno);
+    }
+    if (trap_enotcap_enabled) {
+      GTEST_SKIP() << "Debug sysctl, " << oid << ", enabled. "
+                   << "Skipping tests because its enablement invalidates the "
+                   << "test results.";
+    }
+#endif /* FreeBSD */
   }
   void CreateTemporaryRoot() {
     char *tmpdir_name = tempnam(nullptr, "cptst");
