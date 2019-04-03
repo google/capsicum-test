@@ -10,6 +10,7 @@
 
 #include <ios>
 #include <ostream>
+#include <string>
 
 #include "gtest/gtest.h"
 
@@ -256,5 +257,7 @@ void TestSkipped(const char *testcase, const char *test, const std::string& reas
     TEST_SKIPPED("requires root"); \
     return; \
   }
+
+extern std::string capsicum_test_bindir;
 
 #endif  // CAPSICUM_TEST_H
