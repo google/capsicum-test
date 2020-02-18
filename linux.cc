@@ -1380,8 +1380,9 @@ FORK_TEST_ON(Linux, OpenByHandleAt, TmpFile("cap_openbyhandle_testfile")) {
   fd = open_by_handle_at(dir, fhandle, O_RDONLY);
   EXPECT_OK(fd);
   char buffer[200];
-  EXPECT_OK(read(fd, buffer, 199));
-  EXPECT_EQ(std::string(message), std::string(buffer));
+  ssize_t len = read(fd, buffer, 199);
+  EXPECT_OK(len);
+  EXPECT_EQ(std::string(message), std::string(buffer, len));
   close(fd);
 
   // Cannot issue open_by_handle_at after entering capability mode.
