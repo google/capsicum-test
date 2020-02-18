@@ -156,7 +156,5 @@ int main(int argc, char* argv[]) {
 #endif
 
   testing::AddGlobalTestEnvironment(new SetupEnvironment());
-  int rc = RUN_ALL_TESTS();
-  ShowSkippedTests(std::cerr);
-  return rc;
+  return RUN_ALL_TESTS();
 }
