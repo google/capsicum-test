@@ -519,8 +519,8 @@ TEST_F(PipePdfork, CloseLast) {
   signal(SIGCHLD, original);
 }
 
-FORK_TEST(Pdfork, OtherUser) {
-  REQUIRE_ROOT();
+FORK_TEST(Pdfork, OtherUserIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
   int pd;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
