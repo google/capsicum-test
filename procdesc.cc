@@ -639,18 +639,27 @@ TEST_F(PipePdforkDaemon, Pdkill) {
 
 TEST(Pdfork, PdkillOtherSignal) {
   int pd = -1;
+  int pipefds[2];
+  EXPECT_EQ(0, pipe(pipefds));
   int pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
   if (pid == 0) {
-    // Child: watch for SIGUSR1 forever.
+    // Child: tell the parent that we have started before entering the loop,
+    // and importantly only do so once we have registered the SIGUSR1 handler.
+    close(pipefds[0]);
     had_signal.clear();
     signal(SIGUSR1, handle_signal);
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
+    // Child: watch for SIGUSR1 forever.
     while (!had_signal[SIGUSR1]) {
       usleep(100000);
     }
     exit(123);
   }
-  sleep(1);
+  // Wait for child to start
+  close(pipefds[1]);
+  AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
+  close(pipefds[0]);
 
   // Send an invalid signal.
   EXPECT_EQ(-1, pdkill(pd, 0xFFFF));
@@ -666,7 +675,7 @@ TEST(Pdfork, PdkillOtherSignal) {
   int rc = waitpid(pid, &status, __WALL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
-  EXPECT_TRUE(WIFEXITED(status)) << "0x" << std::hex << rc;
+  EXPECT_TRUE(WIFEXITED(status)) << "status: 0x" << std::hex << status;
   EXPECT_EQ(123, WEXITSTATUS(status));
 }
 
