@@ -76,7 +76,7 @@ const char *TmpFile(const char *pathname);
       }                                                        \
     } else if (pid > 0) {                                      \
       int rc, status;                                          \
-      int remaining_us = 10000000;                             \
+      int remaining_us = 30000000;                             \
       while (remaining_us > 0) {                               \
         status = 0;                                            \
         rc = waitpid(pid, &status, WNOHANG);                   \
