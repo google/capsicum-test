@@ -249,6 +249,27 @@ char ProcessState(int pid);
 #define EXPECT_PID_ZOMBIE(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', 'Z');
 #define EXPECT_PID_GONE(pid)    EXPECT_PID_REACHES_STATES(pid, '\0', '\0');
 
+enum {
+  // Magic numbers for messages sent by child processes.
+  MSG_CHILD_STARTED = 1234,
+  MSG_CHILD_FD_RECEIVED = 4321,
+  // Magic numbers for messages sent by parent processes.
+  MSG_PARENT_REQUEST_CHILD_EXIT = 9999,
+};
+
+#define SEND_INT_MESSAGE(fd, message) \
+  do { \
+    int _msg = message; \
+    EXPECT_EQ(sizeof(_msg), (size_t)write(fd, &_msg, sizeof(_msg))); \
+  } while (0)
+
+#define AWAIT_INT_MESSAGE(fd, expected) \
+  do {                                  \
+    int _msg = 0; \
+    EXPECT_EQ(sizeof(_msg), (size_t)read(fd, &_msg, sizeof(_msg))); \
+    EXPECT_EQ(expected, _msg); \
+  } while (0)
+
 // Mark a test that can only be run as root.
 #define GTEST_SKIP_IF_NOT_ROOT() \
   if (getuid() != 0) { GTEST_SKIP() << "requires root"; }
