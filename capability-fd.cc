@@ -1312,7 +1312,10 @@ TEST(Capability, NoBypassDACIfRoot) {
   pid_t child = fork();
   if (child == 0) {
     // Child: change uid to a lesser being
-    setuid(other_uid);
+    ASSERT_NE(0u, other_uid) << "other_uid not initialized correctly, "
+                                "please pass the -u <uid> flag.";
+    EXPECT_EQ(0, setuid(other_uid));
+    EXPECT_EQ(other_uid, getuid());
     // Attempt to fchmod the file, and fail.
     // Having CAP_FCHMOD doesn't bypass the need to comply with DAC policy.
     int rc = fchmod(fd, 0666);
