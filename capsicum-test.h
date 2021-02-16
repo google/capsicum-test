@@ -170,12 +170,14 @@ const char *TmpFile(const char *pathname);
       } else { \
         EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
       } \
+      if (result >= 0) { close(result); } \
     } while (0)
 #else
 #define EXPECT_OPENAT_FAIL_TRAVERSAL(fd, path, flags) \
     do { \
       const int result = openat((fd), (path), (flags)); \
       EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
+      if (result >= 0) { close(result); } \
     } while (0)
 #endif
 
