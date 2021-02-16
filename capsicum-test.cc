@@ -110,6 +110,7 @@ char ProcessState(int pid) {
   }
   procstat_freeprocs(prstat, p);
   procstat_close(prstat);
+  if (verbose) fprintf(stderr, "Process %d in state '%c'\n", pid, result);
   return result;
 #endif
 }
