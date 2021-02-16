@@ -58,6 +58,18 @@ char ProcessState(int pid) {
   return '?';
 #endif
 #ifdef __FreeBSD__
+  // First check if the process exists/we have permission to see it. This
+  // Avoids warning messages being printed to stderr by libprocstat.
+  size_t len = 0;
+  int name[4];
+  name[0] = CTL_KERN;
+  name[1] = KERN_PROC;
+  name[2] = KERN_PROC_PID;
+  name[3] = pid;
+  if (sysctl(name, nitems(name), NULL, &len, NULL, 0) < 0 && errno == ESRCH) {
+    if (verbose) fprintf(stderr, "Process %d does not exist\n", pid);
+    return '\0'; // No such process.
+  }
   unsigned int count = 0;
   struct procstat *prstat = procstat_open_sysctl();
   EXPECT_NE(NULL, prstat) << "procstat_open_sysctl failed.";
