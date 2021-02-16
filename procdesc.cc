@@ -109,7 +109,9 @@ void CheckChildFinished(pid_t pid, bool signaled=false) {
 
 TEST(Pdfork, Simple) {
   int pd = -1;
+  int pipefds[2];
   pid_t parent = getpid_();
+  EXPECT_OK(pipe(pipefds));
   int pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
   if (pid == 0) {
@@ -117,19 +119,29 @@ TEST(Pdfork, Simple) {
     EXPECT_EQ(-1, pd);
     EXPECT_NE(parent, getpid_());
     EXPECT_EQ(parent, getppid());
-    sleep(1);
-    exit(0);
+    close(pipefds[0]);
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
+    if (verbose) fprintf(stderr, "Child waiting for exit message\n");
+    // Terminate once the parent has completed the checks
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
+    exit(testing::Test::HasFailure());
   }
-  usleep(100);  // ensure the child has a chance to run
+  close(pipefds[1]);
+  // Ensure the child has started.
+  AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
+
   EXPECT_NE(-1, pd);
   EXPECT_PID_ALIVE(pid);
   int pid_got;
   EXPECT_OK(pdgetpid(pd, &pid_got));
   EXPECT_EQ(pid, pid_got);
 
-  // Wait long enough for the child to exit().
-  sleep(2);
+  // Tell the child to exit and wait until it is a zombie.
+  SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
+  // EXPECT_PID_ZOMBIE waits for up to ~500ms, that should be enough time for
+  // the child to exit successfully.
   EXPECT_PID_ZOMBIE(pid);
+  close(pipefds[0]);
 
   // Wait for the the child.
   int status;
@@ -356,24 +368,34 @@ TEST_F(PipePdfork, Poll) {
 
 // Can multiple processes poll on the same descriptor?
 TEST_F(PipePdfork, PollMultiple) {
+  int pipefds[2];
+  EXPECT_EQ(0, pipe(pipefds));
   int child = fork();
   EXPECT_OK(child);
   if (child == 0) {
-    // Child: wait to give time for setup, then write to the pipe (which will
-    // induce exit of the pdfork()ed process) and exit.
-    sleep(1);
+    close(pipefds[0]);
+    // Child: wait for parent to acknowledge startup
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
+    // Child: wait for two messages from the parent and the forked process
+    // before telling the other process to terminate.
+    if (verbose) fprintf(stderr, "[%d] waiting for read 1\n", getpid_());
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
+    if (verbose) fprintf(stderr, "[%d] waiting for read 2\n", getpid_());
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
     TerminateChild();
-    exit(0);
+    if (verbose) fprintf(stderr, "[%d] about to exit\n", getpid_());
+    exit(testing::Test::HasFailure());
   }
-  usleep(100);  // ensure the child has a chance to run
-
+  close(pipefds[1]);
+  AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
+  if (verbose) fprintf(stderr, "[%d] got child startup message\n", getpid_());
   // Fork again
   int doppel = fork();
   EXPECT_OK(doppel);
   // We now have:
   //   pid A: main process, here
   //   |--pid B: pdfork()ed process, blocked on read()
-  //   |--pid C: fork()ed process, in sleep(1) above
+  //   |--pid C: fork()ed process, in read() above
   //   +--pid D: doppel process, here
 
   // Both A and D execute the following code.
@@ -384,12 +406,18 @@ TEST_F(PipePdfork, PollMultiple) {
   fdp.revents = 0;
   EXPECT_EQ(0, poll(&fdp, 1, 0));
 
+  // Both A and D ask C to exit, allowing it to do so.
+  if (verbose) fprintf(stderr, "[%d] telling child to exit\n", getpid_());
+  SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
+  close(pipefds[0]);
+
   // Now, wait (indefinitely) for activity on the process descriptor.
   // We expect:
-  //  - pid C will finish its sleep, write to the pipe and exit
+  //  - pid C will finish its two read() calls, write to the pipe and exit.
   //  - pid B will unblock from read(), and exit
   //  - this will generate an event on the process descriptor...
   //  - ...in both process A and process D.
+  if (verbose) fprintf(stderr, "[%d] waiting for child to exit\n", getpid_());
   EXPECT_EQ(1, poll(&fdp, 1, 2000));
   EXPECT_TRUE(fdp.revents & POLLHUP);
 
