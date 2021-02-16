@@ -140,15 +140,17 @@ const char *TmpFile(const char *pathname);
 // Expect a syscall to fail with the given error.
 #define EXPECT_SYSCALL_FAIL(E, C) \
     do { \
+      SCOPED_TRACE(#C); \
       EXPECT_GT(0, C); \
-      EXPECT_EQ(E, errno); \
+      EXPECT_EQ(E, errno) << "expected '" << strerror(E) \
+                          << "' but got '" << strerror(errno) << "'"; \
     } while (0)
 
 // Expect a syscall to fail with anything other than the given error.
 #define EXPECT_SYSCALL_FAIL_NOT(E, C) \
     do { \
       EXPECT_GT(0, C); \
-      EXPECT_NE(E, errno); \
+      EXPECT_NE(E, errno) << strerror(E); \
     } while (0)
 
 // Expect a void syscall to fail with anything other than the given error.
@@ -163,7 +165,8 @@ const char *TmpFile(const char *pathname);
 // code is OS-specific.
 #ifdef O_BENEATH
 #define EXPECT_OPENAT_FAIL_TRAVERSAL(fd, path, flags) \
-    do { \
+    do {                                              \
+      SCOPED_TRACE(GTEST_STRINGIFY_(openat((fd), (path), (flags)))); \
       const int result = openat((fd), (path), (flags)); \
       if (((flags) & O_BENEATH) == O_BENEATH) { \
         EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_O_BENEATH, result); \
@@ -174,6 +177,7 @@ const char *TmpFile(const char *pathname);
 #else
 #define EXPECT_OPENAT_FAIL_TRAVERSAL(fd, path, flags) \
     do { \
+      SCOPED_TRACE(GTEST_STRINGIFY_(openat((fd), (path), (flags)))); \
       const int result = openat((fd), (path), (flags)); \
       EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
     } while (0)
@@ -198,7 +202,8 @@ const char *TmpFile(const char *pathname);
       int rc = C; \
       EXPECT_GT(0, rc); \
       EXPECT_TRUE(errno == ECAPMODE || errno == ENOTCAPABLE) \
-        << #C << " did not fail with ECAPMODE/ENOTCAPABLE but " << errno; \
+        << #C << " did not fail with ECAPMODE/ENOTCAPABLE but " << errno \
+        << "(" << strerror(errno) << ")"; \
     } while (0)
 
 // Ensure that 'rights' are a subset of 'max'.

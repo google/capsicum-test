@@ -486,6 +486,7 @@ FORK_TEST_ON(Capability, Mmap, TmpFile("cap_mmap_operations")) {
 // Given a file descriptor, create a capability with specific rights and
 // make sure only those rights work.
 #define TRY_FILE_OPS(fd, ...) do {       \
+  SCOPED_TRACE(#__VA_ARGS__);            \
   cap_rights_t rights;                   \
   cap_rights_init(&rights, __VA_ARGS__); \
   TryFileOps((fd), rights);              \
