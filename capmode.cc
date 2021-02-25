@@ -629,7 +629,7 @@ FORK_TEST(Capmode, NewThread) {
   sleep(2);
 }
 
-static int had_signal = 0;
+static volatile sig_atomic_t had_signal = 0;
 static void handle_signal(int) { had_signal = 1; }
 
 FORK_TEST(Capmode, SelfKill) {
