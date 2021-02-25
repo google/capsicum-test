@@ -858,19 +858,28 @@ TEST_F(PipePdfork, WildcardWait) {
 FORK_TEST(Pdfork, Pdkill) {
   clear_had_signals();
   int pd;
+  int pipefds[2];
+  EXPECT_OK(pipe(pipefds));
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
 
   if (pid == 0) {
-    // Child: set a SIGINT handler and sleep.
+    // Child: set a SIGINT handler, notify the parent and sleep.
+    close(pipefds[0]);
     clear_had_signals();
     signal(SIGINT, handle_signal);
+    if (verbose) fprintf(stderr, "[%d] child started\n", getpid_());
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
     if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
-    int left = sleep(10);
-    if (verbose) fprintf(stderr, "[%d] child slept, %d sec left, had[SIGINT]=%d\n",
-                         getpid_(), left, (int)had_signal[SIGINT]);
-    // Expect this sleep to be interrupted by the signal (and so left > 0).
-    exit(left == 0);
+    // Note: we could receive the SIGINT just before sleep(), so we use a loop
+    // with a short delay instead of one long sleep().
+    for (int i = 0; i < 50 && !had_signal[SIGINT]; i++) {
+      usleep(100000);
+    }
+    if (verbose) fprintf(stderr, "[%d] child slept, had[SIGINT]=%d\n",
+                         getpid_(), (int)had_signal[SIGINT]);
+    // Return non-zero if we didn't see SIGINT.
+    exit(had_signal[SIGINT] ? 0 : 99);
   }
 
   // Parent: get child's PID.
@@ -878,9 +887,12 @@ FORK_TEST(Pdfork, Pdkill) {
   EXPECT_OK(pdgetpid(pd, &pd_pid));
   EXPECT_EQ(pid, pd_pid);
 
-  // Interrupt the child after a second.
-  sleep(1);
+  // Interrupt the child once it's registered the SIGINT handler.
+  close(pipefds[1]);
+  if (verbose) fprintf(stderr, "[%d] waiting for child\n", getpid_());
+  AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
   EXPECT_OK(pdkill(pd, SIGINT));
+  if (verbose) fprintf(stderr, "[%d] sent SIGINT\n", getpid_());
 
   // Make sure the child finished properly (caught signal then exited).
   CheckChildFinished(pid);
@@ -888,19 +900,28 @@ FORK_TEST(Pdfork, Pdkill) {
 
 FORK_TEST(Pdfork, PdkillSignal) {
   int pd;
+  int pipefds[2];
+  EXPECT_OK(pipe(pipefds));
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
 
   if (pid == 0) {
-    // Child: sleep.  No SIGINT handler.
-    if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
-    int left = sleep(10);
-    if (verbose) fprintf(stderr, "[%d] child slept, %d sec left\n", getpid_(), left);
+    close(pipefds[0]);
+    if (verbose) fprintf(stderr, "[%d] child started\n", getpid_());
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
+    // Child: wait for shutdown message. No SIGINT handler. The message should
+    // never be received, since SIGINT should terminate the process.
+    if (verbose) fprintf(stderr, "[%d] child about to read()\n", getpid_());
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
+    fprintf(stderr, "[%d] child read() returned unexpectedly\n", getpid_());
     exit(99);
   }
-
+  // Wait for child to start before signalling.
+  if (verbose) fprintf(stderr, "[%d] waiting for child\n", getpid_());
+  close(pipefds[1]);
+  AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
   // Kill the child (as it doesn't handle SIGINT).
-  sleep(1);
+  if (verbose) fprintf(stderr, "[%d] sending SIGINT\n", getpid_());
   EXPECT_OK(pdkill(pd, SIGINT));
 
   // Make sure the child finished properly (terminated by signal).
