@@ -73,7 +73,10 @@ static void print_stat(FILE *f, const struct stat *stat) {
           (long)stat->st_atime, (long)stat->st_mtime, (long)stat->st_ctime);
 }
 
-static std::map<int,bool> had_signal;
+static volatile sig_atomic_t had_signal[NSIG];
+void clear_had_signals() {
+  memset(const_cast<sig_atomic_t *>(had_signal), 0, sizeof(had_signal));
+}
 static void handle_signal(int x) {
   had_signal[x] = true;
 }
@@ -290,7 +293,7 @@ TEST(Pdfork, FromThread) {
 class PipePdforkBase : public ::testing::Test {
  public:
   PipePdforkBase(int pdfork_flags) : pd_(-1), pid_(-1) {
-    had_signal.clear();
+    clear_had_signals();
     int pipes[2];
     EXPECT_OK(pipe(pipes));
     pipe_ = pipes[1];
@@ -675,7 +678,7 @@ TEST(Pdfork, PdkillOtherSignal) {
     // Child: tell the parent that we have started before entering the loop,
     // and importantly only do so once we have registered the SIGUSR1 handler.
     close(pipefds[0]);
-    had_signal.clear();
+    clear_had_signals();
     signal(SIGUSR1, handle_signal);
     SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
     // Child: watch for SIGUSR1 forever.
@@ -784,7 +787,7 @@ TEST(Pdfork, BagpussDaemon) {
 
 // The exit of a pdfork()ed process should not generate SIGCHLD.
 TEST_F(PipePdfork, NoSigchld) {
-  had_signal.clear();
+  clear_had_signals();
   sighandler_t original = signal(SIGCHLD, handle_signal);
   TerminateChild();
   int rc = 0;
@@ -799,7 +802,7 @@ TEST_F(PipePdfork, NoSigchld) {
 // all been closed should generate SIGCHLD.  The child process needs
 // PD_DAEMON to survive the closure of the process descriptors.
 TEST_F(PipePdforkDaemon, NoPDSigchld) {
-  had_signal.clear();
+  clear_had_signals();
   sighandler_t original = signal(SIGCHLD, handle_signal);
 
   EXPECT_OK(close(pd_));
@@ -853,19 +856,19 @@ TEST_F(PipePdfork, WildcardWait) {
 }
 
 FORK_TEST(Pdfork, Pdkill) {
-  had_signal.clear();
+  clear_had_signals();
   int pd;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
 
   if (pid == 0) {
     // Child: set a SIGINT handler and sleep.
-    had_signal.clear();
+    clear_had_signals();
     signal(SIGINT, handle_signal);
     if (verbose) fprintf(stderr, "[%d] child about to sleep(10)\n", getpid_());
     int left = sleep(10);
     if (verbose) fprintf(stderr, "[%d] child slept, %d sec left, had[SIGINT]=%d\n",
-                         getpid_(), left, had_signal[SIGINT]);
+                         getpid_(), left, (int)had_signal[SIGINT]);
     // Expect this sleep to be interrupted by the signal (and so left > 0).
     exit(left == 0);
   }
