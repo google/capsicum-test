@@ -673,7 +673,8 @@ TEST(Pdfork, PdkillOtherSignal) {
 pid_t PdforkParentDeath(int pdfork_flags) {
   // Set up:
   //   pid A: main process, here
-  //   +--pid B: fork()ed process, sleep(4)s then exits
+  //   +--pid B: fork()ed process, starts a child process with pdfork() then
+  //             waits for parent to send a shutdown message.
   //      +--pid C: pdfork()ed process, looping forever
   int sock_fds[2];
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, sock_fds));
@@ -683,27 +684,45 @@ pid_t PdforkParentDeath(int pdfork_flags) {
   if (child == 0) {
     int pd;
     if (verbose) fprintf(stderr, "  [%d] child about to pdfork()...\n", getpid_());
+    int pipefds[2]; // for startup notification
+    EXPECT_OK(pipe(pipefds));
     pid_t grandchild = pdfork(&pd, pdfork_flags);
     if (grandchild == 0) {
+      close(pipefds[0]);
+      pid_t grandchildPid = getpid_();
+      EXPECT_EQ(sizeof(grandchildPid), (size_t)write(pipefds[1], &grandchildPid, sizeof(grandchildPid)));
       while (true) {
-        if (verbose) fprintf(stderr, "    [%d] grandchild: \"I aten't dead\"\n", getpid_());
+        if (verbose) fprintf(stderr, "    [%d] grandchild: \"I aten't dead\"\n", grandchildPid);
         sleep(1);
       }
     }
+    close(pipefds[1]);
     if (verbose) fprintf(stderr, "  [%d] pdfork()ed grandchild %d, sending ID to parent\n", getpid_(), grandchild);
-    // send grandchild pid to parent
-    write(sock_fds[1], &grandchild, sizeof(grandchild));
-    sleep(4);
+    // Wait for grandchild to start.
+    pid_t grandchild2;
+    EXPECT_EQ(sizeof(grandchild2), (size_t)read(pipefds[0], &grandchild2, sizeof(grandchild2)));
+    EXPECT_EQ(grandchild, grandchild2) << "received invalid grandchild pid";
+    if (verbose) fprintf(stderr, "  [%d] grandchild %d has started successfully\n", getpid_(), grandchild);
+    close(pipefds[0]);
+
+    // Send grandchild pid to parent.
+    EXPECT_EQ(sizeof(grandchild), (size_t)write(sock_fds[1], &grandchild, sizeof(grandchild)));
+    if (verbose) fprintf(stderr, "  [%d] sent grandchild pid %d to parent\n", getpid_(), grandchild);
+    // Wait for parent to acknowledge the message.
+    AWAIT_INT_MESSAGE(sock_fds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
+    if (verbose) fprintf(stderr, "  [%d] parent acknowledged grandchild pid %d\n", getpid_(), grandchild);
     if (verbose) fprintf(stderr, "  [%d] child terminating\n", getpid_());
-    exit(0);
+    exit(testing::Test::HasFailure());
   }
   if (verbose) fprintf(stderr, "[%d] fork()ed child is %d\n", getpid_(), child);
   pid_t grandchild;
   read(sock_fds[0], &grandchild, sizeof(grandchild));
-  if (verbose) fprintf(stderr, "[%d] receive grandchild id %d\n", getpid_(), grandchild);
+  if (verbose) fprintf(stderr, "[%d] received grandchild id %d\n", getpid_(), grandchild);
   EXPECT_PID_ALIVE(child);
   EXPECT_PID_ALIVE(grandchild);
-  sleep(6);
+  // Tell child to exit.
+  if (verbose) fprintf(stderr, "[%d] telling child %d to exit\n", getpid_(), child);
+  SEND_INT_MESSAGE(sock_fds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
   // Child dies, closing its process descriptor for the grandchild.
   EXPECT_PID_DEAD(child);
   CheckChildFinished(child);
