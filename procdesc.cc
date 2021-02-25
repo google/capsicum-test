@@ -522,6 +522,7 @@ TEST_F(PipePdfork, CloseLast) {
 FORK_TEST(Pdfork, OtherUserIfRoot) {
   GTEST_SKIP_IF_NOT_ROOT();
   int pd;
+  int status;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
   if (pid == 0) {
@@ -542,15 +543,29 @@ FORK_TEST(Pdfork, OtherUserIfRoot) {
   EXPECT_EQ(EPERM, errno);
   EXPECT_PID_ALIVE(pid);
 
-  // Succeed with pdkill though.
+  // Ideally, we should be able to send signals via a process descriptor even
+  // if it's owned by another user, but this is not implementated on FreeBSD.
+#ifdef __FreeBSD__
+  // On FreeBSD, pdkill() still performs all the same checks that kill() does
+  // and therefore cannot be used to send a signal to a process with another
+  // UID unless we are root.
+  EXPECT_SYSCALL_FAIL(EBADF, pdkill(pid, SIGKILL));
+  EXPECT_PID_ALIVE(pid);
+  // However, the process will be killed when we close the process descriptor.
+  EXPECT_OK(close(pd));
+  EXPECT_PID_GONE(pid);
+  // Can't pdwait4() after close() since close() reparents the child to a reaper (init)
+  EXPECT_SYSCALL_FAIL(EBADF, pdwait4_(pd, &status, WNOHANG, NULL));
+#else
+  // Sending a signal with pdkill() should be permitted though.
   EXPECT_OK(pdkill(pd, SIGKILL));
   EXPECT_PID_ZOMBIE(pid);
 
-  int status;
   int rc = pdwait4_(pd, &status, WNOHANG, NULL);
   EXPECT_OK(rc);
   EXPECT_EQ(pid, rc);
   EXPECT_TRUE(WIFSIGNALED(status));
+#endif
 }
 
 TEST_F(PipePdfork, WaitPidThenPd) {
