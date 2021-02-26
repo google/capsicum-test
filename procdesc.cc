@@ -27,10 +27,6 @@
 #define __WALL 0
 #endif
 
-// TODO(drysdale): it would be nice to use proper synchronization between
-// processes, rather than synchronization-via-sleep; faster too.
-
-
 //------------------------------------------------
 // Utilities for the tests.
 
@@ -238,7 +234,10 @@ TEST(Pdfork, NonProcessDescriptor) {
   close(fd);
 }
 
-static void *SubThreadMain(void *) {
+static void *SubThreadMain(void *arg) {
+  // Notify the main thread that we have started
+  if (verbose) fprintf(stderr, "      subthread started: pipe=%p\n", arg);
+  SEND_INT_MESSAGE((int)(intptr_t)arg, MSG_CHILD_STARTED);
   while (true) {
     if (verbose) fprintf(stderr, "      subthread: \"I aten't dead\"\n");
     usleep(100000);
@@ -248,11 +247,28 @@ static void *SubThreadMain(void *) {
 
 static void *ThreadMain(void *) {
   int pd;
+  int pipefds[2];
+  EXPECT_EQ(0, pipe(pipefds));
   pid_t child = pdfork(&pd, 0);
   if (child == 0) {
-    // Child: start a subthread then loop
+    close(pipefds[0]);
+    // Child: start a subthread then loop.
     pthread_t child_subthread;
-    EXPECT_OK(pthread_create(&child_subthread, NULL, SubThreadMain, NULL));
+    // Wait for the subthread startup using another pipe.
+    int thread_pipefds[2];
+    EXPECT_EQ(0, pipe(thread_pipefds));
+    EXPECT_OK(pthread_create(&child_subthread, NULL, SubThreadMain,
+                             (void *)(intptr_t)thread_pipefds[0]));
+    if (verbose) {
+      fprintf(stderr, "    pdforked process %d: waiting for subthread.\n",
+              getpid());
+    }
+    AWAIT_INT_MESSAGE(thread_pipefds[1], MSG_CHILD_STARTED);
+    close(thread_pipefds[0]);
+    close(thread_pipefds[1]);
+    // Child: Notify parent that all threads have started
+    if (verbose) fprintf(stderr, "    pdforked process %d: subthread started\n", getpid());
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
     while (true) {
       if (verbose) fprintf(stderr, "    pdforked process %d: \"I aten't dead\"\n", getpid());
       usleep(100000);
@@ -260,7 +276,9 @@ static void *ThreadMain(void *) {
     exit(0);
   }
   if (verbose) fprintf(stderr, "  thread generated pd %d\n", pd);
-  sleep(2);
+  close(pipefds[1]);
+  AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
+  if (verbose) fprintf(stderr, "[%d] got child startup message\n", getpid_());
 
   // Pass the process descriptor back to the main thread.
   return reinterpret_cast<void *>(pd);
