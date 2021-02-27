@@ -255,6 +255,7 @@ enum {
   MSG_CHILD_FD_RECEIVED = 4321,
   // Magic numbers for messages sent by parent processes.
   MSG_PARENT_REQUEST_CHILD_EXIT = 9999,
+  MSG_PARENT_CLOSED_FD = 10000,
 };
 
 #define SEND_INT_MESSAGE(fd, message) \

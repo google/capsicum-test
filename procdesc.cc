@@ -1033,7 +1033,7 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
   if (child2 == 0) {
     // Child: close our copy of the original process descriptor.
     close(pd_);
-
+    SEND_INT_MESSAGE(sock_fds[0], MSG_CHILD_STARTED);
     // Child: wait to receive process descriptor over socket
     if (verbose) fprintf(stderr, "  [%d] child of %d waiting for process descriptor on socket\n", getpid_(), getppid());
     int rc = recvmsg(sock_fds[0], &mh, 0);
@@ -1045,13 +1045,16 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
     cmptr = CMSG_NXTHDR(&mh, cmptr);
     EXPECT_TRUE(cmptr == NULL);
     if (verbose) fprintf(stderr, "  [%d] got process descriptor %d on socket\n", getpid_(), pd);
+    SEND_INT_MESSAGE(sock_fds[0], MSG_CHILD_FD_RECEIVED);
 
     // Child: confirm we can do pd*() operations on the process descriptor
     pid_t other;
     EXPECT_OK(pdgetpid(pd, &other));
     if (verbose) fprintf(stderr, "  [%d] process descriptor %d is pid %d\n", getpid_(), pd, other);
 
-    sleep(2);
+    // Wait until the parent has closed the process descriptor.
+    AWAIT_INT_MESSAGE(sock_fds[0], MSG_PARENT_CLOSED_FD);
+
     if (verbose) fprintf(stderr, "  [%d] close process descriptor %d\n", getpid_(), pd);
     close(pd);
 
@@ -1060,7 +1063,8 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
 
     exit(HasFailure());
   }
-  usleep(1000);  // Ensure subprocess runs
+  // Wait until the child has started.
+  AWAIT_INT_MESSAGE(sock_fds[1], MSG_CHILD_STARTED);
 
   // Send the process descriptor over the pipe to the sub-process
   mh.msg_controllen = CMSG_LEN(sizeof(int));
@@ -1071,13 +1075,15 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
   *(int *)CMSG_DATA(cmptr) = pd_;
   buffer1[0] = 0;
   iov[0].iov_len = 1;
-  sleep(1);
   if (verbose) fprintf(stderr, "[%d] send process descriptor %d on socket\n", getpid_(), pd_);
   int rc = sendmsg(sock_fds[1], &mh, 0);
   EXPECT_OK(rc);
+  // Wait until the child has received the process descriptor.
+  AWAIT_INT_MESSAGE(sock_fds[1], MSG_CHILD_FD_RECEIVED);
 
   if (verbose) fprintf(stderr, "[%d] close process descriptor %d\n", getpid_(), pd_);
   close(pd_);  // Not last open process descriptor
+  SEND_INT_MESSAGE(sock_fds[1], MSG_PARENT_CLOSED_FD);
 
   // wait for child2
   int status;
