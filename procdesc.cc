@@ -858,10 +858,8 @@ TEST_F(PipePdfork, ModeBits) {
 #endif
 
 TEST_F(PipePdfork, WildcardWait) {
-  // TODO(FreeBSD): make wildcard wait ignore pdfork()ed children
-  // https://bugs.freebsd.org/201054
   TerminateChild();
-  sleep(1);  // Ensure child is truly dead.
+  EXPECT_PID_ZOMBIE(pid_);  // Ensure child is truly dead.
 
   // Wildcard waitpid(-1) should not see the pdfork()ed child because
   // there is still a process descriptor for it.
