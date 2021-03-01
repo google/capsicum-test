@@ -528,6 +528,8 @@ TEST(Capmode, Abort) {
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   umask(022);
   mode_t um_before = umask(022);
+  int pipefds[2];
+  EXPECT_OK(pipe(pipefds));
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
   mode_t um = umask(022);
@@ -540,13 +542,19 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   pid_t pid = fork();
   EXPECT_OK(pid);
   if (pid == 0) {
-    // Child: almost immediately exit.
-    sleep(1);
+    // Child: wait for an exit message from parent (so we can test waitpid).
+    EXPECT_OK(close(pipefds[0]));
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
     exit(0);
   } else if (pid > 0) {
+    EXPECT_OK(close(pipefds[1]));
+    AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
     errno = 0;
     EXPECT_CAPMODE(ptrace_(PTRACE_PEEKDATA_, pid, &pid, NULL));
-    EXPECT_CAPMODE(waitpid(pid, NULL, 0));
+    EXPECT_CAPMODE(waitpid(pid, NULL, WNOHANG));
+    SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
+    if (verbose) fprintf(stderr, "  child finished\n");
   }
 
   // No error return from sync(2) to test, but check errno remains unset.
