@@ -149,7 +149,7 @@ FORK_TEST(Openat, Relative) {
 }
 
 #define TOPDIR "cap_topdir"
-#define SUBDIR_ABS TOPDIR "/subdir"
+#define SUBDIR TOPDIR "/subdir"
 class OpenatTest : public ::testing::Test {
  public:
   // Build a collection of files, subdirs and symlinks:
@@ -157,20 +157,20 @@ class OpenatTest : public ::testing::Test {
   //                 /topfile
   //                 /subdir/
   //                 /subdir/bottomfile
-  //                 /symlink.samedir       -> topfile
-  //                 /dsymlink.samedir      -> ./
-  //                 /symlink.down          -> subdir/bottomfile
-  //                 /dsymlink.down         -> subdir/
-  //                 /symlink.absolute_in   -> /tmp/cap_topdir/topfile
-  //                 /dsymlink.absolute_in  -> /tmp/cap_topdir/
-  //                 /symlink.absolute_out  -> /etc/passwd
-  //                 /dsymlink.absolute_out -> /etc/
-  //                 /symlink.relative_in   -> ../../tmp/cap_topdir/topfile
-  //                 /dsymlink.relative_in  -> ../../tmp/cap_topdir/
-  //                 /symlink.relative_out  -> ../../etc/passwd
-  //                 /dsymlink.relative_out -> ../../etc/
-  //                 /subdir/symlink.up     -> ../topfile
-  //                 /subdir/dsymlink.up    -> ../
+  //                 /symlink.samedir              -> topfile
+  //                 /dsymlink.samedir             -> ./
+  //                 /symlink.down                 -> subdir/bottomfile
+  //                 /dsymlink.down                -> subdir/
+  //                 /symlink.absolute_out         -> /etc/passwd
+  //                 /dsymlink.absolute_out        -> /etc/
+  //                 /symlink.relative_in          -> ../../tmp/cap_topdir/topfile
+  //                 /dsymlink.relative_in         -> ../../tmp/cap_topdir/
+  //                 /symlink.relative_out         -> ../../etc/passwd
+  //                 /dsymlink.relative_out        -> ../../etc/
+  //                 /subdir/dsymlink.absolute_in  -> /tmp/cap_topdir/
+  //                 /subdir/dsymlink.up           -> ../
+  //                 /subdir/symlink.absolute_in   -> /tmp/cap_topdir/topfile
+  //                 /subdir/symlink.up            -> ../topfile
   // (In practice, this is a little more complicated because tmpdir might
   // not be "/tmp".)
   OpenatTest() {
@@ -180,7 +180,7 @@ class OpenatTest : public ::testing::Test {
     if (rc < 0) {
       EXPECT_EQ(EEXIST, errno);
     }
-    rc = mkdir(TmpFile(SUBDIR_ABS), 0755);
+    rc = mkdir(TmpFile(SUBDIR), 0755);
     EXPECT_OK(rc);
     if (rc < 0) {
       EXPECT_EQ(EEXIST, errno);
@@ -198,34 +198,34 @@ class OpenatTest : public ::testing::Test {
 
     // Create normal files in each.
     CreateFile(TmpFile(TOPDIR "/topfile"), "Top-level file");
-    CreateFile(TmpFile(SUBDIR_ABS "/bottomfile"), "File in subdirectory");
+    CreateFile(TmpFile(SUBDIR "/bottomfile"), "File in subdirectory");
 
     // Create various symlinks to files.
     EXPECT_OK(symlink("topfile", TmpFile(TOPDIR "/symlink.samedir")));
     EXPECT_OK(symlink("subdir/bottomfile", TmpFile(TOPDIR "/symlink.down")));
-    EXPECT_OK(symlink(TmpFile(TOPDIR "/topfile"), TmpFile(TOPDIR "/symlink.absolute_in")));
+    EXPECT_OK(symlink(TmpFile(TOPDIR "/topfile"), TmpFile(SUBDIR "/symlink.absolute_in")));
     EXPECT_OK(symlink("/etc/passwd", TmpFile(TOPDIR "/symlink.absolute_out")));
     std::string dots2top = dots2root + TmpFile(TOPDIR "/topfile");
     EXPECT_OK(symlink(dots2top.c_str(), TmpFile(TOPDIR "/symlink.relative_in")));
     std::string dots2passwd = dots2root + "/etc/passwd";
     EXPECT_OK(symlink(dots2passwd.c_str(), TmpFile(TOPDIR "/symlink.relative_out")));
-    EXPECT_OK(symlink("../topfile", TmpFile(SUBDIR_ABS "/symlink.up")));
+    EXPECT_OK(symlink("../topfile", TmpFile(SUBDIR "/symlink.up")));
 
     // Create various symlinks to directories.
     EXPECT_OK(symlink("./", TmpFile(TOPDIR "/dsymlink.samedir")));
     EXPECT_OK(symlink("subdir/", TmpFile(TOPDIR "/dsymlink.down")));
-    EXPECT_OK(symlink(TmpFile(TOPDIR "/"), TmpFile(TOPDIR "/dsymlink.absolute_in")));
+    EXPECT_OK(symlink(TmpFile(TOPDIR "/"), TmpFile(SUBDIR "/dsymlink.absolute_in")));
     EXPECT_OK(symlink("/etc/", TmpFile(TOPDIR "/dsymlink.absolute_out")));
     std::string dots2cwd = dots2root + tmpdir + "/";
     EXPECT_OK(symlink(dots2cwd.c_str(), TmpFile(TOPDIR "/dsymlink.relative_in")));
     std::string dots2etc = dots2root + "/etc/";
     EXPECT_OK(symlink(dots2etc.c_str(), TmpFile(TOPDIR "/dsymlink.relative_out")));
-    EXPECT_OK(symlink("../", TmpFile(SUBDIR_ABS "/dsymlink.up")));
+    EXPECT_OK(symlink("../", TmpFile(SUBDIR "/dsymlink.up")));
 
     // Open directory FDs for those directories and for cwd.
     dir_fd_ = open(TmpFile(TOPDIR), O_RDONLY);
     EXPECT_OK(dir_fd_);
-    sub_fd_ = open(TmpFile(SUBDIR_ABS), O_RDONLY);
+    sub_fd_ = open(TmpFile(SUBDIR), O_RDONLY);
     EXPECT_OK(sub_fd_);
     cwd_ = openat(AT_FDCWD, ".", O_RDONLY);
     EXPECT_OK(cwd_);
@@ -237,23 +237,23 @@ class OpenatTest : public ::testing::Test {
     close(cwd_);
     close(sub_fd_);
     close(dir_fd_);
-    unlink(TmpFile(SUBDIR_ABS "/symlink.up"));
-    unlink(TmpFile(TOPDIR "/symlink.absolute_in"));
+    unlink(TmpFile(SUBDIR "/symlink.up"));
+    unlink(TmpFile(SUBDIR "/symlink.absolute_in"));
     unlink(TmpFile(TOPDIR "/symlink.absolute_out"));
     unlink(TmpFile(TOPDIR "/symlink.relative_in"));
     unlink(TmpFile(TOPDIR "/symlink.relative_out"));
     unlink(TmpFile(TOPDIR "/symlink.down"));
     unlink(TmpFile(TOPDIR "/symlink.samedir"));
-    unlink(TmpFile(SUBDIR_ABS "/dsymlink.up"));
-    unlink(TmpFile(TOPDIR "/dsymlink.absolute_in"));
+    unlink(TmpFile(SUBDIR "/dsymlink.up"));
+    unlink(TmpFile(SUBDIR "/dsymlink.absolute_in"));
     unlink(TmpFile(TOPDIR "/dsymlink.absolute_out"));
     unlink(TmpFile(TOPDIR "/dsymlink.relative_in"));
     unlink(TmpFile(TOPDIR "/dsymlink.relative_out"));
     unlink(TmpFile(TOPDIR "/dsymlink.down"));
     unlink(TmpFile(TOPDIR "/dsymlink.samedir"));
-    unlink(TmpFile(SUBDIR_ABS "/bottomfile"));
+    unlink(TmpFile(SUBDIR "/bottomfile"));
     unlink(TmpFile(TOPDIR "/topfile"));
-    rmdir(TmpFile(SUBDIR_ABS));
+    rmdir(TmpFile(SUBDIR));
     rmdir(TmpFile(TOPDIR));
   }
 
@@ -282,18 +282,18 @@ class OpenatTest : public ::testing::Test {
     // Should only be able to open symlinks that stay within the directory.
     EXPECT_OPEN_OK(openat(dir_fd_, "symlink.samedir", O_RDONLY|oflag));
     EXPECT_OPEN_OK(openat(dir_fd_, "symlink.down", O_RDONLY|oflag));
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_in", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.absolute_out", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_in", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "symlink.relative_out", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "symlink.absolute_in", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "symlink.up", O_RDONLY|oflag);
 
     EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.samedir/topfile", O_RDONLY|oflag));
     EXPECT_OPEN_OK(openat(dir_fd_, "dsymlink.down/bottomfile", O_RDONLY|oflag));
-    EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.absolute_out/passwd", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_in/topfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "dsymlink.relative_out/passwd", O_RDONLY|oflag);
+    EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "dsymlink.absolute_in/topfile", O_RDONLY|oflag);
     EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "dsymlink.up/topfile", O_RDONLY|oflag);
 
     // Although recall that O_NOFOLLOW prevents symlink following in final component.
@@ -311,10 +311,10 @@ TEST_F(OpenatTest, WithCapability) {
   // Any kind of symlink can be opened relative to an ordinary directory FD.
   EXPECT_OPEN_OK(openat(dir_fd_, "symlink.samedir", O_RDONLY));
   EXPECT_OPEN_OK(openat(dir_fd_, "symlink.down", O_RDONLY));
-  EXPECT_OPEN_OK(openat(dir_fd_, "symlink.absolute_in", O_RDONLY));
   EXPECT_OPEN_OK(openat(dir_fd_, "symlink.absolute_out", O_RDONLY));
   EXPECT_OPEN_OK(openat(dir_fd_, "symlink.relative_in", O_RDONLY));
   EXPECT_OPEN_OK(openat(dir_fd_, "symlink.relative_out", O_RDONLY));
+  EXPECT_OPEN_OK(openat(sub_fd_, "symlink.absolute_in", O_RDONLY));
   EXPECT_OPEN_OK(openat(sub_fd_, "symlink.up", O_RDONLY));
 
   // Now make both DFDs into Capsicum capabilities.
