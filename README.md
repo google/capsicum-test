@@ -1,5 +1,13 @@
 # Capsicum User Space Tests
 
+***
+
+**NOTE: This repository is no longer maintained.
+[FreeBSD](https://cgit.freebsd.org/src/tree/tests/sys/capsicum) now holds the source-of-truth for
+the Capsicum test suite.**
+
+***
+
 This directory holds unit tests for [Capsicum](http://www.cl.cam.ac.uk/research/security/capsicum/)
 object-capabilities. The tests exercise the syscall interface to a Capsicum-enabled operating system,
 currently either [FreeBSD >=10.x](http://www.freebsd.org) or a modified Linux kernel (the
