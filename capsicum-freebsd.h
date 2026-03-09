@@ -33,7 +33,8 @@ typedef uint32_t cap_fcntl_t;
 typedef unsigned long cap_ioctl_t;
 
 #if __FreeBSD_version >= 1101000
-#define HAVE_OPENAT_INTERMEDIATE_DOTDOT
+// Policing of openat destination is done against final path.
+#define HAVE_OPENAT_BENEATH_BY_LOCATION
 #endif
 
 #endif
